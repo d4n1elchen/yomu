@@ -127,10 +127,6 @@ Undecided deliberately, until there is real reading to ground the choice in.
 
 **Also deferred:** JMnedict, URL and file import, transcription.
 
-## Loose ends
-
-- `.claude/launch.json` carries a LAN IP; arguably belongs in `.env.local`.
-
 ## Open questions
 
 - Which Ollama model beyond `qwen3.8:27b`.

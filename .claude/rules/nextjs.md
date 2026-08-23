@@ -21,6 +21,12 @@ that does not exist. Symptom is a confusing ENOENT deep inside the library.
 server-renders fine but never hydrates — nothing is clickable and there are no
 console errors. It looks exactly like broken React.
 
+The value comes from `YOMU_DEV_ORIGIN` in `.env.local`, never from committed
+config. **That file must be UTF-8.** Next parses `.env` files as UTF-8, so a
+UTF-16 one — which is what PowerShell's `>` and `Set-Content` write by default
+— yields mojibake keys and is ignored without a word, leaving every variable in
+it undefined while the file looks perfectly correct in an editor.
+
 **Sentences render with `id={`sentence-${id}`}`.** Dictionary occurrence links
 target it; keep the id stable. Selection-based Q&A instead reads the
 `data-sentence` / `data-start` / `data-end` attributes on each token span,

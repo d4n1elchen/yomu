@@ -5,11 +5,7 @@
       "name": "yomu-dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "port": 3000,
-      "env": {
-        "YOMU_OLLAMA_URL": "http://192.168.86.202:11434",
-        "YOMU_LLM_MODEL": "qwen3.8:27b"
-      }
+      "port": 3000
     }
   ]
 }
