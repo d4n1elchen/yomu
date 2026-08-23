@@ -129,7 +129,6 @@ Undecided deliberately, until there is real reading to ground the choice in.
 
 ## Loose ends
 
-- No `.gitattributes`, so every file is CRLF-converted on commit.
 - `.claude/launch.json` carries a LAN IP; arguably belongs in `.env.local`.
 
 ## Open questions

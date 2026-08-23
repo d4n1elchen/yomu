@@ -1,0 +1,11 @@
+# Line endings are the repository's decision, not the machine's.
+#
+# Git for Windows ships core.autocrlf=true in its system config, so a clone on
+# Windows checked every file out with CRLF while a clone on macOS or Linux got
+# LF -- and this working tree had drifted into holding both at once. The
+# repository itself has always stored LF; this makes the working tree match it
+# everywhere, whatever any individual has in their global config.
+#
+# `text=auto` still lets git detect and leave binaries alone, so images or
+# fonts added later need no rule here.
+* text=auto eol=lf
