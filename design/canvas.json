@@ -3,29 +3,29 @@
     { "file": "Main.dc.html", "x": 0, "y": 0, "w": 1280, "h": 900, "title": "Yomu — desktop" },
     { "file": "Mobile.dc.html", "x": 1380, "y": 0, "w": 390, "h": 844, "title": "Reader — mobile" },
     { "file": "Explain.dc.html", "x": 1380, "y": 920, "w": 300, "h": 210, "title": "Word explanation" },
-    { "file": "Ask.dc.html", "x": 1720, "y": 920, "w": 400, "h": 330, "title": "Q&A on a selection" }
+    { "file": "Ask.dc.html", "x": 1720, "y": 920, "w": 410, "h": 430, "title": "Q&A chat on a selection" }
   ],
   "annotations": [
     {
       "id": "how-to-use",
       "x": 0,
-      "y": -170,
+      "y": -180,
       "w": 470,
-      "text": "Clickable. Library / Dictionary / New article all navigate, and article rows open the reader.\n\nIn the reader: drag the 難易度 slider to change how many words are marked — that is the frequency threshold. Hover a dashed word for its senses. Click the blue phrase (standing in for a text selection) to open Q&A; note the hover cards stop firing while it is open."
+      "text": "Clickable. Library / Dictionary / New article all navigate, and article rows open the reader.\n\nIn the reader: drag the 難易度 slider to change how many words are marked — that is the frequency threshold. Hover a dashed word for its senses.\n\nClick the blue phrase (standing in for a text selection) to open Q&A. It opens on a greeting, not an answer; pick a suggestion to carry the conversation on. Hover cards stop firing while it is open."
     },
     {
       "id": "changed",
       "x": 520,
-      "y": -170,
+      "y": -180,
       "w": 430,
-      "text": "Changed from the first version:\n\n· Q&A moved from a per-sentence ? button to text selection\n· The Q&A rail is gone — the card sits by the selection\n· Word cards show all senses, not one line\n· Difficulty slider added\n· Grammar column reads zero everywhere\n· JMdict attribution on the Dictionary page"
+      "text": "Changed from the first version:\n\n· Q&A moved from a per-sentence ? button to text selection\n· The rail is gone — the card sits by the selection\n· Q&A is a chat, opening on a templated greeting\n· Word cards show all senses, not one line\n· Difficulty slider added, and it works\n· Grammar reads zero everywhere\n· JMdict attribution on the Dictionary page"
     },
     {
       "id": "still-open",
       "x": 1380,
-      "y": -170,
+      "y": -180,
       "w": 400,
-      "text": "Still open:\n\n· Which Ollama model beyond qwen3.8:27b\n· Whether the reader must work when the model host is unreachable\n· JMnedict, once we can count how many unmatched words are names\n\nThe mobile board shows the OS Copy/Look-Up menu deliberately — it will appear over our card and cannot be suppressed without reimplementing selection."
+      "text": "Still open:\n\n· Which Ollama model beyond qwen3.8:27b\n· Whether the reader must work when the model host is unreachable\n· JMnedict, once we can count how many unmatched words are names\n· UI chrome language: nav is English, controls are Japanese, explanations are Chinese\n\nThe mobile board draws the OS Copy/Look-Up menu deliberately — it will sit over our card and cannot be suppressed without reimplementing selection."
     }
   ],
   "launch": { "view": "canvas" }

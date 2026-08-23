@@ -86,19 +86,27 @@
     <sc-if value="{{isAsk}}" hint-placeholder-val="{{ false }}">
       <div>
         <div style="font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase; color: #a8a296; margin-bottom: 3px;">選択した部分</div>
-        <div class="jp" style="font-size: 15px; margin-bottom: 11px;">読み返していた</div>
+        <div class="jp" style="font-size: 15px; margin-bottom: 12px;">読み返していた</div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px;">
+          <div style="display: flex;">
+            <div style="max-width: 86%; padding: 9px 12px; border-radius: 12px 12px 12px 3px; background: #f4efe7; font-size: 13.5px; line-height: 1.85; white-space: pre-line;">「読み返していた」ですね。
+這個部分想知道什麼？可以直接問，或從下面選一個。</div>
+          </div>
+        </div>
 
         <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;">
           <span style="padding: 5px 11px; border: 1px solid #e2ded4; border-radius: 999px; font-size: 12px; color: #6f6a60;">文法を説明</span>
           <span style="padding: 5px 11px; border: 1px solid #e2ded4; border-radius: 999px; font-size: 12px; color: #6f6a60;">なぜこの形？</span>
         </div>
 
-        <div style="font-size: 12.5px; color: #7a4a2b; margin-bottom: 6px;">「ていた」在這裡表示什麼？</div>
-        <div style="font-size: 13.5px; line-height: 1.9; padding-left: 11px; border-left: 2px solid #7a4a2b;">
-          「〜ていた」是「〜ている」的過去式，表示過去某段時間<strong style="font-weight: 600;">持續進行</strong>的動作。<br>
-          這裡指她當時<strong style="font-weight: 600;">一直在反覆閱讀</strong>，而不是讀了一次就結束。
+        <div style="display: flex; align-items: center; gap: 8px; padding-top: 11px; border-top: 1px solid #efeae1;">
+          <div style="flex-grow: 1; height: 36px; display: flex; align-items: center; padding: 0 12px; border: 1px solid #ded7ca; border-radius: 999px; background: #fbfaf7; font-size: 13px; color: #b3ada1;">質問を入力…</div>
+          <div style="width: 36px; height: 36px; border-radius: 50%; background: #7a4a2b; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fbfaf7" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M12 5l7 7-7 7"></path></svg>
+          </div>
         </div>
-        <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #efeae1; font-size: 11px; color: #b3ada1;">保存されません — 閉じると消えます</div>
+        <div style="margin-top: 10px; font-size: 11px; color: #b3ada1;">保存されません — 閉じると消えます</div>
       </div>
     </sc-if>
 

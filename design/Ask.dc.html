@@ -12,46 +12,103 @@
     body { margin: 0; font-family: 'IBM Plex Sans', system-ui, sans-serif; }
     a { color: #7a4a2b; } a:hover { color: #5c3620; }
     .jp { font-family: 'Noto Serif JP', 'Hiragino Mincho ProN', 'Yu Mincho', serif; }
-    .chip:hover { border-color: #7a4a2b; color: #7a4a2b; }
+    .chip:hover { border-color: #7a4a2b; color: #7a4a2b; background: #faf6ef; }
   </style>
 </helmet>
 
-<div style="position: absolute; top: 100%; left: -12px; margin-top: 12px; width: 380px; z-index: 60; background: #ffffff; border: 1px solid #ded7ca; border-radius: 9px; box-shadow: 0 10px 34px rgba(34,32,28,0.17); padding: 14px 16px 16px; text-align: left; cursor: default; line-height: 1.5;">
+<div style="position: absolute; top: 100%; left: -12px; margin-top: 12px; width: 390px; z-index: 60; background: #ffffff; border: 1px solid #ded7ca; border-radius: 10px; box-shadow: 0 12px 38px rgba(34,32,28,0.18); text-align: left; cursor: default; line-height: 1.5; display: flex; flex-direction: column; overflow: hidden;">
 
-  <div style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 11px;">
-    <div>
+  <!-- what you selected -->
+  <div style="display: flex; align-items: flex-start; gap: 10px; padding: 12px 15px 11px; border-bottom: 1px solid #efeae1; background: #fbfaf7;">
+    <div style="min-width: 0;">
       <div style="font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase; color: #a8a296; margin-bottom: 3px;">選択した部分</div>
       <div class="jp" style="font-size: 15px; color: #22201c;">{{selection}}</div>
     </div>
     <div style="margin-left: auto; font-size: 19px; color: #b3ada1; line-height: 1; cursor: pointer;">×</div>
   </div>
 
-  <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;">
-    <span class="chip" style="padding: 5px 11px; border: 1px solid #e2ded4; border-radius: 999px; font-size: 12px; color: #6f6a60; cursor: pointer;">文法を説明</span>
-    <span class="chip" style="padding: 5px 11px; border: 1px solid #e2ded4; border-radius: 999px; font-size: 12px; color: #6f6a60; cursor: pointer;">なぜこの形？</span>
-    <span class="chip" style="padding: 5px 11px; border: 1px solid #e2ded4; border-radius: 999px; font-size: 12px; color: #6f6a60; cursor: pointer;">語感の違い</span>
+  <!-- conversation -->
+  <div style="padding: 13px 15px 4px; max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 11px;">
+    <sc-for list="{{messages}}" as="m" hint-placeholder-count="1">
+      <div style="display: flex; justify-content: {{m.align}};">
+        <div style="max-width: 84%; padding: 9px 12px; border-radius: {{m.radius}}; background: {{m.bg}}; color: {{m.fg}}; font-size: 13.5px; line-height: 1.85; white-space: pre-line;">{{m.text}}</div>
+      </div>
+    </sc-for>
   </div>
 
-  <div style="font-size: 12.5px; color: #7a4a2b; margin-bottom: 7px;">「つもりだ」是什麼意思？</div>
+  <!-- suggestions -->
+  <sc-if value="{{showChips}}" hint-placeholder-val="{{ true }}">
+    <div style="display: flex; gap: 6px; flex-wrap: wrap; padding: 9px 15px 4px;">
+      <sc-for list="{{chips}}" as="c" hint-placeholder-count="3">
+        <span class="chip" onClick="{{c.pick}}" style="padding: 5px 11px; border: 1px solid #e2ded4; border-radius: 999px; font-size: 12px; color: #6f6a60; cursor: pointer;">{{c.label}}</span>
+      </sc-for>
+    </div>
+  </sc-if>
 
-  <div style="font-size: 13.5px; line-height: 1.95; color: #22201c; padding-left: 11px; border-left: 2px solid #7a4a2b;">
-    <strong style="font-weight: 600;">〜つもりだ</strong> 接在動詞辭書形後，表示<strong style="font-weight: 600;">說話者的意圖或打算</strong>。<br>
-    這裡的「読み終わるつもりだ」是「打算讀完」，語氣比「〜たい」（想要）更確定，含有已經計畫好的意味。<br>
-    否定用「〜ないつもりだ」（打算不做），與「〜つもりはない」（沒有打算）語氣不同。
+  <!-- composer -->
+  <div style="display: flex; align-items: center; gap: 8px; padding: 11px 15px 12px; margin-top: 6px; border-top: 1px solid #efeae1;">
+    <div style="flex-grow: 1; height: 34px; display: flex; align-items: center; padding: 0 11px; border: 1px solid #ded7ca; border-radius: 999px; background: #fbfaf7; font-size: 13px; color: #b3ada1;">質問を入力…</div>
+    <div style="width: 34px; height: 34px; border-radius: 50%; background: #7a4a2b; display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fbfaf7" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M12 5l7 7-7 7"></path></svg>
+    </div>
   </div>
 
-  <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #efeae1; font-size: 11px; color: #b3ada1;">
-    保存されません — 閉じると消えます
-  </div>
+  <div style="padding: 0 15px 11px; font-size: 11px; color: #b3ada1;">保存されません — 閉じると消えます</div>
 
-  <div style="position: absolute; bottom: 100%; left: 24px; width: 10px; height: 10px; margin-bottom: -5px; transform: rotate(45deg); background: #ffffff; border-left: 1px solid #ded7ca; border-top: 1px solid #ded7ca;"></div>
+  <div style="position: absolute; bottom: 100%; left: 24px; width: 10px; height: 10px; margin-bottom: -5px; transform: rotate(45deg); background: #fbfaf7; border-left: 1px solid #ded7ca; border-top: 1px solid #ded7ca;"></div>
 </div>
 </x-dc>
 
-<script data-dc-script data-props='{"selection":{"editor":"text","default":"読み終わるつもりだ"},"$preview":{"width":400,"height":320}}'>
+<script data-dc-script data-props='{"selection":{"editor":"text","default":"読み終わるつもりだ"},"$preview":{"width":410,"height":420}}'>
 class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { turns: [] };
+  }
+
   renderVals() {
-    return { selection: this.props.selection ?? '読み終わるつもりだ' };
+    const selection = this.props.selection ?? '読み終わるつもりだ';
+
+    // Canned exchanges so the prototype feels like a conversation.
+    const answers = {
+      '文法を説明':
+        '這裡的重點是 **〜つもりだ**：接在動詞辭書形後，表示說話者的意圖或打算。\n\n「読み終わるつもりだ」＝「打算讀完」。語氣比「〜たい」（想要）更確定，含有已經計畫好的意味。',
+      'なぜこの形？':
+        '「読み終わる」是複合動詞：読む＋終わる，表示「把某事讀到結束」。\n\n因為「つもりだ」要接辭書形，所以用「終わる」而不是「終わって」或「終わった」。',
+      '語感の違い':
+        '和「読み終わるだろう」相比：\n\n・つもりだ — 說話者自己的打算，可控。\n・だろう — 對事情的推測，不一定由自己決定。\n\n所以這句透露的是決心，不是預測。'
+    };
+
+    const greeting =
+      `「${selection}」ですね。\n這個部分想知道什麼？可以直接問，或從下面選一個。`;
+
+    const bubble = (role, text) =>
+      role === 'user'
+        ? { align: 'flex-end', bg: '#7a4a2b', fg: '#fbfaf7',
+            radius: '12px 12px 3px 12px', text }
+        : { align: 'flex-start', bg: '#f4efe7', fg: '#22201c',
+            radius: '12px 12px 12px 3px', text };
+
+    const messages = [bubble('assistant', greeting)];
+    for (const t of this.state.turns) {
+      messages.push(bubble('user', t));
+      messages.push(bubble('assistant', answers[t] ?? ''));
+    }
+
+    const asked = this.state.turns;
+    const chips = Object.keys(answers)
+      .filter((k) => !asked.includes(k))
+      .map((label) => ({
+        label,
+        pick: () => this.setState({ turns: asked.concat([label]) })
+      }));
+
+    return {
+      selection,
+      messages,
+      chips,
+      showChips: chips.length > 0
+    };
   }
 }
 </script>

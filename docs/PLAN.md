@@ -25,9 +25,17 @@ Fully decided, no new data required.
 
 ### Selection-based Q&A
 
-Select any text in the reader; a card opens. Desktop places it near the
-selection, mobile as a bottom card — the same split already chosen for word
+Select any text in the reader; a **chat dialog** opens. Desktop places it near
+the selection, mobile as a bottom card — the same split already chosen for word
 explanations.
+
+It opens on a **templated greeting**, not an answer, so the card appears
+instantly rather than after a generation. From there it is a conversation:
+suggestion chips to start, a composer to keep going. Multi-turn, so the request
+carries the running message list alongside the selection context.
+
+Ephemeral means the whole thread — the greeting is regenerated next time you
+select the same text, and nothing is stored.
 
 - Selections may span sentences. All covered sentences and their tokenization
   go to the model as context, so a fragment is still explained in context.
