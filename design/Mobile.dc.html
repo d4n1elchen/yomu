@@ -30,7 +30,7 @@
     <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#6f6a60" stroke-width="2" stroke-linecap="round"><path d="M15 18l-6-6 6-6"></path></svg>
     <div class="jp" style="flex-grow: 1; font-size: 16px; font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">図書館の午後</div>
     <div style="display: flex; align-items: center; gap: 7px;">
-      <span style="font-size: 11.5px; color: #22201c;">語彙</span>
+      <span style="font-size: 11.5px; color: #22201c;">詞彙</span>
       <div style="width: 34px; height: 20px; border-radius: 999px; background: #7a4a2b; padding: 2px; display: flex; justify-content: flex-end;">
         <div style="width: 16px; height: 16px; border-radius: 50%; background: #ffffff; box-shadow: 0 1px 2px rgba(0,0,0,0.25);"></div>
       </div>
@@ -39,8 +39,8 @@
 
   <!-- which panel to preview -->
   <div style="display: flex; gap: 6px; padding: 10px 16px 0;">
-    <div class="tab {{wordTab}}" onClick="{{showWord}}">tap a word</div>
-    <div class="tab {{askTab}}" onClick="{{showAsk}}">select text</div>
+    <div class="tab {{wordTab}}" onClick="{{showWord}}">點選詞彙</div>
+    <div class="tab {{askTab}}" onClick="{{showAsk}}">選取文字</div>
   </div>
 
   <!-- text -->
@@ -70,7 +70,7 @@
           <span class="jp" style="font-size: 14px; color: #8f887c;">ながめる</span>
           <span style="margin-left: auto; padding: 3px 9px; border-radius: 999px; background: #f4efe7; color: #7a4a2b; font-size: 11px;">動詞</span>
         </div>
-        <div style="font-size: 12px; color: #a8a296; margin-bottom: 9px;">この文では <span class="jp" style="color: #6f6a60;">眺め</span></div>
+        <div style="font-size: 12px; color: #a8a296; margin-bottom: 9px;">這裡的形式 <span class="jp" style="color: #6f6a60;">眺め</span></div>
         <ol style="margin: 0; padding-left: 18px;">
           <li style="font-size: 14px; line-height: 1.85; color: #3d3a34;">眺望；遠望</li>
           <li style="font-size: 14px; line-height: 1.85; color: #3d3a34;">凝視；注視</li>
@@ -85,28 +85,28 @@
 
     <sc-if value="{{isAsk}}" hint-placeholder-val="{{ false }}">
       <div>
-        <div style="font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase; color: #a8a296; margin-bottom: 3px;">選択した部分</div>
+        <div style="font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase; color: #a8a296; margin-bottom: 3px;">選取的部分</div>
         <div class="jp" style="font-size: 15px; margin-bottom: 12px;">読み返していた</div>
 
         <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px;">
           <div style="display: flex;">
-            <div style="max-width: 86%; padding: 9px 12px; border-radius: 12px 12px 12px 3px; background: #f4efe7; font-size: 13.5px; line-height: 1.85; white-space: pre-line;">「読み返していた」ですね。
-這個部分想知道什麼？可以直接問，或從下面選一個。</div>
+            <div style="max-width: 86%; padding: 9px 12px; border-radius: 12px 12px 12px 3px; background: #f4efe7; font-size: 13.5px; line-height: 1.85; white-space: pre-line;">「読み返していた」
+想知道這個部分的什麼呢？可以直接問，或從下面選一個。</div>
           </div>
         </div>
 
         <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;">
-          <span style="padding: 5px 11px; border: 1px solid #e2ded4; border-radius: 999px; font-size: 12px; color: #6f6a60;">文法を説明</span>
-          <span style="padding: 5px 11px; border: 1px solid #e2ded4; border-radius: 999px; font-size: 12px; color: #6f6a60;">なぜこの形？</span>
+          <span style="padding: 5px 11px; border: 1px solid #e2ded4; border-radius: 999px; font-size: 12px; color: #6f6a60;">說明文法</span>
+          <span style="padding: 5px 11px; border: 1px solid #e2ded4; border-radius: 999px; font-size: 12px; color: #6f6a60;">為何是這個形式？</span>
         </div>
 
         <div style="display: flex; align-items: center; gap: 8px; padding-top: 11px; border-top: 1px solid #efeae1;">
-          <div style="flex-grow: 1; height: 36px; display: flex; align-items: center; padding: 0 12px; border: 1px solid #ded7ca; border-radius: 999px; background: #fbfaf7; font-size: 13px; color: #b3ada1;">質問を入力…</div>
+          <div style="flex-grow: 1; height: 36px; display: flex; align-items: center; padding: 0 12px; border: 1px solid #ded7ca; border-radius: 999px; background: #fbfaf7; font-size: 13px; color: #b3ada1;">輸入問題…</div>
           <div style="width: 36px; height: 36px; border-radius: 50%; background: #7a4a2b; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fbfaf7" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M12 5l7 7-7 7"></path></svg>
           </div>
         </div>
-        <div style="margin-top: 10px; font-size: 11px; color: #b3ada1;">保存されません — 閉じると消えます</div>
+        <div style="margin-top: 10px; font-size: 11px; color: #b3ada1;">不會儲存 — 關閉後即消失</div>
       </div>
     </sc-if>
 

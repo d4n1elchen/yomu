@@ -11,6 +11,18 @@ ever described the presentation.
 
 Adding an article is its own page, not a dialog and not on the home screen.
 
+## Interface language
+
+**Traditional Chinese throughout** — navigation, controls, labels, and
+explanations. The interface had drifted into three languages at once (English
+nav, Japanese controls, Chinese explanations), each a reasonable local choice
+that together read as unconsidered.
+
+The only Japanese on screen is the material being studied: article text,
+dictionary headwords, readings, inflected forms. That is the line — if it is
+something you are learning, it stays Japanese; if it is the app talking to you,
+it is Chinese.
+
 ## Phase A — UI restructure
 
 Fully decided, no new data required.

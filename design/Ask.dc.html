@@ -21,7 +21,7 @@
   <!-- what you selected -->
   <div style="display: flex; align-items: flex-start; gap: 10px; padding: 12px 15px 11px; border-bottom: 1px solid #efeae1; background: #fbfaf7;">
     <div style="min-width: 0;">
-      <div style="font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase; color: #a8a296; margin-bottom: 3px;">選択した部分</div>
+      <div style="font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase; color: #a8a296; margin-bottom: 3px;">選取的部分</div>
       <div class="jp" style="font-size: 15px; color: #22201c;">{{selection}}</div>
     </div>
     <div style="margin-left: auto; font-size: 19px; color: #b3ada1; line-height: 1; cursor: pointer;">×</div>
@@ -47,13 +47,13 @@
 
   <!-- composer -->
   <div style="display: flex; align-items: center; gap: 8px; padding: 11px 15px 12px; margin-top: 6px; border-top: 1px solid #efeae1;">
-    <div style="flex-grow: 1; height: 34px; display: flex; align-items: center; padding: 0 11px; border: 1px solid #ded7ca; border-radius: 999px; background: #fbfaf7; font-size: 13px; color: #b3ada1;">質問を入力…</div>
+    <div style="flex-grow: 1; height: 34px; display: flex; align-items: center; padding: 0 11px; border: 1px solid #ded7ca; border-radius: 999px; background: #fbfaf7; font-size: 13px; color: #b3ada1;">輸入問題…</div>
     <div style="width: 34px; height: 34px; border-radius: 50%; background: #7a4a2b; display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer;">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fbfaf7" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M12 5l7 7-7 7"></path></svg>
     </div>
   </div>
 
-  <div style="padding: 0 15px 11px; font-size: 11px; color: #b3ada1;">保存されません — 閉じると消えます</div>
+  <div style="padding: 0 15px 11px; font-size: 11px; color: #b3ada1;">不會儲存 — 關閉後即消失</div>
 
   <div style="position: absolute; bottom: 100%; left: 24px; width: 10px; height: 10px; margin-bottom: -5px; transform: rotate(45deg); background: #fbfaf7; border-left: 1px solid #ded7ca; border-top: 1px solid #ded7ca;"></div>
 </div>
@@ -71,16 +71,16 @@ class Component extends DCLogic {
 
     // Canned exchanges so the prototype feels like a conversation.
     const answers = {
-      '文法を説明':
+      '說明文法':
         '這裡的重點是 **〜つもりだ**：接在動詞辭書形後，表示說話者的意圖或打算。\n\n「読み終わるつもりだ」＝「打算讀完」。語氣比「〜たい」（想要）更確定，含有已經計畫好的意味。',
-      'なぜこの形？':
+      '為何是這個形式？':
         '「読み終わる」是複合動詞：読む＋終わる，表示「把某事讀到結束」。\n\n因為「つもりだ」要接辭書形，所以用「終わる」而不是「終わって」或「終わった」。',
-      '語感の違い':
+      '語感差異':
         '和「読み終わるだろう」相比：\n\n・つもりだ — 說話者自己的打算，可控。\n・だろう — 對事情的推測，不一定由自己決定。\n\n所以這句透露的是決心，不是預測。'
     };
 
     const greeting =
-      `「${selection}」ですね。\n這個部分想知道什麼？可以直接問，或從下面選一個。`;
+      `「${selection}」\n想知道這個部分的什麼呢？可以直接問，或從下面選一個。`;
 
     const bubble = (role, text) =>
       role === 'user'

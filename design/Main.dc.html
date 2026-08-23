@@ -30,13 +30,13 @@
   <div style="display: flex; align-items: center; gap: 28px; padding: 0 40px; height: 66px; border-bottom: 1px solid #e2ded4; flex-shrink: 0;">
     <div class="jp" onClick="{{goLibrary}}" style="font-size: 20px; font-weight: 600; cursor: pointer;">読む</div>
     <div style="display: flex; gap: 4px;">
-      <div class="navitem" onClick="{{goLibrary}}" style="padding: 7px 14px; border-radius: 6px; font-size: 14px; cursor: pointer; background: {{tabLibBg}}; color: {{tabLibFg}}; font-weight: {{tabLibWeight}};">Library</div>
-      <div class="navitem" onClick="{{goDict}}" style="padding: 7px 14px; border-radius: 6px; font-size: 14px; cursor: pointer; background: {{tabDictBg}}; color: {{tabDictFg}}; font-weight: {{tabDictWeight}};">Dictionary</div>
+      <div class="navitem" onClick="{{goLibrary}}" style="padding: 7px 14px; border-radius: 6px; font-size: 14px; cursor: pointer; background: {{tabLibBg}}; color: {{tabLibFg}}; font-weight: {{tabLibWeight}};">文章庫</div>
+      <div class="navitem" onClick="{{goDict}}" style="padding: 7px 14px; border-radius: 6px; font-size: 14px; cursor: pointer; background: {{tabDictBg}}; color: {{tabDictFg}}; font-weight: {{tabDictWeight}};">辭典</div>
     </div>
     <div style="flex-grow: 1;"></div>
     <div onClick="{{goNew}}" style="display: flex; align-items: center; gap: 7px; height: 36px; padding: 0 15px; border: 1px solid #7a4a2b; border-radius: 6px; color: #7a4a2b; font-size: 14px; font-weight: 500; cursor: pointer;">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7a4a2b" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
-      New article
+      新增文章
     </div>
   </div>
 
@@ -44,13 +44,13 @@
   <sc-if value="{{isLibrary}}" hint-placeholder-val="{{ true }}">
     <div style="flex-grow: 1; padding: 44px 40px; overflow: hidden;">
       <div style="max-width: 860px; margin: 0 auto;">
-        <h1 style="margin: 0 0 28px; font-size: 24px; font-weight: 600; letter-spacing: -0.01em;">Library</h1>
+        <h1 style="margin: 0 0 28px; font-size: 24px; font-weight: 600; letter-spacing: -0.01em;">文章庫</h1>
 
         <div style="display: grid; grid-template-columns: 1fr 130px 90px 90px; gap: 0 24px; padding: 0 16px 10px; border-bottom: 1px solid #e2ded4; font-size: 11.5px; letter-spacing: 0.07em; text-transform: uppercase; color: #a8a296;">
-          <div>Title</div>
-          <div>Last read</div>
-          <div style="text-align: right;">Vocab</div>
-          <div style="text-align: right;">Grammar</div>
+          <div>標題</div>
+          <div>最近閱讀</div>
+          <div style="text-align: right;">詞彙</div>
+          <div style="text-align: right;">文法</div>
         </div>
 
         <sc-for list="{{articles}}" as="a" hint-placeholder-count="4">
@@ -62,7 +62,7 @@
           </div>
         </sc-for>
 
-        <p style="margin-top: 18px; font-size: 12px; color: #b3ada1;">Grammar reads zero everywhere — grammar is deferred until it has a natural key.</p>
+        <p style="margin-top: 18px; font-size: 12px; color: #b3ada1;">文法一律顯示 0 — 在找到自然鍵之前暫緩實作。</p>
       </div>
     </div>
   </sc-if>
@@ -73,24 +73,24 @@
       <div style="max-width: 660px; margin: 0 auto;">
         <div onClick="{{goLibrary}}" style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #8f887c; margin-bottom: 18px; cursor: pointer;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8f887c" stroke-width="2" stroke-linecap="round"><path d="M15 18l-6-6 6-6"></path></svg>
-          Library
+          文章庫
         </div>
-        <h1 style="margin: 0 0 6px; font-size: 24px; font-weight: 600;">New article</h1>
-        <p style="margin: 0 0 28px; font-size: 14px; color: #8f887c;">Paste Japanese text. New words are added to your Dictionary and translated in the background.</p>
+        <h1 style="margin: 0 0 6px; font-size: 24px; font-weight: 600;">新增文章</h1>
+        <p style="margin: 0 0 28px; font-size: 14px; color: #8f887c;">貼上日文。新詞會加入辭典，並在背景翻譯。</p>
 
         <label style="display: block; margin-bottom: 18px;">
-          <span style="display: block; font-size: 11.5px; letter-spacing: 0.07em; text-transform: uppercase; color: #a8a296; margin-bottom: 7px;">Title</span>
-          <div style="height: 42px; display: flex; align-items: center; padding: 0 13px; border: 1px solid #d6d0c4; border-radius: 6px; background: #ffffff; font-size: 15px; color: #b3ada1;">Optional</div>
+          <span style="display: block; font-size: 11.5px; letter-spacing: 0.07em; text-transform: uppercase; color: #a8a296; margin-bottom: 7px;">標題</span>
+          <div style="height: 42px; display: flex; align-items: center; padding: 0 13px; border: 1px solid #d6d0c4; border-radius: 6px; background: #ffffff; font-size: 15px; color: #b3ada1;">選填</div>
         </label>
 
         <label style="display: block; margin-bottom: 20px;">
-          <span style="display: block; font-size: 11.5px; letter-spacing: 0.07em; text-transform: uppercase; color: #a8a296; margin-bottom: 7px;">Japanese text</span>
+          <span style="display: block; font-size: 11.5px; letter-spacing: 0.07em; text-transform: uppercase; color: #a8a296; margin-bottom: 7px;">日文原文</span>
           <div class="jp" style="height: 290px; padding: 14px 15px; border: 1px solid #d6d0c4; border-radius: 6px; background: #ffffff; font-size: 16px; line-height: 2; color: #b3ada1;">ここに日本語を貼り付けてください。</div>
         </label>
 
         <div style="display: flex; align-items: center; gap: 12px;">
-          <div onClick="{{goReader}}" style="height: 40px; display: flex; align-items: center; padding: 0 20px; border-radius: 6px; background: #7a4a2b; color: #fbfaf7; font-size: 14.5px; font-weight: 500; cursor: pointer;">Add article</div>
-          <div onClick="{{goLibrary}}" style="height: 40px; display: flex; align-items: center; padding: 0 16px; border-radius: 6px; color: #6f6a60; font-size: 14.5px; cursor: pointer;">Cancel</div>
+          <div onClick="{{goReader}}" style="height: 40px; display: flex; align-items: center; padding: 0 20px; border-radius: 6px; background: #7a4a2b; color: #fbfaf7; font-size: 14.5px; font-weight: 500; cursor: pointer;">新增文章</div>
+          <div onClick="{{goLibrary}}" style="height: 40px; display: flex; align-items: center; padding: 0 16px; border-radius: 6px; color: #6f6a60; font-size: 14.5px; cursor: pointer;">取消</div>
         </div>
       </div>
     </div>
@@ -104,11 +104,11 @@
         <div style="display: flex; align-items: flex-end; gap: 20px; margin-bottom: 8px;">
           <div>
             <div class="jp" style="font-size: 21px; font-weight: 600;">図書館の午後</div>
-            <div style="font-size: 12.5px; color: #a8a296; margin-top: 3px;">5 sentences · 43 words</div>
+            <div style="font-size: 12.5px; color: #a8a296; margin-top: 3px;">5 個句子 · 43 個詞</div>
           </div>
           <div style="flex-grow: 1;"></div>
           <div onClick="{{toggleExplain}}" style="display: flex; align-items: center; gap: 9px; cursor: pointer;">
-            <span style="font-size: 13px; color: {{switchLabel}};">語彙解説</span>
+            <span style="font-size: 13px; color: {{switchLabel}};">詞彙解說</span>
             <div style="width: 38px; height: 22px; border-radius: 999px; background: {{switchTrack}}; padding: 2px; display: flex; justify-content: {{switchJustify}};">
               <div style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; box-shadow: 0 1px 2px rgba(0,0,0,0.25);"></div>
             </div>
@@ -119,7 +119,7 @@
         <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0 20px; border-bottom: 1px solid #ece7dd; margin-bottom: 26px; opacity: {{sliderOpacity}};">
           <span style="font-size: 11.5px; letter-spacing: 0.06em; text-transform: uppercase; color: #a8a296; white-space: nowrap;">難易度</span>
           <input type="range" min="0" max="5" step="1" value="{{band}}" onChange="{{setBand}}" style="flex-grow: 1; max-width: 260px;">
-          <span style="font-size: 12px; color: #8f887c; white-space: nowrap;">{{markedCount}} words marked</span>
+          <span style="font-size: 12px; color: #8f887c; white-space: nowrap;">已標記 {{markedCount}} 個詞</span>
         </div>
 
         <div class="jp" style="font-size: 19px; line-height: 3.0;">
@@ -137,7 +137,7 @@
         </div>
 
         <p style="margin-top: 26px; font-size: 12px; color: #b3ada1; font-family: 'IBM Plex Sans', system-ui, sans-serif;">
-          Hover a dashed word for its explanation. The highlighted phrase stands in for a text selection — click it to open Q&amp;A. Note that hover cards are suppressed while it is open.
+          將滑鼠移到虛線詞可看解說。藍底片語代表一段選取的文字 — 點它開啟問答。問答開啟時，詞彙卡片會被抑制。
         </p>
       </div>
     </div>
@@ -150,7 +150,7 @@
 
         <div onClick="{{goDict}}" style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #8f887c; margin-bottom: 18px; cursor: pointer;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8f887c" stroke-width="2" stroke-linecap="round"><path d="M15 18l-6-6 6-6"></path></svg>
-          Dictionary
+          辭典
         </div>
 
         <div style="display: flex; align-items: flex-end; gap: 15px; margin-bottom: 6px;">
@@ -161,7 +161,7 @@
         </div>
 
         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 28px;">
-          <span style="font-size: 12.5px; color: #a8a296;">Forms seen</span>
+          <span style="font-size: 12.5px; color: #a8a296;">出現形式</span>
           <div class="jp" style="padding: 3px 10px; border: 1px solid #e2ded4; border-radius: 4px; font-size: 14px;">読ん</div>
           <div class="jp" style="padding: 3px 10px; border: 1px solid #e2ded4; border-radius: 4px; font-size: 14px;">読み</div>
         </div>
@@ -176,7 +176,7 @@
           </sc-for>
         </ol>
 
-        <div style="font-size: 11.5px; letter-spacing: 0.07em; text-transform: uppercase; color: #a8a296; margin-bottom: 14px;">4 occurrences · 2 articles</div>
+        <div style="font-size: 11.5px; letter-spacing: 0.07em; text-transform: uppercase; color: #a8a296; margin-bottom: 14px;">4 次出現 · 2 篇文章</div>
 
         <sc-for list="{{groups}}" as="g" hint-placeholder-count="2">
           <div style="margin-bottom: 22px;">
@@ -187,7 +187,7 @@
           </div>
         </sc-for>
 
-        <p style="font-size: 11.5px; color: #b3ada1; border-top: 1px solid #ece7dd; padding-top: 14px;">Definitions from JMdict, © Electronic Dictionary Research and Development Group, used under licence. Chinese by machine translation.</p>
+        <p style="font-size: 11.5px; color: #b3ada1; border-top: 1px solid #ece7dd; padding-top: 14px;">釋義來自 JMdict，© Electronic Dictionary Research and Development Group，依授權使用。中文為機器翻譯。</p>
       </div>
     </div>
   </sc-if>

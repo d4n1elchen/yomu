@@ -1,7 +1,10 @@
 # Yomu
 
-Explanations shown to the reader are **Traditional Chinese (Taiwan usage)**,
-never Simplified, never English.
+**All user-facing text is Traditional Chinese (Taiwan usage)** — interface
+chrome and explanations alike. Never Simplified, never English.
+
+The only Japanese on screen is the material being studied: article text,
+dictionary headwords, readings, and inflected forms.
 
 ## Division of labour
 
