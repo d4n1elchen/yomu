@@ -15,6 +15,13 @@
       "when": 1787456716267,
       "tag": "0001_square_blink",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1787511352123,
+      "tag": "0002_adorable_speed",
+      "breakpoints": true
     }
   ]
 }

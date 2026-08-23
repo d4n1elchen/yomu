@@ -25,5 +25,6 @@ entirely — the sentence's main grammar point.
 response has begun, a failure has to travel in the body — the status code is
 already sent.
 
-**Persist after the stream completes**, with the `sentenceRevision` the question
-was asked against and the provider and model ids for attribution.
+**Store nothing.** Q&A is a lookup, not a record — it streams and is discarded
+when the panel closes. Durable learning belongs in the Dictionary as entries and
+occurrences, not as saved prose.

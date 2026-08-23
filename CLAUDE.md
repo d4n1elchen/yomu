@@ -19,13 +19,12 @@ Breaking these fails silently, and each one is load-bearing for the Library.
 - `writeSentenceTokens` in `src/lib/import/tokens.ts` is the only place token
   rows are written. Do not add a second writer.
 - A vocab occurrence *is* the `token` row. Never add a vocab occurrence table.
-  Grammar occurrences are different — they are recorded during Q&A, not derived.
 - `lexeme` identity is `(dictionary, lemma, reading, pos)` where `reading` is
   the reading of the **lemma**, not the surface. Using the surface reading files
   every inflection separately and defeats the grouping.
-- Anchors into a sentence (`question`, and grammar occurrences later) carry
-  `sentenceRevision`, so an edited sentence marks them stale rather than
-  silently mis-positioning them.
+- Q&A is ephemeral: it streams an answer and stores nothing. Anything that
+  anchors into a sentence later must carry `sentenceRevision`, so an edit marks
+  it stale rather than silently mis-positioning it.
 - Never garbage-collect orphaned lexemes — the user may have learned the word.
 - `needsReview` gates the Library. Transcription errors tokenize as cleanly as
   real Japanese; new Library queries must keep the filter.

@@ -150,34 +150,6 @@ export const tokens = sqliteTable(
   ],
 );
 
-export const questions = sqliteTable(
-  'question',
-  {
-    id: text('id').primaryKey(),
-    sentenceId: text('sentence_id')
-      .notNull()
-      .references(() => sentences.id, { onDelete: 'cascade' }),
-    /**
-     * The revision this answer was written against. When the sentence is later
-     * corrected, `sentenceRevision < sentence.revision` marks the answer stale
-     * -- shown as such rather than deleted or silently mis-anchored.
-     */
-    sentenceRevision: integer('sentence_revision').notNull(),
-    /** Optional sub-span of the sentence the reader asked about. */
-    charStart: integer('char_start'),
-    charEnd: integer('char_end'),
-    prompt: text('prompt').notNull(),
-    answer: text('answer').notNull(),
-    /** Attribution, so an explanation can be judged by what produced it. */
-    providerId: text('provider_id').notNull(),
-    modelId: text('model_id').notNull(),
-    createdAt: integer('created_at')
-      .notNull()
-      .default(sql`(unixepoch())`),
-  },
-  (t) => [index('question_sentence_idx').on(t.sentenceId, t.createdAt)],
-);
-
 /*
  * ---------------------------------------------------------------------------
  * Designed for, deliberately not created yet.
@@ -189,17 +161,30 @@ export const questions = sqliteTable(
  *   and not on `token` (storing "hard" per token means rewriting every token
  *   when you learn a word) or on `lexeme`.
  *
- * grammar_entry(id, name, canonicalForm, summaryZhHant, status, createdAt)
- *   `status` is 'proposed' | 'confirmed'. The agent proposes; you confirm.
- *   Letting a local model freely decide "is this grammar point genuinely new"
- *   fragments the library into near-duplicates.
+ * dict_entry / dict_sense
+ *   JMdict imported for meanings and frequency rank. Entries keep their JMdict
+ *   id, so the simplified JSON (structure, glosses) and the original XML
+ *   (frequency bands, which the JSON conversion drops) can be joined without
+ *   any matching work. Senses carry an English gloss plus a Traditional Chinese
+ *   translation produced lazily on first encounter, with the model that wrote
+ *   it recorded alongside -- same reason `section.analyzerId` exists.
  *
- * grammar_occurrence(id, grammarEntryId, sentenceId, sentenceRevision,
- *                    questionId, note)
- *   Carries sentenceRevision for the same reason `question` does: when a
- *   sentence is corrected, anchor.sentenceRevision < sentence.revision marks
- *   the anchor stale, to be surfaced rather than deleted or mis-positioned.
- *   `questionId` records which question first produced the entry.
+ * ---------------------------------------------------------------------------
+ * Grammar: deferred, and the earlier design was wrong.
+ * ---------------------------------------------------------------------------
+ *
+ * An earlier sketch here had grammar entries recorded during Q&A, with the
+ * agent deciding whether a point was new. That does not work: vocabulary
+ * dedups on a natural key the analyzer derives mechanically, while a model
+ * inventing names for grammar points produces near-duplicates that only become
+ * visible once the collection is large enough to matter.
+ *
+ * Grammar needs a natural key before it can work the way vocabulary does --
+ * either token-stream patterns matched deterministically as you read, or a
+ * fixed inventory the model may only select from, never name. Undecided, and
+ * deliberately not built until there is real reading to ground it in.
+ *
+ * Q&A is not the mechanism of record. It streams an answer and keeps nothing.
  *
  * Note: orphaned lexemes are never garbage-collected. Editing a sentence drops
  * its tokens, which can take a lexeme's occurrence count to zero, but

@@ -450,17 +450,11 @@ rt {
 }
 
 .sentence:hover .ask-btn,
-.ask-btn:focus-visible,
-.ask-btn.answered {
+.ask-btn:focus-visible {
   opacity: 1;
 }
 
 .ask-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.ask-btn.answered {
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -557,35 +551,4 @@ rt {
 
 .thinking {
   color: var(--muted);
-}
-
-.history {
-  margin-top: 1.25rem;
-  border-top: 1px solid var(--border);
-  padding-top: 0.75rem;
-}
-
-.history h3 {
-  font-family: system-ui, sans-serif;
-  font-size: 0.72rem;
-  letter-spacing: 0.06em;
-  color: var(--muted);
-  margin: 0 0 0.5rem;
-  font-weight: normal;
-}
-
-.history summary {
-  cursor: pointer;
-  font-family: system-ui, sans-serif;
-  font-size: 0.85rem;
-  padding: 0.3rem 0;
-}
-
-.history .stale {
-  margin-left: 0.5rem;
-  font-size: 0.7rem;
-  color: var(--review);
-  border: 1px solid var(--review);
-  border-radius: 3px;
-  padding: 0 0.3rem;
 }

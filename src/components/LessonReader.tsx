@@ -2,18 +2,11 @@
 
 import { useState } from 'react';
 import type { Lesson, LessonSentence, LessonToken } from '../lib/lesson.ts';
-import type { StoredQuestion } from '../lib/qa/ask.ts';
 import { AskPanel } from './AskPanel.tsx';
 import { TokenSpan } from './TokenSpan.tsx';
 import { WordPanel } from './WordPanel.tsx';
 
-export function LessonReader({
-  lesson,
-  questions,
-}: {
-  lesson: Lesson;
-  questions: StoredQuestion[];
-}) {
+export function LessonReader({ lesson }: { lesson: Lesson }) {
   const [furigana, setFurigana] = useState(true);
   const [selected, setSelected] = useState<LessonToken | null>(null);
   const [asking, setAsking] = useState<LessonSentence | null>(null);
@@ -42,9 +35,6 @@ export function LessonReader({
             furigana={furigana}
             selectedId={selected?.id ?? null}
             asking={asking?.id === sentence.id}
-            questionCount={
-              questions.filter((q) => q.sentenceId === sentence.id).length
-            }
             onSelect={(token) => {
               setSelected(token);
               setAsking(null);
@@ -61,7 +51,6 @@ export function LessonReader({
         <AskPanel
           sentenceId={asking.id}
           sentenceText={asking.text}
-          history={questions.filter((q) => q.sentenceId === asking.id)}
           onClose={() => setAsking(null)}
         />
       ) : selected ? (
@@ -76,7 +65,6 @@ function Sentence({
   furigana,
   selectedId,
   asking,
-  questionCount,
   onSelect,
   onAsk,
 }: {
@@ -84,7 +72,6 @@ function Sentence({
   furigana: boolean;
   selectedId: string | null;
   asking: boolean;
-  questionCount: number;
   onSelect: (token: LessonToken) => void;
   onAsk: () => void;
 }) {
@@ -133,12 +120,12 @@ function Sentence({
       {parts}
       <button
         type="button"
-        className={`ask-btn${questionCount > 0 ? ' answered' : ''}`}
+        className="ask-btn"
         onClick={onAsk}
-        aria-label={`この文について質問${questionCount > 0 ? `（${questionCount}件）` : ''}`}
+        aria-label="この文について質問"
         title="この文について質問"
       >
-        {questionCount > 0 ? questionCount : '?'}
+        ?
       </button>
     </span>
   );

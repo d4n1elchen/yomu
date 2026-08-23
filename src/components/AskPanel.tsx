@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { StoredQuestion } from '../lib/qa/ask.ts';
 
 const SUGGESTIONS = [
   'この文の文法を説明して',
@@ -12,12 +11,10 @@ const SUGGESTIONS = [
 export function AskPanel({
   sentenceId,
   sentenceText,
-  history,
   onClose,
 }: {
   sentenceId: string;
   sentenceText: string;
-  history: StoredQuestion[];
   onClose: () => void;
 }) {
   const [question, setQuestion] = useState('');
@@ -128,22 +125,6 @@ export function AskPanel({
           </div>
         ) : null}
 
-        {history.length > 0 && !answer && !pending ? (
-          <div className="history">
-            <h3>これまでの質問</h3>
-            {history.map((item) => (
-              <details key={item.id}>
-                <summary>
-                  {item.prompt}
-                  {item.stale ? (
-                    <span className="stale">文が編集されました</span>
-                  ) : null}
-                </summary>
-                <div className="answer">{item.answer}</div>
-              </details>
-            ))}
-          </div>
-        ) : null}
       </div>
     </div>
   );

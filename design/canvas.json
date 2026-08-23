@@ -1,0 +1,24 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 1280, "h": 900, "title": "Yomu — desktop" },
+    { "file": "Mobile.dc.html", "x": 1380, "y": 0, "w": 390, "h": 844, "title": "Reader — mobile" },
+    { "file": "Explain.dc.html", "x": 1380, "y": 920, "w": 300, "h": 200, "title": "Explanation card" }
+  ],
+  "annotations": [
+    {
+      "id": "how-to-use",
+      "x": 0,
+      "y": -150,
+      "w": 460,
+      "text": "Clickable. On the desktop board: Library / Dictionary in the nav, New article, and clicking an article row all work.\n\nIn the reader, the 語彙解説 switch turns word explanations on and off. Marked words carry a dashed underline — hover one to see its card."
+    },
+    {
+      "id": "open-questions",
+      "x": 1380,
+      "y": -150,
+      "w": 400,
+      "text": "Still open, not guessed:\n\n1. Which words get marked (the hard-vocab rule is undecided).\n2. Where sentence Q&A lives — the right rail here is a proposal, not a decision.\n3. \"Last read\" needs a new column; nothing records it today."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

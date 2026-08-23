@@ -1,7 +1,6 @@
-import { randomUUID } from 'node:crypto';
 import { asc, eq } from 'drizzle-orm';
 import { db } from '../../db/client.ts';
-import { lexemes, questions, sentences, tokens } from '../../db/schema.ts';
+import { lexemes, sentences, tokens } from '../../db/schema.ts';
 import { getLlmProvider } from '../llm/index.ts';
 import { buildMessages } from './prompt.ts';
 
@@ -14,10 +13,13 @@ export interface AskInput {
 }
 
 /**
- * Streams an answer and persists it once complete. The question is stored with
- * the sentence revision it was asked against, so correcting the sentence later
- * marks this answer stale instead of leaving it pointing at text that no longer
- * says what it said.
+ * Streams an answer about a sentence and keeps nothing.
+ *
+ * Q&A is deliberately ephemeral: it is a lookup you read and move on from, not
+ * a record. Storing it would accumulate prose nobody re-reads, snapshotted from
+ * whichever model happened to answer that day. Durable learning is meant to
+ * live in the Dictionary as entries and occurrences -- see the note at the
+ * bottom of `src/db/schema.ts` about how grammar might eventually get there.
  */
 export async function* askAboutSentence(
   input: AskInput,
@@ -49,7 +51,6 @@ export async function* askAboutSentence(
     ? sentence.text.slice(input.charStart!, input.charEnd!)
     : null;
 
-  const provider = getLlmProvider();
   const messages = buildMessages({
     sentenceText: sentence.text,
     tokens: rows,
@@ -57,60 +58,5 @@ export async function* askAboutSentence(
     question: input.question,
   });
 
-  let answer = '';
-  for await (const chunk of provider.stream({ messages, signal: input.signal })) {
-    answer += chunk;
-    yield chunk;
-  }
-
-  // A cancelled or empty generation is not worth recording.
-  if (answer.trim().length === 0) return;
-
-  db.insert(questions)
-    .values({
-      id: randomUUID(),
-      sentenceId: sentence.id,
-      sentenceRevision: sentence.revision,
-      charStart: hasSpan ? input.charStart! : null,
-      charEnd: hasSpan ? input.charEnd! : null,
-      prompt: input.question,
-      answer,
-      providerId: provider.id,
-      modelId: provider.model,
-    })
-    .run();
-}
-
-export interface StoredQuestion {
-  id: string;
-  sentenceId: string;
-  prompt: string;
-  answer: string;
-  modelId: string;
-  createdAt: number;
-  /** True when the sentence has been edited since this answer was written. */
-  stale: boolean;
-}
-
-export function listQuestionsForSection(sectionId: string): StoredQuestion[] {
-  return db
-    .select({
-      id: questions.id,
-      sentenceId: questions.sentenceId,
-      prompt: questions.prompt,
-      answer: questions.answer,
-      modelId: questions.modelId,
-      createdAt: questions.createdAt,
-      askedAt: questions.sentenceRevision,
-      revision: sentences.revision,
-    })
-    .from(questions)
-    .innerJoin(sentences, eq(sentences.id, questions.sentenceId))
-    .where(eq(sentences.sectionId, sectionId))
-    .orderBy(asc(questions.createdAt))
-    .all()
-    .map(({ askedAt, revision, ...rest }) => ({
-      ...rest,
-      stale: askedAt < revision,
-    }));
+  yield* getLlmProvider().stream({ messages, signal: input.signal });
 }
