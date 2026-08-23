@@ -12,9 +12,9 @@ interface Run {
 }
 
 /**
- * The analyzer gives one reading for a whole token: 食べた -> タベタ. Furigana
- * needs the kana attached to the kanji spans only -- 食(た)べた, not
- * 食べた(たべた) -- so the reading has to be split against the okurigana.
+ * The analyzer gives one reading for a whole token: 食べ -> タベ. Furigana
+ * needs the kana attached to the kanji spans only -- 食(た)べ, not
+ * 食べ(たべ) -- so the reading has to be split against the okurigana.
  *
  * The method: the kana written in the surface also appear, in order, in the
  * reading. Locating each kana run inside the reading reveals how much reading

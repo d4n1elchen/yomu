@@ -2,8 +2,11 @@ import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { getTokenizer, type KuromojiToken, type Tokenizer } from 'kuromojin';
+import kuromoji from 'kuromoji';
+import type { IpadicFeatures, Tokenizer } from 'kuromoji';
 import type { AnalyzedToken, Analyzer } from './types.ts';
+
+type Tk = Tokenizer<IpadicFeatures>;
 
 /**
  * Anchored to the project's package.json on disk rather than to
@@ -44,20 +47,26 @@ function dicPath(): string {
   return dir;
 }
 
-let tokenizerPromise: Promise<Tokenizer> | null = null;
+let tokenizerPromise: Promise<Tk> | null = null;
 
 /**
  * Cold init reads the dictionary off disk. Paying that once per process is
- * fine; paying it per request is not.
+ * fine; paying it per request is not -- which is the whole of what kuromojin
+ * used to provide, minus a result cache we never read and a promise wrapper
+ * that latched `isLoading` on failure and never cleared it.
  *
- * The dictionary path is validated before kuromojin is ever called, because
- * kuromojin latches `isLoading` on its first attempt and never clears it on
- * failure -- one bad build leaves it returning the same rejected promise for
- * the life of the process. Dropping our own cached rejection at least keeps
- * the real error visible on every request instead of a stale one.
+ * A failed build drops the cached promise, so fixing the dictionary path
+ * recovers on the next request instead of requiring a server restart.
  */
-function tokenizer(): Promise<Tokenizer> {
-  tokenizerPromise ??= getTokenizer({ dicPath: dicPath() }).catch((error) => {
+function tokenizer(): Promise<Tk> {
+  tokenizerPromise ??= new Promise<Tk>((resolve, reject) => {
+    // dicPath() throws when the dictionary is missing; inside the executor
+    // that surfaces as a rejection like any other build failure.
+    kuromoji.builder({ dicPath: dicPath() }).build((error, tk) => {
+      if (error) reject(error);
+      else resolve(tk);
+    });
+  }).catch((error: unknown) => {
     tokenizerPromise = null;
     throw error;
   });
@@ -65,16 +74,17 @@ function tokenizer(): Promise<Tokenizer> {
 }
 
 /**
- * IPADIC gives the reading of the *surface* (食べた -> タベタ), but a lexeme is
- * keyed on its dictionary form, whose reading is タベル. Using the surface
- * reading here would file every inflection as a separate library entry --
- * exactly what grouping inflections under one dictionary form is meant to
- * prevent. So the lemma is run back through the tokenizer to read it properly,
- * memoized because a lesson has far fewer distinct lemmas than tokens.
+ * IPADIC gives the reading of the *surface* -- 食べた is segmented into 食べ
+ * (タベ) and た, so the verb token's reading is タベ. A lexeme is keyed on its
+ * dictionary form, whose reading is タベル. Using the surface reading here
+ * would file every inflection as a separate Dictionary entry -- exactly what
+ * grouping inflections under one dictionary form is meant to prevent. So the
+ * lemma is run back through the tokenizer to read it properly, memoized
+ * because an article has far fewer distinct lemmas than tokens.
  */
 const lemmaReadings = new Map<string, string>();
 
-function readLemma(tk: Tokenizer, lemma: string): string {
+function readLemma(tk: Tk, lemma: string): string {
   const cached = lemmaReadings.get(lemma);
   if (cached !== undefined) return cached;
 
@@ -115,8 +125,8 @@ function codePointOffsets(text: string): number[] | null {
 }
 
 function convert(
-  tk: Tokenizer,
-  token: KuromojiToken,
+  tk: Tk,
+  token: IpadicFeatures,
   offsets: number[] | null,
   textLength: number,
 ): AnalyzedToken {
