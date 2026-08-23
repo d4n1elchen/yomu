@@ -1,91 +1,52 @@
-import { listLibrary } from '../../lib/library.ts';
-import { toHiragana } from '../../lib/text/kana.ts';
+import { listArticles } from '../../lib/article.ts';
+import { relativeTime } from '../../lib/time.ts';
 
 export const dynamic = 'force-dynamic';
 
-export default async function LibraryPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ pos?: string; q?: string }>;
-}) {
-  const { pos, q } = await searchParams;
-  const { entries, total, facets } = listLibrary({ pos, q });
-
-  const href = (next: { pos?: string; q?: string }) => {
-    const params = new URLSearchParams();
-    if (next.pos) params.set('pos', next.pos);
-    if (next.q) params.set('q', next.q);
-    const query = params.toString();
-    return query ? `/library?${query}` : '/library';
-  };
+export default function LibraryPage() {
+  const articles = listArticles();
 
   return (
     <main>
-      <h1>Library</h1>
-      <p className="subtitle">
-        {total} {total === 1 ? 'entry' : 'entries'}
-        {entries.length < total ? ` · showing ${entries.length}` : ''}
-      </p>
+      <h1>文章庫</h1>
 
-      <form action="/library" className="filter-form">
-        {pos ? <input type="hidden" name="pos" value={pos} /> : null}
-        <input
-          type="text"
-          name="q"
-          defaultValue={q ?? ''}
-          placeholder="辞書形 or 読み で検索"
-        />
-        <button type="submit">Search</button>
-      </form>
-
-      <nav className="facets">
-        <a className={pos ? '' : 'active'} href={href({ q })}>
-          content words
-        </a>
-        {facets.map((facet) => (
-          <a
-            key={facet.pos}
-            className={pos === facet.pos ? 'active' : ''}
-            href={href({ pos: facet.pos, q })}
-          >
-            {facet.pos} <span className="count">{facet.count}</span>
-          </a>
-        ))}
-      </nav>
-
-      {entries.length === 0 ? (
+      {articles.length === 0 ? (
         <p className="empty">
-          No entries yet. Import a lesson and the words will collect here.
+          還沒有文章。<a href="/new">新增一篇</a>，詞彙就會開始累積到辭典裡。
         </p>
       ) : (
-        <ul className="entries">
-          {entries.map((entry) => (
-            <li key={entry.id}>
-              <a href={`/library/${entry.id}`}>
-                <span className="lemma">
-                  {entry.lemma}
-                  {entry.reading ? (
-                    <span className="reading">
-                      {toHiragana(entry.reading)}
-                    </span>
-                  ) : null}
-                </span>
-                <span className="entry-meta">
-                  {entry.pos}
-                  {entry.forms.length > 1
-                    ? ` · ${entry.forms.join('・')}`
-                    : ''}
-                </span>
-                <span className="tally">{entry.occurrences}</span>
-              </a>
-            </li>
-          ))}
-        </ul>
-      )}
+        <div className="library">
+          <div className="library-head" aria-hidden="true">
+            <span>標題</span>
+            <span>最近閱讀</span>
+            <span className="num">詞彙</span>
+            <span className="num">文法</span>
+          </div>
 
-      <p className="back">
-        <a href="/">← lessons</a>
-      </p>
+          <ul>
+            {articles.map((article) => (
+              <li key={article.workId}>
+                <a href={`/read/${article.sectionId}`}>
+                  <span className="title" lang="ja">
+                    {article.title}
+                    {article.author ? (
+                      <span className="author">{article.author}</span>
+                    ) : null}
+                  </span>
+                  <span className="last">{relativeTime(article.lastReadAt)}</span>
+                  <span className="num">{article.vocabCount}</span>
+                  {/* Grammar reads zero until grammar has a natural key. */}
+                  <span className="num zero">0</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+
+          <p className="note">
+            文法一律顯示 0 — 在找到自然鍵之前暫緩實作。
+          </p>
+        </div>
+      )}
     </main>
   );
 }

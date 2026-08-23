@@ -38,7 +38,12 @@ model inventing names produces near-duplicates. Grammar needs its own natural
 key first. The schema comment explains the two candidates; do not design around
 either without deciding.
 
-# Naming trap
+# Naming
 
-`src/lib/library.ts` predates the naming decision and is the **Dictionary** read
-model, not the article list. Renaming it is part of the UI restructure.
+**Library** is the list of articles (`src/lib/article.ts`, `/library`).
+**Dictionary** is vocabulary (`src/lib/dictionary.ts`, `/dictionary`). Never
+"lesson" — this is an article reader.
+
+`article.ts` counts a work's vocabulary with `contentWord` exported from
+`dictionary.ts`, so the tally on a Library row and the words the Dictionary
+lists can never disagree.

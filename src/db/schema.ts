@@ -61,6 +61,13 @@ export const sections = sqliteTable(
     analyzerId: text('analyzer_id').notNull(),
     analyzerVersion: text('analyzer_version').notNull(),
     tokenizedAt: integer('tokenized_at'),
+    /**
+     * Stamped after ten seconds of reading, with the timer paused while the tab
+     * is hidden. On `section` rather than `work` because a book needs to know
+     * which chapter you were last in; the Library row shows the most recent
+     * across a work's sections.
+     */
+    lastReadAt: integer('last_read_at'),
   },
   (t) => [index('section_work_idx').on(t.workId, t.parentId, t.orderIndex)],
 );

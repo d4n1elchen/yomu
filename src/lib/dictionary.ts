@@ -19,14 +19,24 @@ const EXCLUDED_POS = ['記号'];
 const FUNCTION_POS = ['助詞', '助動詞'];
 
 /**
- * A word earns a place in the Library by appearing in text somebody has
+ * The Dictionary's default view, as one reusable condition: content words only.
+ * The Library's per-article vocabulary tally counts the same set, so that the
+ * two pages cannot print numbers that disagree.
+ */
+export const contentWord = sql`${lexemes.pos} not in ${[
+  ...EXCLUDED_POS,
+  ...FUNCTION_POS,
+]}`;
+
+/**
+ * A word earns a place in the Dictionary by appearing in text somebody has
  * actually read. Occurrences inside unreviewed transcript sentences are
  * excluded by default: a transcription error tokenizes just as cleanly as real
  * Japanese, and the quiz should never test a word nobody said.
  */
 const reviewed = sql`${sentences.needsReview} = 0`;
 
-export interface LibraryEntry {
+export interface DictionaryEntry {
   id: string;
   lemma: string;
   reading: string;
@@ -37,15 +47,15 @@ export interface LibraryEntry {
   forms: string[];
 }
 
-export interface LibraryQuery {
+export interface DictionaryQuery {
   pos?: string;
   q?: string;
   includeUnreviewed?: boolean;
   limit?: number;
 }
 
-export interface LibraryPage {
-  entries: LibraryEntry[];
+export interface DictionaryPage {
+  entries: DictionaryEntry[];
   /** Total matching entries, which may exceed the number returned. */
   total: number;
   facets: Array<{ pos: string; count: number }>;
@@ -56,7 +66,7 @@ export interface LibraryPage {
  * the facet counts can still offer 助詞 and 助動詞 even though the default view
  * hides them.
  */
-function filters(query: LibraryQuery, opts: { ignorePos?: boolean } = {}) {
+function filters(query: DictionaryQuery, opts: { ignorePos?: boolean } = {}) {
   const clauses = [
     sql`${lexemes.pos} not in ${EXCLUDED_POS}`,
     query.includeUnreviewed ? undefined : reviewed,
@@ -75,7 +85,7 @@ function filters(query: LibraryQuery, opts: { ignorePos?: boolean } = {}) {
   return and(...clauses);
 }
 
-export function listLibrary(query: LibraryQuery = {}): LibraryPage {
+export function listDictionary(query: DictionaryQuery = {}): DictionaryPage {
   const limit = query.limit ?? 300;
   const where = filters(query);
 
@@ -163,8 +173,8 @@ export interface Occurrence {
   workTitle: string;
 }
 
-export interface LibraryDetail {
-  entry: Omit<LibraryEntry, 'occurrences' | 'workCount' | 'forms'>;
+export interface DictionaryDetail {
+  entry: Omit<DictionaryEntry, 'occurrences' | 'workCount' | 'forms'>;
   occurrences: Occurrence[];
   forms: string[];
 }
@@ -173,10 +183,10 @@ export interface LibraryDetail {
  * Every place a dictionary form has occurred. This is a single indexed lookup
  * on token.lexemeId -- the payoff for storing tokens normalized at import.
  */
-export function getLibraryEntry(
+export function getDictionaryEntry(
   lexemeId: string,
   options: { includeUnreviewed?: boolean } = {},
-): LibraryDetail | null {
+): DictionaryDetail | null {
   const entry = db
     .select({
       id: lexemes.id,

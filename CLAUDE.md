@@ -20,8 +20,10 @@ invents them.
 - Node runs TypeScript in strip-only mode: no parameter properties, no enums,
   no namespaces. `erasableSyntaxOnly` catches these at typecheck.
 - Tests are `node:test` + `node:assert/strict`, colocated as `*.test.ts`.
-- No CSS framework. One `src/app/globals.css`, custom properties, and a
-  `prefers-color-scheme` dark block.
+- No CSS framework. One `src/app/globals.css`, custom properties, one light
+  palette taken from the design mock. **No dark mode** — the warm paper ground
+  is the design, and `color-scheme: light` keeps a dark-set OS from painting
+  form controls and scrollbars out from under it.
 
 ## Working here
 

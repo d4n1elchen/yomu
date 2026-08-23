@@ -23,58 +23,6 @@ dictionary headwords, readings, inflected forms. That is the line — if it is
 something you are learning, it stays Japanese; if it is the app talking to you,
 it is Chinese.
 
-## Phase A — UI restructure
-
-Fully decided, no new data required.
-
-- Rename throughout: Library (articles), Dictionary (vocab). Routes follow.
-- `/new` as a standalone page.
-- **Furigana is always on.** Remove the toggle.
-- The switch in the reader controls **word explanations**, not furigana.
-- Replace the per-sentence `?` button with selection-based Q&A (below).
-- Add `last read` to the Library list.
-- Fold in: drop `kuromojin` (see "Loose ends").
-
-### Selection-based Q&A
-
-Select any text in the reader; a **chat dialog** opens. Desktop places it near
-the selection, mobile as a bottom card — the same split already chosen for word
-explanations.
-
-It opens on a **templated greeting**, not an answer, so the card appears
-instantly rather than after a generation. From there it is a conversation:
-suggestion chips to start, a composer to keep going. Multi-turn, so the request
-carries the running message list alongside the selection context.
-
-Ephemeral means the whole thread — the greeting is regenerated next time you
-select the same text, and nothing is stored.
-
-- Selections may span sentences. All covered sentences and their tokenization
-  go to the model as context, so a fragment is still explained in context.
-- Our offsets are sentence-relative, so a browser selection has to be mapped
-  back onto token spans to recover which sentences it covers and where. Each
-  token span carries its sentence id and offsets, which is what makes this
-  tractable.
-- Suppress the word hover card while a selection exists or is being dragged,
-  or it pops up over the text being selected.
-- `rt { user-select: none }` matters more now that furigana is always on —
-  without it, selecting 食べた yields "食たべた". Already in the CSS; verify it
-  empirically rather than trusting it.
-- On mobile the OS Copy/Look-Up menu appears alongside our card. Accepted —
-  suppressing it means reimplementing text selection.
-
-### Last read
-
-Stamped after **10 seconds** in the article, with the timer paused while the
-tab is hidden so background tabs do not count. Recorded on `section`, not
-`work`: for a one-section article they are the same, but a book needs to know
-which chapter you were last in. The Library row shows the most recent across a
-work's sections.
-
-### Library columns
-
-Title · Last read · Vocab · Grammar. Grammar reads zero until grammar exists.
-
 ## Phase B — JMdict import
 
 No LLM in this phase. Ends with dashed underlines working on real frequency
@@ -111,6 +59,21 @@ many unmatched words in real reading are actually names).
 Frequency rank drives the dashed underline, behind an **adjustable slider** —
 one number in the query, and it lets you tune per text, since news and fiction
 need different levels.
+
+### The word card becomes a hover card here
+
+Phase A left the word card as a full-width panel pinned to the bottom on every
+screen size. Deliberately: the desktop split (a card floating near the word,
+mobile keeping the sheet) is decided, but there was nothing to hover over yet
+and nothing to put in the card beyond the four analyzer facts. In the mock the
+card only fires on a marked word, so marking is what gives it a trigger.
+
+So it is shaped once, here, rather than twice — the anchoring it needs already
+exists in `AskDialog`, which measures itself and clamps to the viewport rather
+than assuming its own size. Its senses arrive in Phase C.
+
+Phase A did already implement the half of this that the Q&A card depends on:
+the word card is suppressed while a selection exists or is being dragged.
 
 ## Phase C — Chinese glosses
 
@@ -166,15 +129,6 @@ Undecided deliberately, until there is real reading to ground the choice in.
 
 ## Loose ends
 
-- **Drop `kuromojin`.** Of the three things it offers — promise API, tokenizer
-  singleton, result cache — we use one, duplicate one, and bypass the third by
-  calling `tk.tokenize()` on the instance. Replacing it is five lines around
-  `kuromoji.builder`. It also contributed the `isLoading` latch that made
-  tokenization unrecoverable without a server restart. Removing it deletes a
-  paragraph from `.claude/rules/analyzer.md`.
-- Two comments still teach the wrong thing: kuromoji splits 食べた into 食べ +
-  た and never returns タベタ for one token. `src/lib/analyzer/kuromoji.ts:68`
-  and `src/lib/text/furigana.ts:15`.
 - No `.gitattributes`, so every file is CRLF-converted on commit.
 - `.claude/launch.json` carries a LAN IP; arguably belongs in `.env.local`.
 

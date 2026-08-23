@@ -1,52 +1,98 @@
+/*
+ * One palette, taken from the design mock. Deliberately not theme-aware: the
+ * warm paper ground is what makes long stretches of Japanese text and the
+ * grey furigana above it read the way they should, and the inverted version
+ * of that was worse. `color-scheme` keeps form controls and scrollbars light
+ * on a machine set to dark, rather than leaving the browser to paint half the
+ * page from a theme the rest of the page is not using.
+ */
 :root {
+  color-scheme: light;
   --bg: #fbfaf7;
   --surface: #ffffff;
   --border: #e2ded4;
   --ink: #22201c;
   --muted: #6f6a60;
+  --faint: #a8a296;
   --accent: #7a4a2b;
+  --accent-strong: #5c3620;
   --accent-soft: #f0e6dc;
   --review: #b4791f;
+  --scroll-thumb: #d6d0c4;
+  --scroll-thumb-hover: #b3ada1;
+  --sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --serif: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif;
+
+  /* `scrollbar-color` inherits, so declaring it once here reaches the page,
+     the Q&A thread and the paste box alike. A transparent track lets the paper
+     ground show through instead of laying a grey channel down the edge of the
+     reader. `scrollbar-width` does NOT inherit -- it is set on `*` below, or
+     the inner scrollers keep a default-width bar next to the page's thin one. */
+  scrollbar-color: var(--scroll-thumb) transparent;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #16151300;
-    --bg: #161513;
-    --surface: #1f1e1b;
-    --border: #35322c;
-    --ink: #ece8e0;
-    --muted: #9c968a;
-    --accent: #d9a679;
-    --accent-soft: #2c2620;
-    --review: #d9ac5a;
-  }
+/*
+ * Older WebKit predates the two properties above and needs the pseudo-elements
+ * instead. Browsers that support both ignore this block, so the two are not in
+ * competition. The transparent border plus `background-clip` is what insets
+ * the thumb from the edge -- there is no padding on a scrollbar.
+ */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  background-clip: padding-box;
+  border: 3px solid transparent;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+  background-clip: padding-box;
 }
 
 * {
   box-sizing: border-box;
+  scrollbar-width: thin;
 }
 
 body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif;
+  font-family: var(--sans);
   -webkit-text-size-adjust: 100%;
 }
 
 main {
-  max-width: 42rem;
+  max-width: 48rem;
   margin: 0 auto;
-  padding: 2.5rem 1.25rem 8rem;
+  padding: 2rem 1.25rem 8rem;
+}
+
+main.narrow {
+  max-width: 38rem;
 }
 
 a {
   color: var(--accent);
 }
 
+a:hover {
+  color: var(--accent-strong);
+}
+
 h1 {
   font-size: 1.5rem;
+  font-weight: 600;
   margin: 0 0 0.25rem;
 }
 
@@ -56,19 +102,112 @@ h1 {
   margin: 0 0 2rem;
 }
 
+.empty {
+  color: var(--muted);
+  font-size: 0.9rem;
+  padding: 1.5rem 0;
+}
+
+.note {
+  color: var(--faint);
+  font-size: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.error {
+  color: #b3261e;
+  font-size: 0.85rem;
+  margin: 0 0 1rem;
+}
+
+.back {
+  font-size: 0.85rem;
+  margin: 0 0 1rem;
+}
+
+.back a {
+  text-decoration: none;
+}
+
+/* --- site header --- */
+
+.site-header {
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+.site-header-inner {
+  max-width: 60rem;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0 1.25rem;
+  height: 3.5rem;
+}
+
+.site-header .brand {
+  font-family: var(--serif);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: inherit;
+  text-decoration: none;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.tabs a {
+  padding: 0.4rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.tabs a:hover {
+  color: var(--ink);
+}
+
+.tabs a.active {
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.new-article {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 2.25rem;
+  padding: 0 0.9rem;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  font-size: 0.875rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
 /* --- import form --- */
 
 .field {
   display: block;
-  margin-bottom: 1rem;
+  margin-bottom: 1.1rem;
 }
 
 .field span {
   display: block;
-  font-size: 0.8rem;
-  color: var(--muted);
-  margin-bottom: 0.35rem;
-  letter-spacing: 0.04em;
+  font-size: 0.72rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-bottom: 0.4rem;
 }
 
 input[type='text'],
@@ -84,14 +223,15 @@ textarea {
 }
 
 textarea {
-  min-height: 11rem;
+  min-height: 16rem;
+  font-family: var(--serif);
   line-height: 1.9;
   resize: vertical;
 }
 
 button {
   font: inherit;
-  padding: 0.55rem 1.1rem;
+  padding: 0.55rem 1.2rem;
   border-radius: 6px;
   border: 1px solid var(--accent);
   background: var(--accent);
@@ -99,87 +239,182 @@ button {
   cursor: pointer;
 }
 
-button:hover {
+button:hover:not(:disabled) {
   opacity: 0.9;
 }
 
-.error {
-  color: #b3261e;
-  font-size: 0.85rem;
-  margin: 0 0 1rem;
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
-/* --- work list --- */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
 
-.works {
+.actions .cancel {
+  color: var(--muted);
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+/* --- library --- */
+
+.library-head,
+.library li a {
+  display: grid;
+  grid-template-columns: 1fr 7rem 4rem 4rem;
+  gap: 0 1.25rem;
+  align-items: center;
+}
+
+.library-head {
+  padding: 0 0.75rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.7rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.library ul {
   list-style: none;
   padding: 0;
-  margin: 0 0 3rem;
-  border-top: 1px solid var(--border);
+  margin: 0;
 }
 
-.works li {
-  border-bottom: 1px solid var(--border);
-}
-
-.works a {
-  display: block;
-  padding: 0.85rem 0.25rem;
+.library li a {
+  padding: 0.9rem 0.75rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
   text-decoration: none;
   color: inherit;
 }
 
-.works a:hover {
-  background: var(--accent-soft);
+.library li a:hover {
+  background: var(--surface);
+  border-color: var(--border);
 }
 
-.works .meta {
+.library .title {
+  font-family: var(--serif);
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+.library .author {
   display: block;
-  font-size: 0.8rem;
-  color: var(--muted);
-  margin-top: 0.15rem;
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  color: var(--faint);
 }
 
-.empty {
+.library .last {
+  font-size: 0.82rem;
   color: var(--muted);
-  font-size: 0.9rem;
-  padding: 1.5rem 0;
+}
+
+.library .num {
+  text-align: right;
+  font-size: 0.875rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.library .num.zero {
+  color: var(--faint);
+}
+
+@media (max-width: 34rem) {
+  .library-head {
+    display: none;
+  }
+
+  .library li a {
+    grid-template-columns: 1fr auto;
+  }
+
+  .library .last {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .library .num.zero {
+    display: none;
+  }
 }
 
 /* --- reader --- */
 
-.toolbar {
-  position: sticky;
-  top: 0;
-  z-index: 5;
+.reader-controls {
   display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.75rem 0;
+  justify-content: flex-end;
+  padding-bottom: 0.9rem;
   margin-bottom: 1.5rem;
-  background: var(--bg);
   border-bottom: 1px solid var(--border);
-  font-family: system-ui, sans-serif;
-  font-size: 0.85rem;
 }
 
-.toolbar label {
-  display: flex;
+.switch {
+  display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.55rem;
   cursor: pointer;
+  font-size: 0.85rem;
   color: var(--muted);
 }
 
-.toolbar .spacer {
-  flex: 1;
+.switch.on {
+  color: var(--ink);
+}
+
+.switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switch-track {
+  width: 2.4rem;
+  height: 1.4rem;
+  border-radius: 999px;
+  background: var(--border);
+  padding: 0.13rem;
+  display: flex;
+  justify-content: flex-start;
+  transition: background 0.15s;
+}
+
+.switch.on .switch-track {
+  background: var(--accent);
+  justify-content: flex-end;
+}
+
+.switch-knob {
+  width: 1.14rem;
+  height: 1.14rem;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.switch input:focus-visible ~ .switch-track {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .reader {
+  font-family: var(--serif);
   font-size: 1.2rem;
-  /* Held constant whether or not ruby is showing, so toggling furigana does
-     not reflow the page under the reader's eye. */
   line-height: 2.7;
+}
+
+.reader-hint {
+  margin-top: 2rem;
+  font-size: 0.75rem;
+  color: var(--faint);
 }
 
 .sentence {
@@ -217,11 +452,15 @@ button:hover {
   outline: 1px solid var(--accent);
 }
 
+/* Without this, selecting 食べた yields "食たべた" -- the ruby text is picked
+   up by the browser selection along with the base text. Furigana is always on
+   now, so every kanji word in the article depends on it. */
 rt {
   font-size: 0.5em;
   color: var(--muted);
   font-weight: normal;
   user-select: none;
+  -webkit-user-select: none;
 }
 
 /* --- word panel --- */
@@ -238,7 +477,7 @@ rt {
 }
 
 .panel-inner {
-  max-width: 42rem;
+  max-width: 48rem;
   margin: 0 auto;
   display: flex;
   align-items: flex-start;
@@ -250,7 +489,6 @@ rt {
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 0.2rem 0.9rem;
-  font-family: system-ui, sans-serif;
   font-size: 0.9rem;
   flex: 1;
 }
@@ -263,11 +501,27 @@ rt {
 
 .panel dd {
   margin: 0;
-  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif;
+  font-family: var(--serif);
   font-size: 1.05rem;
 }
 
-.panel .close {
+.panel dd.pos {
+  font-family: var(--sans);
+  font-size: 0.95rem;
+}
+
+.panel .unknown {
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: 0.9rem;
+}
+
+.panel .lemma-reading {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.close {
   background: none;
   border: none;
   color: var(--muted);
@@ -277,7 +531,12 @@ rt {
   cursor: pointer;
 }
 
-/* --- library --- */
+.close:hover {
+  color: var(--ink);
+  opacity: 1;
+}
+
+/* --- dictionary --- */
 
 .filter-form {
   display: flex;
@@ -294,7 +553,6 @@ rt {
   flex-wrap: wrap;
   gap: 0.4rem;
   margin-bottom: 1.75rem;
-  font-family: system-ui, sans-serif;
   font-size: 0.78rem;
 }
 
@@ -346,6 +604,7 @@ rt {
 }
 
 .entries .lemma {
+  font-family: var(--serif);
   font-size: 1.15rem;
 }
 
@@ -358,7 +617,6 @@ rt {
 
 .entries .entry-meta {
   grid-column: 1;
-  font-family: system-ui, sans-serif;
   font-size: 0.76rem;
   color: var(--muted);
 }
@@ -367,13 +625,13 @@ rt {
   grid-row: 1 / span 2;
   grid-column: 2;
   align-self: center;
-  font-family: system-ui, sans-serif;
   font-size: 0.85rem;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 
 .entry-head {
+  font-family: var(--serif);
   font-size: 1.9rem;
   margin-bottom: 0.2rem;
 }
@@ -403,7 +661,6 @@ rt {
 
 .occurrences .where {
   display: block;
-  font-family: system-ui, sans-serif;
   font-size: 0.72rem;
   color: var(--muted);
   margin-bottom: 0.2rem;
@@ -411,6 +668,7 @@ rt {
 
 .occurrences .quote {
   display: block;
+  font-family: var(--serif);
   font-size: 1.05rem;
   line-height: 1.9;
 }
@@ -422,133 +680,164 @@ rt {
   padding: 0 0.05em;
 }
 
-.back {
-  font-family: system-ui, sans-serif;
-  font-size: 0.85rem;
-}
+/* --- ask card --- */
 
-/* --- ask affordance --- */
-
-.ask-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.35em;
-  height: 1.35em;
-  margin-left: 0.35em;
-  padding: 0;
-  vertical-align: middle;
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  background: transparent;
-  color: var(--muted);
-  font-family: system-ui, sans-serif;
-  font-size: 0.62rem;
-  line-height: 1;
-  opacity: 0;
-  transition: opacity 0.12s;
-}
-
-.sentence:hover .ask-btn,
-.ask-btn:focus-visible {
-  opacity: 1;
-}
-
-.ask-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.sentence.asking {
-  background: var(--accent-soft);
-  outline: 1px solid var(--accent);
-}
-
-/* Touch devices have no hover, so the affordance must simply be visible. */
-@media (hover: none) {
-  .ask-btn {
-    opacity: 1;
-  }
-}
-
-/* --- ask panel --- */
-
-.ask {
+/* Mobile first: a bottom sheet, because a bubble anchored to the selection
+   would sit on top of the text being asked about on a narrow screen. */
+.ask-card {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 20;
-  max-height: 72vh;
-  overflow-y: auto;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  max-height: 76vh;
   border-top: 1px solid var(--border);
+  border-radius: 12px 12px 0 0;
   background: var(--surface);
-  padding: 1rem 1.25rem 1.6rem;
+  box-shadow: 0 -6px 22px rgba(34, 32, 28, 0.12);
+  padding: 0.75rem 1.1rem 1.1rem;
 }
 
-.ask-inner {
-  max-width: 42rem;
-  margin: 0 auto;
+@media (min-width: 48rem) {
+  .ask-card {
+    top: var(--ask-y);
+    left: var(--ask-x);
+    right: auto;
+    bottom: auto;
+    width: 30rem;
+    /* Never taller than the room the card was placed in, and never so short
+       it stops being a conversation. `--ask-room` is measured on open. */
+    max-height: min(26rem, max(14rem, var(--ask-room, 26rem)));
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 12px 38px rgba(34, 32, 28, 0.18);
+  }
 }
 
 .ask-head {
   display: flex;
   align-items: flex-start;
-  gap: 1rem;
-  margin-bottom: 0.75rem;
+  gap: 0.75rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--border);
 }
 
-.ask-sentence {
-  flex: 1;
+.ask-selection {
+  min-width: 0;
+}
+
+/* Pushed to the corner rather than sitting next to the selected text, whose
+   width varies with whatever was dragged over. */
+.ask-head .close {
+  margin: -0.2rem -0.4rem auto auto;
+  align-self: flex-start;
+}
+
+.ask-label {
+  display: block;
+  font-size: 0.66rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-bottom: 0.2rem;
+}
+
+.ask-selection p {
   margin: 0;
+  font-family: var(--serif);
   font-size: 1rem;
-  line-height: 1.8;
-  color: var(--muted);
+  line-height: 1.6;
 }
 
-.ask form {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 0.6rem;
-}
-
-.ask form input {
+.ask-thread {
   flex: 1;
-}
-
-.suggestions {
+  overflow-y: auto;
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin-bottom: 0.6rem;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.75rem 0 0.25rem;
+  min-height: 0;
 }
 
-.suggestions button {
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  color: var(--muted);
-  font-family: system-ui, sans-serif;
-  font-size: 0.76rem;
-  padding: 0.25rem 0.7rem;
-}
-
-.suggestions button:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.answer {
-  font-family: system-ui, sans-serif;
-  font-size: 0.92rem;
+.bubble {
+  margin: 0;
+  max-width: 86%;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.85rem;
   line-height: 1.85;
-  white-space: pre-wrap;
+  white-space: pre-line;
   word-break: break-word;
-  border-left: 2px solid var(--accent);
-  padding-left: 0.9rem;
-  margin-top: 0.5rem;
+}
+
+.bubble.assistant {
+  align-self: flex-start;
+  border-radius: 12px 12px 12px 3px;
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+.bubble.user {
+  align-self: flex-end;
+  border-radius: 12px 12px 3px 12px;
+  background: var(--accent);
+  color: var(--bg);
 }
 
 .thinking {
   color: var(--muted);
+}
+
+.ask-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.5rem 0 0.15rem;
+}
+
+.ask-chips button {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  padding: 0.25rem 0.7rem;
+}
+
+.ask-chips button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.ask-composer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-top: 0.7rem;
+  margin-top: 0.4rem;
+  border-top: 1px solid var(--border);
+}
+
+.ask-composer input {
+  flex: 1;
+  border-radius: 999px;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.875rem;
+}
+
+.ask-composer button {
+  width: 2.15rem;
+  height: 2.15rem;
+  flex-shrink: 0;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.ask-note {
+  margin: 0.6rem 0 0;
+  font-size: 0.7rem;
+  color: var(--faint);
 }

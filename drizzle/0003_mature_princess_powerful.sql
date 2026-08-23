@@ -1,0 +1,1 @@
+ALTER TABLE `section` ADD `last_read_at` integer;

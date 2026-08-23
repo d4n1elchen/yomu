@@ -12,16 +12,25 @@ export function ImportForm() {
     <form action={action}>
       {state.error ? <p className="error">{state.error}</p> : null}
       <label className="field">
-        <span>TITLE</span>
-        <input type="text" name="title" placeholder="Untitled" />
+        <span>標題</span>
+        <input type="text" name="title" placeholder="選填" />
       </label>
       <label className="field">
-        <span>JAPANESE TEXT</span>
-        <textarea name="body" placeholder="ここに日本語を貼り付けてください。" />
+        <span>日文原文</span>
+        <textarea
+          name="body"
+          lang="ja"
+          placeholder="ここに日本語を貼り付けてください。"
+        />
       </label>
-      <button type="submit" disabled={pending}>
-        {pending ? 'Analyzing…' : 'Create lesson'}
-      </button>
+      <div className="actions">
+        <button type="submit" disabled={pending}>
+          {pending ? '分析中…' : '新增文章'}
+        </button>
+        <a className="cancel" href="/library">
+          取消
+        </a>
+      </div>
     </form>
   );
 }
