@@ -1,0 +1,45 @@
+# Secrets — .env.example is committed, real env files are not
+.env
+.env.local
+.env*.local
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.*
+
+# Next.js
+.next/
+out/
+build/
+next-env.d.ts
+
+# Test and coverage
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+
+# Editors and OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# Claude Code — shared config is committed, personal overrides are not
+.claude/settings.local.json
+
+# Local SQLite database
+yomu.db
+yomu.db-shm
+yomu.db-wal
+
+# TypeScript incremental build
+*.tsbuildinfo

@@ -1,0 +1,48 @@
+# Yomu
+
+Explanations shown to the reader are **Traditional Chinese (Taiwan usage)**,
+never Simplified, never English.
+
+## Division of labour
+
+The morphological analyzer owns segmentation, readings, and dictionary forms.
+The LLM owns grammar and nuance, and is **never asked for a reading** — every
+model tested invents them. Prompts hand it the analyzer's output as fact.
+
+## Data invariants
+
+Breaking these fails silently, and each one is load-bearing for the Library.
+
+- Token offsets are relative to `sentence.text`, never to the section.
+  `sentence.text.slice(token.charStart, token.charEnd) === token.surface`
+  must hold for every row.
+- `writeSentenceTokens` in `src/lib/import/tokens.ts` is the only place token
+  rows are written. Do not add a second writer.
+- A vocab occurrence *is* the `token` row. Never add a vocab occurrence table.
+  Grammar occurrences are different — they are recorded during Q&A, not derived.
+- `lexeme` identity is `(dictionary, lemma, reading, pos)` where `reading` is
+  the reading of the **lemma**, not the surface. Using the surface reading files
+  every inflection separately and defeats the grouping.
+- Anchors into a sentence (`question`, and grammar occurrences later) carry
+  `sentenceRevision`, so an edited sentence marks them stale rather than
+  silently mis-positioning them.
+- Never garbage-collect orphaned lexemes — the user may have learned the word.
+- `needsReview` gates the Library. Transcription errors tokenize as cleanly as
+  real Japanese; new Library queries must keep the filter.
+
+## Conventions
+
+- Explicit `.ts` extensions on imports, so Node and the bundler both resolve.
+- Node runs TypeScript in strip-only mode: no parameter properties, no enums,
+  no namespaces. `erasableSyntaxOnly` catches these at typecheck.
+- Tests are `node:test` + `node:assert/strict`, colocated as `*.test.ts`.
+- No CSS framework. One `src/app/globals.css`, custom properties, and a
+  `prefers-color-scheme` dark block.
+- Run `npm test` and `npx tsc --noEmit` before reporting work as done.
+- `npm run build` kills a running dev server; restart it afterwards.
+
+## Extending the schema
+
+Grammar entries, hard-vocab marking, quiz scheduling, and the sentence editor
+all have shapes already worked out — read the comment block at the bottom of
+`src/db/schema.ts` before designing any of them.

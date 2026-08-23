@@ -1,0 +1,591 @@
+:root {
+  --bg: #fbfaf7;
+  --surface: #ffffff;
+  --border: #e2ded4;
+  --ink: #22201c;
+  --muted: #6f6a60;
+  --accent: #7a4a2b;
+  --accent-soft: #f0e6dc;
+  --review: #b4791f;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16151300;
+    --bg: #161513;
+    --surface: #1f1e1b;
+    --border: #35322c;
+    --ink: #ece8e0;
+    --muted: #9c968a;
+    --accent: #d9a679;
+    --accent-soft: #2c2620;
+    --review: #d9ac5a;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+main {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 8rem;
+}
+
+a {
+  color: var(--accent);
+}
+
+h1 {
+  font-size: 1.5rem;
+  margin: 0 0 0.25rem;
+}
+
+.subtitle {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0 0 2rem;
+}
+
+/* --- import form --- */
+
+.field {
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.field span {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
+  letter-spacing: 0.04em;
+}
+
+input[type='text'],
+textarea {
+  width: 100%;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  font-size: 1rem;
+}
+
+textarea {
+  min-height: 11rem;
+  line-height: 1.9;
+  resize: vertical;
+}
+
+button {
+  font: inherit;
+  padding: 0.55rem 1.1rem;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+  cursor: pointer;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+.error {
+  color: #b3261e;
+  font-size: 0.85rem;
+  margin: 0 0 1rem;
+}
+
+/* --- work list --- */
+
+.works {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 3rem;
+  border-top: 1px solid var(--border);
+}
+
+.works li {
+  border-bottom: 1px solid var(--border);
+}
+
+.works a {
+  display: block;
+  padding: 0.85rem 0.25rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.works a:hover {
+  background: var(--accent-soft);
+}
+
+.works .meta {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 0.15rem;
+}
+
+.empty {
+  color: var(--muted);
+  font-size: 0.9rem;
+  padding: 1.5rem 0;
+}
+
+/* --- reader --- */
+
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  margin-bottom: 1.5rem;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  font-family: system-ui, sans-serif;
+  font-size: 0.85rem;
+}
+
+.toolbar label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.toolbar .spacer {
+  flex: 1;
+}
+
+.reader {
+  font-size: 1.2rem;
+  /* Held constant whether or not ruby is showing, so toggling furigana does
+     not reflow the page under the reader's eye. */
+  line-height: 2.7;
+}
+
+.sentence {
+  display: block;
+  margin: 0 0 0.35rem;
+  padding: 0.1rem 0.2rem;
+  border-radius: 4px;
+}
+
+.sentence:target {
+  background: var(--accent-soft);
+  outline: 1px solid var(--accent);
+}
+
+.sentence.review {
+  border-left: 2px solid var(--review);
+  padding-left: 0.5rem;
+}
+
+.token {
+  border-radius: 3px;
+  padding: 0 0.02em;
+}
+
+.token.tappable {
+  cursor: pointer;
+}
+
+.token.tappable:hover {
+  background: var(--accent-soft);
+}
+
+.token.selected {
+  background: var(--accent-soft);
+  outline: 1px solid var(--accent);
+}
+
+rt {
+  font-size: 0.5em;
+  color: var(--muted);
+  font-weight: normal;
+  user-select: none;
+}
+
+/* --- word panel --- */
+
+.panel {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  padding: 1rem 1.25rem 1.4rem;
+}
+
+.panel-inner {
+  max-width: 42rem;
+  margin: 0 auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+}
+
+.panel dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.2rem 0.9rem;
+  font-family: system-ui, sans-serif;
+  font-size: 0.9rem;
+  flex: 1;
+}
+
+.panel dt {
+  color: var(--muted);
+  font-size: 0.78rem;
+  align-self: center;
+}
+
+.panel dd {
+  margin: 0;
+  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif;
+  font-size: 1.05rem;
+}
+
+.panel .close {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1.4rem;
+  line-height: 1;
+  padding: 0.2rem 0.4rem;
+  cursor: pointer;
+}
+
+/* --- library --- */
+
+.filter-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.filter-form input[type='text'] {
+  flex: 1;
+}
+
+.facets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 1.75rem;
+  font-family: system-ui, sans-serif;
+  font-size: 0.78rem;
+}
+
+.facets a {
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  text-decoration: none;
+  color: var(--muted);
+}
+
+.facets a:hover {
+  border-color: var(--accent);
+}
+
+.facets a.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.facets .count {
+  opacity: 0.6;
+}
+
+.entries {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 2rem;
+  border-top: 1px solid var(--border);
+}
+
+.entries li {
+  border-bottom: 1px solid var(--border);
+}
+
+.entries a {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 0.15rem 1rem;
+  padding: 0.7rem 0.3rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.entries a:hover {
+  background: var(--accent-soft);
+}
+
+.entries .lemma {
+  font-size: 1.15rem;
+}
+
+.entries .reading,
+.entry-head .reading {
+  color: var(--muted);
+  font-size: 0.8em;
+  margin-left: 0.5rem;
+}
+
+.entries .entry-meta {
+  grid-column: 1;
+  font-family: system-ui, sans-serif;
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+.entries .tally {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  align-self: center;
+  font-family: system-ui, sans-serif;
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.entry-head {
+  font-size: 1.9rem;
+  margin-bottom: 0.2rem;
+}
+
+.occurrences {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 2rem;
+}
+
+.occurrences li {
+  border-left: 2px solid var(--border);
+  margin-bottom: 0.9rem;
+}
+
+.occurrences a {
+  display: block;
+  padding: 0.2rem 0 0.2rem 0.85rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.occurrences a:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.occurrences .where {
+  display: block;
+  font-family: system-ui, sans-serif;
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-bottom: 0.2rem;
+}
+
+.occurrences .quote {
+  display: block;
+  font-size: 1.05rem;
+  line-height: 1.9;
+}
+
+.occurrences mark {
+  background: var(--accent-soft);
+  color: var(--ink);
+  border-bottom: 2px solid var(--accent);
+  padding: 0 0.05em;
+}
+
+.back {
+  font-family: system-ui, sans-serif;
+  font-size: 0.85rem;
+}
+
+/* --- ask affordance --- */
+
+.ask-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35em;
+  height: 1.35em;
+  margin-left: 0.35em;
+  padding: 0;
+  vertical-align: middle;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font-family: system-ui, sans-serif;
+  font-size: 0.62rem;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.sentence:hover .ask-btn,
+.ask-btn:focus-visible,
+.ask-btn.answered {
+  opacity: 1;
+}
+
+.ask-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.ask-btn.answered {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.sentence.asking {
+  background: var(--accent-soft);
+  outline: 1px solid var(--accent);
+}
+
+/* Touch devices have no hover, so the affordance must simply be visible. */
+@media (hover: none) {
+  .ask-btn {
+    opacity: 1;
+  }
+}
+
+/* --- ask panel --- */
+
+.ask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  max-height: 72vh;
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  padding: 1rem 1.25rem 1.6rem;
+}
+
+.ask-inner {
+  max-width: 42rem;
+  margin: 0 auto;
+}
+
+.ask-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.ask-sentence {
+  flex: 1;
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.8;
+  color: var(--muted);
+}
+
+.ask form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+}
+
+.ask form input {
+  flex: 1;
+}
+
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+
+.suggestions button {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-family: system-ui, sans-serif;
+  font-size: 0.76rem;
+  padding: 0.25rem 0.7rem;
+}
+
+.suggestions button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.answer {
+  font-family: system-ui, sans-serif;
+  font-size: 0.92rem;
+  line-height: 1.85;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border-left: 2px solid var(--accent);
+  padding-left: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.thinking {
+  color: var(--muted);
+}
+
+.history {
+  margin-top: 1.25rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+}
+
+.history h3 {
+  font-family: system-ui, sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin: 0 0 0.5rem;
+  font-weight: normal;
+}
+
+.history summary {
+  cursor: pointer;
+  font-family: system-ui, sans-serif;
+  font-size: 0.85rem;
+  padding: 0.3rem 0;
+}
+
+.history .stale {
+  margin-left: 0.5rem;
+  font-size: 0.7rem;
+  color: var(--review);
+  border: 1px solid var(--review);
+  border-radius: 3px;
+  padding: 0 0.3rem;
+}
