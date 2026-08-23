@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Serif+JP:wght@400;500;600&display=swap">
+  <style>
+    body { margin: 0; font-family: 'IBM Plex Sans', system-ui, sans-serif; }
+    a { color: #7a4a2b; } a:hover { color: #5c3620; }
+    .jp { font-family: 'Noto Serif JP', 'Hiragino Mincho ProN', 'Yu Mincho', serif; }
+    .chip:hover { border-color: #7a4a2b; color: #7a4a2b; }
+  </style>
+</helmet>
+
+<div style="position: absolute; top: 100%; left: -12px; margin-top: 12px; width: 380px; z-index: 60; background: #ffffff; border: 1px solid #ded7ca; border-radius: 9px; box-shadow: 0 10px 34px rgba(34,32,28,0.17); padding: 14px 16px 16px; text-align: left; cursor: default; line-height: 1.5;">
+
+  <div style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 11px;">
+    <div>
+      <div style="font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase; color: #a8a296; margin-bottom: 3px;">選択した部分</div>
+      <div class="jp" style="font-size: 15px; color: #22201c;">{{selection}}</div>
+    </div>
+    <div style="margin-left: auto; font-size: 19px; color: #b3ada1; line-height: 1; cursor: pointer;">×</div>
+  </div>
+
+  <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;">
+    <span class="chip" style="padding: 5px 11px; border: 1px solid #e2ded4; border-radius: 999px; font-size: 12px; color: #6f6a60; cursor: pointer;">文法を説明</span>
+    <span class="chip" style="padding: 5px 11px; border: 1px solid #e2ded4; border-radius: 999px; font-size: 12px; color: #6f6a60; cursor: pointer;">なぜこの形？</span>
+    <span class="chip" style="padding: 5px 11px; border: 1px solid #e2ded4; border-radius: 999px; font-size: 12px; color: #6f6a60; cursor: pointer;">語感の違い</span>
+  </div>
+
+  <div style="font-size: 12.5px; color: #7a4a2b; margin-bottom: 7px;">「つもりだ」是什麼意思？</div>
+
+  <div style="font-size: 13.5px; line-height: 1.95; color: #22201c; padding-left: 11px; border-left: 2px solid #7a4a2b;">
+    <strong style="font-weight: 600;">〜つもりだ</strong> 接在動詞辭書形後，表示<strong style="font-weight: 600;">說話者的意圖或打算</strong>。<br>
+    這裡的「読み終わるつもりだ」是「打算讀完」，語氣比「〜たい」（想要）更確定，含有已經計畫好的意味。<br>
+    否定用「〜ないつもりだ」（打算不做），與「〜つもりはない」（沒有打算）語氣不同。
+  </div>
+
+  <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #efeae1; font-size: 11px; color: #b3ada1;">
+    保存されません — 閉じると消えます
+  </div>
+
+  <div style="position: absolute; bottom: 100%; left: 24px; width: 10px; height: 10px; margin-bottom: -5px; transform: rotate(45deg); background: #ffffff; border-left: 1px solid #ded7ca; border-top: 1px solid #ded7ca;"></div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"selection":{"editor":"text","default":"読み終わるつもりだ"},"$preview":{"width":400,"height":320}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { selection: this.props.selection ?? '読み終わるつもりだ' };
+  }
+}
+</script>
+</body>
+</html>

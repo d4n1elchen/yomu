@@ -15,59 +15,94 @@
     a:hover { color: #5c3620; }
     .jp { font-family: 'Noto Serif JP', 'Hiragino Mincho ProN', 'Yu Mincho', serif; }
     rt { font-size: 0.48em; color: #8f887c; user-select: none; }
-    .on .mk { border-bottom: 1.5px dashed #b08a5e; }
-    .sel { background: #f0e6dc; border-bottom: 2px solid #7a4a2b !important; }
+    .mk { border-bottom: 1.5px dashed #b08a5e; }
+    .picked { background: #f0e6dc; }
+    .selrange { background: #d8e5f0; }
+    .tab { padding: 5px 12px; border-radius: 999px; font-size: 11.5px; cursor: pointer; border: 1px solid #e2ded4; color: #8f887c; }
+    .tab.on { background: #f0e6dc; border-color: #7a4a2b; color: #22201c; }
   </style>
 </helmet>
 
-<div style="width: 390px; height: 844px; display: flex; flex-direction: column; background: #fbfaf7; overflow: hidden; position: relative;">
+<div style="width: 390px; height: 844px; display: flex; flex-direction: column; background: #fbfaf7; overflow: hidden;">
 
   <!-- top bar -->
   <div style="display: flex; align-items: center; gap: 12px; padding: 0 16px; height: 54px; border-bottom: 1px solid #e2ded4; flex-shrink: 0;">
     <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#6f6a60" stroke-width="2" stroke-linecap="round"><path d="M15 18l-6-6 6-6"></path></svg>
     <div class="jp" style="flex-grow: 1; font-size: 16px; font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">図書館の午後</div>
-    <div onClick="{{toggle}}" style="display: flex; align-items: center; gap: 7px;">
-      <span style="font-size: 11.5px; color: {{labelColor}};">語彙</span>
-      <div style="width: 34px; height: 20px; border-radius: 999px; background: {{track}}; padding: 2px; display: flex; justify-content: {{justify}};">
+    <div style="display: flex; align-items: center; gap: 7px;">
+      <span style="font-size: 11.5px; color: #22201c;">語彙</span>
+      <div style="width: 34px; height: 20px; border-radius: 999px; background: #7a4a2b; padding: 2px; display: flex; justify-content: flex-end;">
         <div style="width: 16px; height: 16px; border-radius: 50%; background: #ffffff; box-shadow: 0 1px 2px rgba(0,0,0,0.25);"></div>
       </div>
     </div>
   </div>
 
-  <!-- text -->
-  <div class="jp {{onClass}}" style="flex-grow: 1; padding: 22px 20px; font-size: 17px; line-height: 2.95; overflow: hidden;">
-    <ruby>昨日<rt>きのう</rt></ruby>、<ruby>綾<rt>あや</rt></ruby><ruby>辻<rt>つじ</rt></ruby>さんは<ruby>図書館<rt>としょかん</rt></ruby>で<ruby>本<rt>ほん</rt></ruby>を<span class="mk"><ruby>三<rt>さん</rt></ruby><ruby>冊<rt>さつ</rt></ruby></span><ruby>借<rt>か</rt></ruby>りた。<ruby>彼女<rt>かのじょ</rt></ruby>は<ruby>静<rt>しず</rt></ruby>かな<ruby>席<rt>せき</rt></ruby>に<ruby>座<rt>すわ</rt></ruby>って、<ruby>時々<rt>ときどき</rt></ruby><ruby>窓<rt>まど</rt></ruby>の<ruby>外<rt>そと</rt></ruby>を<span class="mk {{selClass}}" onClick="{{tapWord}}"><ruby>眺<rt>なが</rt></ruby>め</span>ながら<span class="mk"><ruby>読<rt>よ</rt></ruby>み<ruby>返<rt>かえ</rt></ruby>し</span>ていた。
+  <!-- which panel to preview -->
+  <div style="display: flex; gap: 6px; padding: 10px 16px 0;">
+    <div class="tab {{wordTab}}" onClick="{{showWord}}">tap a word</div>
+    <div class="tab {{askTab}}" onClick="{{showAsk}}">select text</div>
   </div>
 
-  <!-- bottom panel -->
-  <sc-if value="{{open}}" hint-placeholder-val="{{ true }}">
-    <div style="flex-shrink: 0; border-top: 1px solid #ded7ca; background: #ffffff; box-shadow: 0 -6px 22px rgba(34,32,28,0.08); padding: 8px 20px 26px;">
-      <div style="width: 36px; height: 4px; border-radius: 999px; background: #ded7ca; margin: 0 auto 14px;"></div>
+  <!-- text -->
+  <div class="jp" style="flex-grow: 1; padding: 14px 18px; font-size: 17px; line-height: 2.95; overflow: hidden;">
+    <ruby>昨日<rt>きのう</rt></ruby>、<ruby>綾<rt>あや</rt></ruby><ruby>辻<rt>つじ</rt></ruby>さんは<ruby>図書館<rt>としょかん</rt></ruby>で<ruby>本<rt>ほん</rt></ruby>を<span class="mk"><ruby>三<rt>さん</rt></ruby><ruby>冊<rt>さつ</rt></ruby></span><ruby>借<rt>か</rt></ruby>りた。<ruby>彼女<rt>かのじょ</rt></ruby>は<ruby>静<rt>しず</rt></ruby>かな<ruby>席<rt>せき</rt></ruby>に<ruby>座<rt>すわ</rt></ruby>って、<ruby>時々<rt>ときどき</rt></ruby><ruby>窓<rt>まど</rt></ruby>の<ruby>外<rt>そと</rt></ruby>を<span class="mk {{wordHl}}"><ruby>眺<rt>なが</rt></ruby>め</span>ながら<span class="{{selHl}}"><ruby>読<rt>よ</rt></ruby>み<ruby>返<rt>かえ</rt></ruby>していた</span>。
+  </div>
 
-      <div style="display: flex; align-items: baseline; gap: 9px; margin-bottom: 4px;">
-        <span class="jp" style="font-size: 24px; font-weight: 600;">眺める</span>
-        <span class="jp" style="font-size: 14px; color: #8f887c;">ながめる</span>
-        <span style="margin-left: auto; padding: 3px 9px; border-radius: 999px; background: #f4efe7; color: #7a4a2b; font-size: 11px;">動詞</span>
-      </div>
-
-      <div style="font-size: 12px; color: #a8a296; margin-bottom: 10px;">この文では <span class="jp" style="color: #6f6a60;">眺め</span></div>
-
-      <div style="font-size: 14px; line-height: 1.85; color: #3d3a34;">遠望、眺望。比「見る」更有距離感，也帶有持續注視的語感。</div>
-
-      <div style="display: flex; align-items: center; gap: 18px; margin-top: 16px; padding-top: 13px; border-top: 1px solid #efeae1;">
-        <div style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #7a4a2b;">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7a4a2b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h9a3 3 0 0 1 3 3v11a2 2 0 0 0-2-2H4z"></path><path d="M20 5h-4a3 3 0 0 0-3 3v11a2 2 0 0 1 2-2h5z"></path></svg>
-          Dictionary
-        </div>
-        <div style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #7a4a2b;">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7a4a2b" stroke-width="2" stroke-linecap="round"><path d="M9 9a3 3 0 1 1 4 2.8c-.7.3-1 .9-1 1.7v.5"></path><path d="M12 17h.01"></path></svg>
-          この文について聞く
-        </div>
-        <div onClick="{{close}}" style="margin-left: auto; font-size: 20px; color: #a8a296; line-height: 1; cursor: pointer;">×</div>
-      </div>
+  <!-- OS selection menu, only in the select-text state -->
+  <sc-if value="{{isAsk}}" hint-placeholder-val="{{ false }}">
+    <div style="align-self: center; margin-bottom: 8px; display: flex; background: #3a3a3c; border-radius: 8px; overflow: hidden; box-shadow: 0 3px 12px rgba(0,0,0,0.28);">
+      <span style="padding: 8px 15px; color: #fff; font-size: 12.5px;">コピー</span>
+      <span style="width: 1px; background: #565658;"></span>
+      <span style="padding: 8px 15px; color: #fff; font-size: 12.5px;">調べる</span>
+      <span style="width: 1px; background: #565658;"></span>
+      <span style="padding: 8px 15px; color: #fff; font-size: 12.5px;">共有</span>
     </div>
   </sc-if>
 
+  <!-- bottom card -->
+  <div style="flex-shrink: 0; border-top: 1px solid #ded7ca; background: #ffffff; box-shadow: 0 -6px 22px rgba(34,32,28,0.08); padding: 8px 20px 26px;">
+    <div style="width: 36px; height: 4px; border-radius: 999px; background: #ded7ca; margin: 0 auto 14px;"></div>
+
+    <sc-if value="{{isWord}}" hint-placeholder-val="{{ true }}">
+      <div>
+        <div style="display: flex; align-items: baseline; gap: 9px; margin-bottom: 3px;">
+          <span class="jp" style="font-size: 23px; font-weight: 600;">眺める</span>
+          <span class="jp" style="font-size: 14px; color: #8f887c;">ながめる</span>
+          <span style="margin-left: auto; padding: 3px 9px; border-radius: 999px; background: #f4efe7; color: #7a4a2b; font-size: 11px;">動詞</span>
+        </div>
+        <div style="font-size: 12px; color: #a8a296; margin-bottom: 9px;">この文では <span class="jp" style="color: #6f6a60;">眺め</span></div>
+        <ol style="margin: 0; padding-left: 18px;">
+          <li style="font-size: 14px; line-height: 1.85; color: #3d3a34;">眺望；遠望</li>
+          <li style="font-size: 14px; line-height: 1.85; color: #3d3a34;">凝視；注視</li>
+          <li style="font-size: 14px; line-height: 1.85; color: #3d3a34;">袖手旁觀</li>
+        </ol>
+        <div style="display: flex; align-items: center; gap: 6px; margin-top: 14px; padding-top: 12px; border-top: 1px solid #efeae1; font-size: 12.5px; color: #7a4a2b;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7a4a2b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h9a3 3 0 0 1 3 3v11a2 2 0 0 0-2-2H4z"></path><path d="M20 5h-4a3 3 0 0 0-3 3v11a2 2 0 0 1 2-2h5z"></path></svg>
+          Dictionary
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{isAsk}}" hint-placeholder-val="{{ false }}">
+      <div>
+        <div style="font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase; color: #a8a296; margin-bottom: 3px;">選択した部分</div>
+        <div class="jp" style="font-size: 15px; margin-bottom: 11px;">読み返していた</div>
+
+        <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;">
+          <span style="padding: 5px 11px; border: 1px solid #e2ded4; border-radius: 999px; font-size: 12px; color: #6f6a60;">文法を説明</span>
+          <span style="padding: 5px 11px; border: 1px solid #e2ded4; border-radius: 999px; font-size: 12px; color: #6f6a60;">なぜこの形？</span>
+        </div>
+
+        <div style="font-size: 12.5px; color: #7a4a2b; margin-bottom: 6px;">「ていた」在這裡表示什麼？</div>
+        <div style="font-size: 13.5px; line-height: 1.9; padding-left: 11px; border-left: 2px solid #7a4a2b;">
+          「〜ていた」是「〜ている」的過去式，表示過去某段時間<strong style="font-weight: 600;">持續進行</strong>的動作。<br>
+          這裡指她當時<strong style="font-weight: 600;">一直在反覆閱讀</strong>，而不是讀了一次就結束。
+        </div>
+        <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #efeae1; font-size: 11px; color: #b3ada1;">保存されません — 閉じると消えます</div>
+      </div>
+    </sc-if>
+
+  </div>
 </div>
 </x-dc>
 
@@ -75,20 +110,19 @@
 class Component extends DCLogic {
   constructor(props) {
     super(props);
-    this.state = { explain: true, open: true };
+    this.state = { mode: 'word' };
   }
   renderVals() {
-    const on = this.state.explain;
+    const word = this.state.mode === 'word';
     return {
-      onClass: on ? 'on' : '',
-      track: on ? '#7a4a2b' : '#d6d0c4',
-      justify: on ? 'flex-end' : 'flex-start',
-      labelColor: on ? '#22201c' : '#8f887c',
-      toggle: () => this.setState({ explain: !on, open: false }),
-      open: this.state.open && on,
-      selClass: this.state.open && on ? 'sel' : '',
-      tapWord: () => this.setState({ open: true }),
-      close: () => this.setState({ open: false })
+      isWord: word,
+      isAsk: !word,
+      wordTab: word ? 'on' : '',
+      askTab: word ? '' : 'on',
+      wordHl: word ? 'picked' : '',
+      selHl: word ? '' : 'selrange',
+      showWord: () => this.setState({ mode: 'word' }),
+      showAsk: () => this.setState({ mode: 'ask' })
     };
   }
 }

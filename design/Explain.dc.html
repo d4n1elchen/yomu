@@ -15,15 +15,19 @@
   </style>
 </helmet>
 
-<div style="position: absolute; bottom: 100%; left: -10px; margin-bottom: 9px; width: 270px; z-index: 40; background: #ffffff; border: 1px solid #ded7ca; border-radius: 8px; box-shadow: 0 8px 26px rgba(34,32,28,0.14); padding: 13px 15px 14px; text-align: left; cursor: default;">
+<div style="position: absolute; bottom: 100%; left: -10px; margin-bottom: 10px; width: 280px; z-index: 40; background: #ffffff; border: 1px solid #ded7ca; border-radius: 8px; box-shadow: 0 8px 26px rgba(34,32,28,0.14); padding: 13px 15px 14px; text-align: left; cursor: default; line-height: 1.5;">
 
-  <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px;">
-    <span class="jp" style="font-size: 19px; font-weight: 600; color: #22201c; line-height: 1.3;">{{title}}</span>
+  <div style="display: flex; align-items: baseline; gap: 8px;">
+    <span class="jp" style="font-size: 19px; font-weight: 600; color: #22201c;">{{title}}</span>
     <span class="jp" style="font-size: 13px; color: #8f887c;">{{reading}}</span>
     <span style="margin-left: auto; padding: 2px 8px; border-radius: 999px; background: #f4efe7; color: #7a4a2b; font-size: 10.5px;">{{pos}}</span>
   </div>
 
-  <div style="font-size: 13px; line-height: 1.8; color: #3d3a34; margin-top: 8px;">{{body}}</div>
+  <ol style="margin: 9px 0 0; padding-left: 17px;">
+    <sc-for list="{{senses}}" as="s" hint-placeholder-count="2">
+      <li style="font-size: 13px; line-height: 1.75; color: #3d3a34; margin-bottom: 2px;">{{s}}</li>
+    </sc-for>
+  </ol>
 
   <div style="display: flex; align-items: center; gap: 5px; margin-top: 11px; padding-top: 10px; border-top: 1px solid #efeae1; font-size: 11.5px; color: #7a4a2b;">
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7a4a2b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h9a3 3 0 0 1 3 3v11a2 2 0 0 0-2-2H4z"></path><path d="M20 5h-4a3 3 0 0 0-3 3v11a2 2 0 0 1 2-2h5z"></path></svg>
@@ -34,14 +38,14 @@
 </div>
 </x-dc>
 
-<script data-dc-script data-props='{"title":{"editor":"text","default":"眺める"},"reading":{"editor":"text","default":"ながめる"},"pos":{"editor":"text","default":"動詞"},"body":{"editor":"text","default":"遠望、眺望。比「見る」更有距離感，也帶有持續注視的語感。"},"$preview":{"width":290,"height":180}}'>
+<script data-dc-script data-props='{"title":{"editor":"text","default":"眺める"},"reading":{"editor":"text","default":"ながめる"},"pos":{"editor":"text","default":"動詞"},"$preview":{"width":300,"height":200}}'>
 class Component extends DCLogic {
   renderVals() {
     return {
       title: this.props.title ?? '眺める',
       reading: this.props.reading ?? 'ながめる',
       pos: this.props.pos ?? '動詞',
-      body: this.props.body ?? ''
+      senses: this.props.senses ?? ['眺望；遠望', '凝視；注視', '袖手旁觀']
     };
   }
 }

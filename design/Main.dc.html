@@ -16,23 +16,21 @@
     .jp { font-family: 'Noto Serif JP', 'Hiragino Mincho ProN', 'Yu Mincho', serif; }
     rt { font-size: 0.48em; font-weight: 400; color: #8f887c; user-select: none; }
     .row:hover { background: #ffffff; border-color: #e2ded4 !important; }
-    .mark { position: relative; cursor: help; }
-    .on .mark { border-bottom: 1.5px dashed #b08a5e; }
-    .on .mark:hover { background: #f0e6dc; }
+    .mark { position: relative; border-bottom: 1.5px dashed #b08a5e; cursor: help; }
+    .mark:hover { background: #f0e6dc; }
     .navitem:hover { color: #22201c; }
-    .sent { position: relative; display: block; padding: 2px 0 2px 22px; border-radius: 4px; }
-    .sent:hover { background: #faf6ef; }
-    .sent:hover .askdot { opacity: 1; }
+    .sel { position: relative; background: #d8e5f0; cursor: pointer; }
+    input[type=range] { accent-color: #7a4a2b; }
   </style>
 </helmet>
 
 <div style="width: 1280px; height: 900px; display: flex; flex-direction: column; background: #fbfaf7; overflow: hidden;">
 
-  <!-- ================= header ================= -->
+  <!-- header -->
   <div style="display: flex; align-items: center; gap: 28px; padding: 0 40px; height: 66px; border-bottom: 1px solid #e2ded4; flex-shrink: 0;">
-    <div class="jp" onClick="{{goArticles}}" style="font-size: 20px; font-weight: 600; color: #22201c; cursor: pointer;">読む</div>
+    <div class="jp" onClick="{{goLibrary}}" style="font-size: 20px; font-weight: 600; cursor: pointer;">読む</div>
     <div style="display: flex; gap: 4px;">
-      <div class="navitem" onClick="{{goArticles}}" style="padding: 7px 14px; border-radius: 6px; font-size: 14px; cursor: pointer; background: {{tabArticlesBg}}; color: {{tabArticlesFg}}; font-weight: {{tabArticlesWeight}};">Library</div>
+      <div class="navitem" onClick="{{goLibrary}}" style="padding: 7px 14px; border-radius: 6px; font-size: 14px; cursor: pointer; background: {{tabLibBg}}; color: {{tabLibFg}}; font-weight: {{tabLibWeight}};">Library</div>
       <div class="navitem" onClick="{{goDict}}" style="padding: 7px 14px; border-radius: 6px; font-size: 14px; cursor: pointer; background: {{tabDictBg}}; color: {{tabDictFg}}; font-weight: {{tabDictWeight}};">Dictionary</div>
     </div>
     <div style="flex-grow: 1;"></div>
@@ -42,8 +40,8 @@
     </div>
   </div>
 
-  <!-- ================= ARTICLES ================= -->
-  <sc-if value="{{isArticles}}" hint-placeholder-val="{{ true }}">
+  <!-- ================= LIBRARY ================= -->
+  <sc-if value="{{isLibrary}}" hint-placeholder-val="{{ true }}">
     <div style="flex-grow: 1; padding: 44px 40px; overflow: hidden;">
       <div style="max-width: 860px; margin: 0 auto;">
         <h1 style="margin: 0 0 28px; font-size: 24px; font-weight: 600; letter-spacing: -0.01em;">Library</h1>
@@ -57,12 +55,14 @@
 
         <sc-for list="{{articles}}" as="a" hint-placeholder-count="4">
           <div class="row" onClick="{{a.open}}" style="display: grid; grid-template-columns: 1fr 130px 90px 90px; gap: 0 24px; align-items: center; padding: 17px 16px; border: 1px solid transparent; border-radius: 8px; cursor: pointer;">
-            <div class="jp" style="font-size: 18px; font-weight: 500; color: #22201c;">{{a.title}}</div>
+            <div class="jp" style="font-size: 18px; font-weight: 500;">{{a.title}}</div>
             <div style="font-size: 13px; color: #8f887c;">{{a.last}}</div>
             <div style="font-size: 14px; color: #6f6a60; text-align: right; font-variant-numeric: tabular-nums;">{{a.vocab}}</div>
-            <div style="font-size: 14px; color: #6f6a60; text-align: right; font-variant-numeric: tabular-nums;">{{a.grammar}}</div>
+            <div style="font-size: 14px; color: #c4bfb4; text-align: right; font-variant-numeric: tabular-nums;">0</div>
           </div>
         </sc-for>
+
+        <p style="margin-top: 18px; font-size: 12px; color: #b3ada1;">Grammar reads zero everywhere — grammar is deferred until it has a natural key.</p>
       </div>
     </div>
   </sc-if>
@@ -71,12 +71,12 @@
   <sc-if value="{{isNew}}" hint-placeholder-val="{{ false }}">
     <div style="flex-grow: 1; padding: 44px 40px; overflow: hidden;">
       <div style="max-width: 660px; margin: 0 auto;">
-        <div onClick="{{goArticles}}" style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #8f887c; margin-bottom: 18px; cursor: pointer;">
+        <div onClick="{{goLibrary}}" style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #8f887c; margin-bottom: 18px; cursor: pointer;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8f887c" stroke-width="2" stroke-linecap="round"><path d="M15 18l-6-6 6-6"></path></svg>
           Library
         </div>
-        <h1 style="margin: 0 0 6px; font-size: 24px; font-weight: 600; letter-spacing: -0.01em;">New article</h1>
-        <p style="margin: 0 0 28px; font-size: 14px; color: #8f887c;">Paste Japanese text. It will be segmented and added to your dictionary.</p>
+        <h1 style="margin: 0 0 6px; font-size: 24px; font-weight: 600;">New article</h1>
+        <p style="margin: 0 0 28px; font-size: 14px; color: #8f887c;">Paste Japanese text. New words are added to your Dictionary and translated in the background.</p>
 
         <label style="display: block; margin-bottom: 18px;">
           <span style="display: block; font-size: 11.5px; letter-spacing: 0.07em; text-transform: uppercase; color: #a8a296; margin-bottom: 7px;">Title</span>
@@ -85,12 +85,12 @@
 
         <label style="display: block; margin-bottom: 20px;">
           <span style="display: block; font-size: 11.5px; letter-spacing: 0.07em; text-transform: uppercase; color: #a8a296; margin-bottom: 7px;">Japanese text</span>
-          <div class="jp" style="height: 300px; padding: 14px 15px; border: 1px solid #d6d0c4; border-radius: 6px; background: #ffffff; font-size: 16px; line-height: 2; color: #b3ada1;">ここに日本語を貼り付けてください。</div>
+          <div class="jp" style="height: 290px; padding: 14px 15px; border: 1px solid #d6d0c4; border-radius: 6px; background: #ffffff; font-size: 16px; line-height: 2; color: #b3ada1;">ここに日本語を貼り付けてください。</div>
         </label>
 
         <div style="display: flex; align-items: center; gap: 12px;">
           <div onClick="{{goReader}}" style="height: 40px; display: flex; align-items: center; padding: 0 20px; border-radius: 6px; background: #7a4a2b; color: #fbfaf7; font-size: 14.5px; font-weight: 500; cursor: pointer;">Add article</div>
-          <div onClick="{{goArticles}}" style="height: 40px; display: flex; align-items: center; padding: 0 16px; border-radius: 6px; color: #6f6a60; font-size: 14.5px; cursor: pointer;">Cancel</div>
+          <div onClick="{{goLibrary}}" style="height: 40px; display: flex; align-items: center; padding: 0 16px; border-radius: 6px; color: #6f6a60; font-size: 14.5px; cursor: pointer;">Cancel</div>
         </div>
       </div>
     </div>
@@ -98,109 +98,96 @@
 
   <!-- ================= READER ================= -->
   <sc-if value="{{isReader}}" hint-placeholder-val="{{ false }}">
-    <div style="flex-grow: 1; display: flex; overflow: hidden;">
+    <div style="flex-grow: 1; overflow: hidden; padding: 32px 40px;">
+      <div style="max-width: 660px; margin: 0 auto;">
 
-      <div style="flex-grow: 1; overflow: hidden; padding: 34px 40px;">
-        <div style="max-width: 640px; margin: 0 auto;">
-
-          <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 26px;">
-            <div>
-              <div class="jp" style="font-size: 21px; font-weight: 600;">図書館の午後</div>
-              <div style="font-size: 12.5px; color: #a8a296; margin-top: 3px;">5 sentences · 43 words</div>
-            </div>
-            <div style="flex-grow: 1;"></div>
-            <div onClick="{{toggleExplain}}" style="display: flex; align-items: center; gap: 9px; cursor: pointer;">
-              <span style="font-size: 13px; color: {{switchLabel}};">語彙解説</span>
-              <div style="width: 38px; height: 22px; border-radius: 999px; background: {{switchTrack}}; padding: 2px; display: flex; justify-content: {{switchJustify}};">
-                <div style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; box-shadow: 0 1px 2px rgba(0,0,0,0.25);"></div>
-              </div>
+        <div style="display: flex; align-items: flex-end; gap: 20px; margin-bottom: 8px;">
+          <div>
+            <div class="jp" style="font-size: 21px; font-weight: 600;">図書館の午後</div>
+            <div style="font-size: 12.5px; color: #a8a296; margin-top: 3px;">5 sentences · 43 words</div>
+          </div>
+          <div style="flex-grow: 1;"></div>
+          <div onClick="{{toggleExplain}}" style="display: flex; align-items: center; gap: 9px; cursor: pointer;">
+            <span style="font-size: 13px; color: {{switchLabel}};">語彙解説</span>
+            <div style="width: 38px; height: 22px; border-radius: 999px; background: {{switchTrack}}; padding: 2px; display: flex; justify-content: {{switchJustify}};">
+              <div style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; box-shadow: 0 1px 2px rgba(0,0,0,0.25);"></div>
             </div>
           </div>
-
-          <div class="jp {{explainClass}}" style="font-size: 19px; line-height: 2.9; color: #22201c;">
-
-            <span class="sent">
-              <span class="askdot" style="position: absolute; left: 0; top: 14px; width: 13px; height: 13px; border-radius: 50%; border: 1px solid #d6d0c4; opacity: 0; cursor: pointer;"></span>
-              <ruby>昨日<rt>きのう</rt></ruby>、<ruby>綾<rt>あや</rt></ruby><ruby>辻<rt>つじ</rt></ruby>さんは<ruby>図書館<rt>としょかん</rt></ruby>で<ruby>本<rt>ほん</rt></ruby>を<span class="mark" onMouseEnter="{{w.sansatsu.enter}}" onMouseLeave="{{w.leave}}"><ruby>三<rt>さん</rt></ruby><ruby>冊<rt>さつ</rt></ruby><sc-if value="{{w.sansatsu.show}}" hint-placeholder-val="{{ false }}"><dc-import name="Explain" title="三冊" reading="さんさつ" pos="名詞" body="{{w.sansatsu.body}}" hint-size="270px,auto"></dc-import></sc-if></span><ruby>借<rt>か</rt></ruby>りた。
-            </span>
-
-            <span class="sent">
-              <span class="askdot" style="position: absolute; left: 0; top: 14px; width: 13px; height: 13px; border-radius: 50%; border: 1px solid #d6d0c4; opacity: 0; cursor: pointer;"></span>
-              <ruby>彼女<rt>かのじょ</rt></ruby>は<ruby>静<rt>しず</rt></ruby>かな<ruby>席<rt>せき</rt></ruby>に<ruby>座<rt>すわ</rt></ruby>って、<ruby>時々<rt>ときどき</rt></ruby><ruby>窓<rt>まど</rt></ruby>の<ruby>外<rt>そと</rt></ruby>を<span class="mark" onMouseEnter="{{w.nagame.enter}}" onMouseLeave="{{w.leave}}"><ruby>眺<rt>なが</rt></ruby>め<sc-if value="{{w.nagame.show}}" hint-placeholder-val="{{ false }}"><dc-import name="Explain" title="眺める" reading="ながめる" pos="動詞" body="{{w.nagame.body}}" hint-size="270px,auto"></dc-import></sc-if></span>ながら<span class="mark" onMouseEnter="{{w.yomikaeshi.enter}}" onMouseLeave="{{w.leave}}"><ruby>読<rt>よ</rt></ruby>み<ruby>返<rt>かえ</rt></ruby>し<sc-if value="{{w.yomikaeshi.show}}" hint-placeholder-val="{{ false }}"><dc-import name="Explain" title="読み返す" reading="よみかえす" pos="動詞" body="{{w.yomikaeshi.body}}" hint-size="270px,auto"></dc-import></sc-if></span>ていた。
-            </span>
-
-            <span class="sent">
-              <span class="askdot" style="position: absolute; left: 0; top: 14px; width: 13px; height: 13px; border-radius: 50%; border: 1px solid #7a4a2b; background: #f0e6dc; opacity: 1; cursor: pointer;"></span>
-              「この<ruby>本<rt>ほん</rt></ruby>、<ruby>面白<rt>おもしろ</rt></ruby>い！」と<ruby>彼女<rt>かのじょ</rt></ruby>は<ruby>小<rt>ちい</rt></ruby>さな<ruby>声<rt>こえ</rt></ruby>で<ruby>言<rt>い</rt></ruby>った。
-            </span>
-
-            <span class="sent">
-              <span class="askdot" style="position: absolute; left: 0; top: 14px; width: 13px; height: 13px; border-radius: 50%; border: 1px solid #d6d0c4; opacity: 0; cursor: pointer;"></span>
-              <span class="mark" onMouseEnter="{{w.yuugata.enter}}" onMouseLeave="{{w.leave}}"><ruby>夕方<rt>ゆうがた</rt></ruby><sc-if value="{{w.yuugata.show}}" hint-placeholder-val="{{ false }}"><dc-import name="Explain" title="夕方" reading="ゆうがた" pos="名詞" body="{{w.yuugata.body}}" hint-size="270px,auto"></dc-import></sc-if></span>になっても、まだ<span class="mark" onMouseEnter="{{w.hanbun.enter}}" onMouseLeave="{{w.leave}}"><ruby>半分<rt>はんぶん</rt></ruby><sc-if value="{{w.hanbun.show}}" hint-placeholder-val="{{ false }}"><dc-import name="Explain" title="半分" reading="はんぶん" pos="名詞" body="{{w.hanbun.body}}" hint-size="270px,auto"></dc-import></sc-if></span>しか<ruby>読<rt>よ</rt></ruby>んでいない。
-            </span>
-
-            <span class="sent">
-              <span class="askdot" style="position: absolute; left: 0; top: 14px; width: 13px; height: 13px; border-radius: 50%; border: 1px solid #d6d0c4; opacity: 0; cursor: pointer;"></span>
-              それでも、<ruby>来週<rt>らいしゅう</rt></ruby>までには<ruby>全部<rt>ぜんぶ</rt></ruby><ruby>読<rt>よ</rt></ruby>み<ruby>終<rt>お</rt></ruby>わるつもりだ。
-            </span>
-
-          </div>
         </div>
+
+        <!-- difficulty slider -->
+        <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0 20px; border-bottom: 1px solid #ece7dd; margin-bottom: 26px; opacity: {{sliderOpacity}};">
+          <span style="font-size: 11.5px; letter-spacing: 0.06em; text-transform: uppercase; color: #a8a296; white-space: nowrap;">難易度</span>
+          <input type="range" min="0" max="5" step="1" value="{{band}}" onChange="{{setBand}}" style="flex-grow: 1; max-width: 260px;">
+          <span style="font-size: 12px; color: #8f887c; white-space: nowrap;">{{markedCount}} words marked</span>
+        </div>
+
+        <div class="jp" style="font-size: 19px; line-height: 3.0;">
+
+          <div><ruby>昨日<rt>きのう</rt></ruby>、<ruby>綾<rt>あや</rt></ruby><ruby>辻<rt>つじ</rt></ruby>さんは<ruby>図書館<rt>としょかん</rt></ruby>で<ruby>本<rt>ほん</rt></ruby>を<span class="{{w.sansatsu.cls}}" onMouseEnter="{{w.sansatsu.enter}}" onMouseLeave="{{w.leave}}"><ruby>三<rt>さん</rt></ruby><ruby>冊<rt>さつ</rt></ruby><sc-if value="{{w.sansatsu.show}}" hint-placeholder-val="{{ false }}"><dc-import name="Explain" title="{{w.sansatsu.title}}" reading="{{w.sansatsu.reading}}" pos="{{w.sansatsu.pos}}" senses="{{w.sansatsu.senses}}" hint-size="280px,auto"></dc-import></sc-if></span><ruby>借<rt>か</rt></ruby>りた。</div>
+
+          <div><ruby>彼女<rt>かのじょ</rt></ruby>は<ruby>静<rt>しず</rt></ruby>かな<ruby>席<rt>せき</rt></ruby>に<ruby>座<rt>すわ</rt></ruby>って、<ruby>時々<rt>ときどき</rt></ruby><ruby>窓<rt>まど</rt></ruby>の<ruby>外<rt>そと</rt></ruby>を<span class="{{w.nagame.cls}}" onMouseEnter="{{w.nagame.enter}}" onMouseLeave="{{w.leave}}"><ruby>眺<rt>なが</rt></ruby>め<sc-if value="{{w.nagame.show}}" hint-placeholder-val="{{ false }}"><dc-import name="Explain" title="{{w.nagame.title}}" reading="{{w.nagame.reading}}" pos="{{w.nagame.pos}}" senses="{{w.nagame.senses}}" hint-size="280px,auto"></dc-import></sc-if></span>ながら<span class="{{w.yomikaeshi.cls}}" onMouseEnter="{{w.yomikaeshi.enter}}" onMouseLeave="{{w.leave}}"><ruby>読<rt>よ</rt></ruby>み<ruby>返<rt>かえ</rt></ruby>し<sc-if value="{{w.yomikaeshi.show}}" hint-placeholder-val="{{ false }}"><dc-import name="Explain" title="{{w.yomikaeshi.title}}" reading="{{w.yomikaeshi.reading}}" pos="{{w.yomikaeshi.pos}}" senses="{{w.yomikaeshi.senses}}" hint-size="280px,auto"></dc-import></sc-if></span>ていた。</div>
+
+          <div>「この<ruby>本<rt>ほん</rt></ruby>、<ruby>面白<rt>おもしろ</rt></ruby>い！」と<ruby>彼女<rt>かのじょ</rt></ruby>は<ruby>小<rt>ちい</rt></ruby>さな<ruby>声<rt>こえ</rt></ruby>で<ruby>言<rt>い</rt></ruby>った。</div>
+
+          <div><span class="{{w.yuugata.cls}}" onMouseEnter="{{w.yuugata.enter}}" onMouseLeave="{{w.leave}}"><ruby>夕方<rt>ゆうがた</rt></ruby><sc-if value="{{w.yuugata.show}}" hint-placeholder-val="{{ false }}"><dc-import name="Explain" title="{{w.yuugata.title}}" reading="{{w.yuugata.reading}}" pos="{{w.yuugata.pos}}" senses="{{w.yuugata.senses}}" hint-size="280px,auto"></dc-import></sc-if></span>になっても、まだ<span class="{{w.hanbun.cls}}" onMouseEnter="{{w.hanbun.enter}}" onMouseLeave="{{w.leave}}"><ruby>半分<rt>はんぶん</rt></ruby><sc-if value="{{w.hanbun.show}}" hint-placeholder-val="{{ false }}"><dc-import name="Explain" title="{{w.hanbun.title}}" reading="{{w.hanbun.reading}}" pos="{{w.hanbun.pos}}" senses="{{w.hanbun.senses}}" hint-size="280px,auto"></dc-import></sc-if></span>しか<ruby>読<rt>よ</rt></ruby>んでいない。</div>
+
+          <div>それでも、<ruby>来週<rt>らいしゅう</rt></ruby>までには<ruby>全部<rt>ぜんぶ</rt></ruby><span class="sel" onClick="{{toggleQa}}"><ruby>読<rt>よ</rt></ruby>み<ruby>終<rt>お</rt></ruby>わるつもりだ<sc-if value="{{qa}}" hint-placeholder-val="{{ true }}"><dc-import name="Ask" hint-size="360px,auto"></dc-import></sc-if></span>。</div>
+
+        </div>
+
+        <p style="margin-top: 26px; font-size: 12px; color: #b3ada1; font-family: 'IBM Plex Sans', system-ui, sans-serif;">
+          Hover a dashed word for its explanation. The highlighted phrase stands in for a text selection — click it to open Q&amp;A. Note that hover cards are suppressed while it is open.
+        </p>
       </div>
-
-      <!-- Q&A rail — placement still open -->
-      <div style="width: 340px; flex-shrink: 0; border-left: 1px solid #e2ded4; background: #ffffff; padding: 26px 24px; overflow: hidden;">
-        <div style="font-size: 11.5px; letter-spacing: 0.07em; text-transform: uppercase; color: #a8a296; margin-bottom: 12px;">Selected sentence</div>
-        <div class="jp" style="font-size: 14.5px; line-height: 1.95; color: #6f6a60; padding-left: 11px; border-left: 2px solid #e2ded4; margin-bottom: 20px;">「この本、面白い！」と彼女は小さな声で言った。</div>
-
-        <div style="display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 18px;">
-          <div style="padding: 6px 12px; border: 1px solid #e2ded4; border-radius: 999px; font-size: 12.5px; color: #6f6a60; cursor: pointer;">文法を説明</div>
-          <div style="padding: 6px 12px; border: 1px solid #e2ded4; border-radius: 999px; font-size: 12.5px; color: #6f6a60; cursor: pointer;">語感の違い</div>
-        </div>
-
-        <div style="font-size: 12.5px; color: #7a4a2b; margin-bottom: 8px;">「と」在這裡的作用是什麼？</div>
-        <div style="font-size: 13.5px; line-height: 1.95; color: #22201c; padding-left: 11px; border-left: 2px solid #7a4a2b;">
-          這裡的「と」是<strong style="font-weight: 600;">引用助詞</strong>，標示引號內的話是「言った」的內容。<br><br>
-          常與「言う・思う・感じる」等動詞搭配，結構為<br>［引用的話］＋と＋［主語］＋動詞。
-        </div>
-      </div>
-
     </div>
   </sc-if>
 
   <!-- ================= DICTIONARY ENTRY ================= -->
   <sc-if value="{{isDict}}" hint-placeholder-val="{{ false }}">
-    <div style="flex-grow: 1; padding: 40px; overflow: hidden;">
-      <div style="max-width: 760px; margin: 0 auto;">
+    <div style="flex-grow: 1; padding: 38px 40px; overflow: hidden;">
+      <div style="max-width: 720px; margin: 0 auto;">
 
-        <div onClick="{{goDict}}" style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #8f887c; margin-bottom: 20px; cursor: pointer;">
+        <div onClick="{{goDict}}" style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #8f887c; margin-bottom: 18px; cursor: pointer;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8f887c" stroke-width="2" stroke-linecap="round"><path d="M15 18l-6-6 6-6"></path></svg>
           Dictionary
         </div>
 
-        <div style="display: flex; align-items: flex-end; gap: 16px; margin-bottom: 10px;">
-          <div class="jp" style="font-size: 40px; font-weight: 600; line-height: 1;">読む</div>
-          <div class="jp" style="font-size: 18px; color: #8f887c; padding-bottom: 3px;">よむ</div>
+        <div style="display: flex; align-items: flex-end; gap: 15px; margin-bottom: 6px;">
+          <div class="jp" style="font-size: 38px; font-weight: 600; line-height: 1;">読む</div>
+          <div class="jp" style="font-size: 17px; color: #8f887c; padding-bottom: 3px;">よむ</div>
           <div style="padding: 4px 11px; border-radius: 999px; background: #f0e6dc; color: #7a4a2b; font-size: 12px; margin-bottom: 3px;">動詞</div>
+          <div style="padding: 4px 11px; border-radius: 999px; border: 1px solid #e2ded4; color: #8f887c; font-size: 11.5px; margin-bottom: 3px;">nf08</div>
         </div>
 
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 34px;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 28px;">
           <span style="font-size: 12.5px; color: #a8a296;">Forms seen</span>
           <div class="jp" style="padding: 3px 10px; border: 1px solid #e2ded4; border-radius: 4px; font-size: 14px;">読ん</div>
           <div class="jp" style="padding: 3px 10px; border: 1px solid #e2ded4; border-radius: 4px; font-size: 14px;">読み</div>
         </div>
 
-        <div style="font-size: 11.5px; letter-spacing: 0.07em; text-transform: uppercase; color: #a8a296; margin-bottom: 16px;">4 occurrences · 2 articles</div>
+        <div style="font-size: 11.5px; letter-spacing: 0.07em; text-transform: uppercase; color: #a8a296; margin-bottom: 12px;">語義</div>
+        <ol style="margin: 0 0 30px; padding-left: 20px;">
+          <sc-for list="{{senses}}" as="s" hint-placeholder-count="4">
+            <li style="font-size: 15.5px; line-height: 1.9; margin-bottom: 7px;">
+              {{s.zh}}
+              <span style="color: #b3ada1; font-size: 12.5px; margin-left: 8px;">{{s.en}}</span>
+            </li>
+          </sc-for>
+        </ol>
+
+        <div style="font-size: 11.5px; letter-spacing: 0.07em; text-transform: uppercase; color: #a8a296; margin-bottom: 14px;">4 occurrences · 2 articles</div>
 
         <sc-for list="{{groups}}" as="g" hint-placeholder-count="2">
-          <div style="margin-bottom: 26px;">
-            <div class="jp" style="font-size: 15px; font-weight: 500; color: #7a4a2b; margin-bottom: 10px; cursor: pointer;">{{g.article}}</div>
+          <div style="margin-bottom: 22px;">
+            <div class="jp" style="font-size: 14.5px; font-weight: 500; color: #7a4a2b; margin-bottom: 8px; cursor: pointer;">{{g.article}}</div>
             <sc-for list="{{g.lines}}" as="l" hint-placeholder-count="2">
-              <div class="jp" style="font-size: 16px; line-height: 2.1; color: #22201c; padding: 7px 0 7px 13px; border-left: 2px solid #e2ded4; margin-bottom: 4px; cursor: pointer;">{{l.before}}<span style="background: #f0e6dc; border-bottom: 2px solid #7a4a2b; padding: 0 2px;">{{l.hit}}</span>{{l.after}}</div>
+              <div class="jp" style="font-size: 15.5px; line-height: 2.05; padding: 6px 0 6px 13px; border-left: 2px solid #e2ded4; margin-bottom: 4px; cursor: pointer;">{{l.before}}<span style="background: #f0e6dc; border-bottom: 2px solid #7a4a2b; padding: 0 2px;">{{l.hit}}</span>{{l.after}}</div>
             </sc-for>
           </div>
         </sc-for>
 
+        <p style="font-size: 11.5px; color: #b3ada1; border-top: 1px solid #ece7dd; padding-top: 14px;">Definitions from JMdict, © Electronic Dictionary Research and Development Group, used under licence. Chinese by machine translation.</p>
       </div>
     </div>
   </sc-if>
@@ -212,38 +199,60 @@
 class Component extends DCLogic {
   constructor(props) {
     super(props);
-    this.state = { screen: 'articles', explain: true, hover: null };
-  }
-
-  word(key, body) {
-    return {
-      body: body,
-      show: this.state.explain && this.state.hover === key,
-      enter: () => this.setState({ hover: key })
-    };
+    this.state = { screen: 'library', explain: true, band: 3, hover: null, qa: false };
   }
 
   renderVals() {
     const s = this.state;
     const on = s.explain;
-    const tab = (name) => ({
-      bg: s.screen === name ? '#f0e6dc' : 'transparent',
-      fg: s.screen === name ? '#22201c' : '#6f6a60',
-      weight: s.screen === name ? '500' : '400'
+    const tab = (n) => ({
+      bg: s.screen === n ? '#f0e6dc' : 'transparent',
+      fg: s.screen === n ? '#22201c' : '#6f6a60',
+      weight: s.screen === n ? '500' : '400'
     });
-    const a = tab('articles');
-    const d = tab('dict');
+    const L = tab('library'), D = tab('dict');
+
+    // band: how rare a word must be to get marked. Higher slider = mark more.
+    const words = {
+      sansatsu: { band: 4, title: '三冊', reading: 'さんさつ', pos: '名詞',
+        senses: ['三本（書籍的量詞）'] },
+      nagame: { band: 2, title: '眺める', reading: 'ながめる', pos: '動詞',
+        senses: ['眺望；遠望', '凝視；注視', '袖手旁觀'] },
+      yomikaeshi: { band: 3, title: '読み返す', reading: 'よみかえす', pos: '動詞',
+        senses: ['重讀；再讀一遍'] },
+      yuugata: { band: 5, title: '夕方', reading: 'ゆうがた', pos: '名詞',
+        senses: ['傍晚；黃昏'] },
+      hanbun: { band: 4, title: '半分', reading: 'はんぶん', pos: '名詞',
+        senses: ['一半；二分之一', '（接尾）半帶著…地'] }
+    };
+
+    const w = { leave: () => this.setState({ hover: null }) };
+    let marked = 0;
+    for (const key of Object.keys(words)) {
+      const d = words[key];
+      const isMarked = on && d.band <= s.band;
+      if (isMarked) marked++;
+      w[key] = Object.assign({}, d, {
+        cls: isMarked ? 'mark' : '',
+        marked: isMarked,
+        // The plan's rule: no hover card while a selection is open.
+        show: isMarked && s.hover === key && !s.qa,
+        enter: () => this.setState({ hover: key })
+      });
+    }
+
+    const line = (id, marks) => ({ id, marks });
 
     return {
-      isArticles: s.screen === 'articles',
+      isLibrary: s.screen === 'library',
       isNew: s.screen === 'new',
       isReader: s.screen === 'reader',
       isDict: s.screen === 'dict',
 
-      tabArticlesBg: a.bg, tabArticlesFg: a.fg, tabArticlesWeight: a.weight,
-      tabDictBg: d.bg, tabDictFg: d.fg, tabDictWeight: d.weight,
+      tabLibBg: L.bg, tabLibFg: L.fg, tabLibWeight: L.weight,
+      tabDictBg: D.bg, tabDictFg: D.fg, tabDictWeight: D.weight,
 
-      goArticles: () => this.setState({ screen: 'articles' }),
+      goLibrary: () => this.setState({ screen: 'library', qa: false, hover: null }),
       goNew: () => this.setState({ screen: 'new' }),
       goReader: () => this.setState({ screen: 'reader' }),
       goDict: () => this.setState({ screen: 'dict' }),
@@ -254,20 +263,27 @@ class Component extends DCLogic {
       switchLabel: on ? '#22201c' : '#8f887c',
       toggleExplain: () => this.setState({ explain: !on, hover: null }),
 
-      w: {
-        leave: () => this.setState({ hover: null }),
-        sansatsu: this.word('sansatsu', '「冊」是書本的量詞。數書時用「一冊・二冊・三冊」。'),
-        nagame: this.word('nagame', '遠望、眺望。比「見る」更有距離感，也帶有持續注視的語感。'),
-        yomikaeshi: this.word('yomikaeshi', '複合動詞：読む＋返す。重新再讀一次，含「回頭檢視」的意味。'),
-        yuugata: this.word('yuugata', '傍晚。大約日落前後的時段，比「夜」早。'),
-        hanbun: this.word('hanbun', '一半。常與「しか〜ない」搭配表示「才只有一半」。')
-      },
+      band: String(s.band),
+      sliderOpacity: on ? '1' : '0.35',
+      markedCount: marked,
+      setBand: (e) => this.setState({ band: Number(e.target.value), hover: null }),
+
+      w,
+      qa: s.qa,
+      toggleQa: () => this.setState({ qa: !s.qa, hover: null }),
+
+      senses: [
+        { zh: '閱讀；讀', en: 'to read' },
+        { zh: '朗讀；念出聲', en: 'to read aloud' },
+        { zh: '看穿；解讀（心思、局勢）', en: 'to guess; to read (someone)' },
+        { zh: '數；計算', en: 'to count' }
+      ],
 
       articles: [
-        { title: '図書館の午後', last: '2 hours ago', vocab: 43, grammar: 3 },
-        { title: '三四郎 — 第一章', last: 'Yesterday', vocab: 612, grammar: 11 },
-        { title: 'NHK ニュース — 桜前線が北上', last: '5 days ago', vocab: 96, grammar: 0 },
-        { title: 'ポッドキャスト 第12回', last: 'Last week', vocab: 204, grammar: 2 }
+        { title: '図書館の午後', last: '2 hours ago', vocab: 43 },
+        { title: '三四郎 — 第一章', last: 'Yesterday', vocab: 612 },
+        { title: 'NHK ニュース — 桜前線が北上', last: '5 days ago', vocab: 96 },
+        { title: 'ポッドキャスト 第12回', last: 'Last week', vocab: 204 }
       ].map((r) => Object.assign({}, r, {
         open: () => this.setState({ screen: 'reader' })
       })),
