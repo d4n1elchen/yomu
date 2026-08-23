@@ -21,8 +21,8 @@ that does not exist. Symptom is a confusing ENOENT deep inside the library.
 server-renders fine but never hydrates — nothing is clickable and there are no
 console errors. It looks exactly like broken React.
 
-**Sentences render with `id={`sentence-${id}`}`.** Library occurrence links and
-Q&A selection both target it; keep the id stable.
+**Sentences render with `id={`sentence-${id}`}`.** Dictionary occurrence links
+target it; keep the id stable.
 
 **Furigana alignment is computed at render time, never stored.** It is a pure
 function of `(surface, reading)`, so the aligner can be fixed without a

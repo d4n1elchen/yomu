@@ -144,7 +144,7 @@ export const tokens = sqliteTable(
     features: text('features').notNull(),
   },
   (t) => [
-    // The Library's core query: every occurrence of a dictionary form.
+    // The Dictionary's core query: every occurrence of a dictionary form.
     index('token_lexeme_idx').on(t.lexemeId),
     index('token_sentence_idx').on(t.sentenceId, t.orderIndex),
   ],

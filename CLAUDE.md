@@ -14,7 +14,7 @@ model tested invents them. Prompts hand it the analyzer's output as fact.
 
 ## Data invariants
 
-Breaking these fails silently, and each one is load-bearing for the Library.
+Breaking these fails silently, and each one is load-bearing for the Dictionary.
 
 - Token offsets are relative to `sentence.text`, never to the section.
   `sentence.text.slice(token.charStart, token.charEnd) === token.surface`
@@ -29,8 +29,8 @@ Breaking these fails silently, and each one is load-bearing for the Library.
   anchors into a sentence later must carry `sentenceRevision`, so an edit marks
   it stale rather than silently mis-positioning it.
 - Never garbage-collect orphaned lexemes — the user may have learned the word.
-- `needsReview` gates the Library. Transcription errors tokenize as cleanly as
-  real Japanese; new Library queries must keep the filter.
+- `needsReview` gates the Dictionary. Transcription errors tokenize as cleanly
+  as real Japanese; new Dictionary queries must keep the filter.
 
 ## Conventions
 
@@ -43,8 +43,29 @@ Breaking these fails silently, and each one is load-bearing for the Library.
 - Run `npm test` and `npx tsc --noEmit` before reporting work as done.
 - `npm run build` kills a running dev server; restart it afterwards.
 
+## Naming
+
+**Library** is the list of articles. **Dictionary** is vocabulary. Never
+"lesson" — this is an article reader.
+
+`src/lib/library.ts` predates that decision and is the Dictionary read model,
+not the article list. Renaming it is part of the UI restructure.
+
 ## Extending the schema
 
-Grammar entries, hard-vocab marking, quiz scheduling, and the sentence editor
-all have shapes already worked out — read the comment block at the bottom of
+Hard-vocab marking, quiz scheduling, the dictionary tables, and the sentence
+editor all have shapes worked out — read the comment block at the bottom of
 `src/db/schema.ts` before designing any of them.
+
+**Grammar is the exception: deliberately undecided.** An earlier design had
+entries created during Q&A with the model judging novelty, which does not work
+— vocabulary dedups on a natural key the analyzer derives mechanically, while a
+model inventing names produces near-duplicates. Grammar needs its own natural
+key first. The schema comment explains the two candidates; do not design around
+either without deciding.
+
+## Plan
+
+`docs/PLAN.md` carries what is decided but not yet built, and why. Read it
+before starting a phase. Do not `@`-import it here — it would load into every
+session.
