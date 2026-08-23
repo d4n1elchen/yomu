@@ -43,3 +43,6 @@ yomu.db-wal
 
 # TypeScript incremental build
 *.tsbuildinfo
+
+# Design canvas build output — the .dc.html sources are the real files
+design/yomu-reader.html
