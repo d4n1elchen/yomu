@@ -196,7 +196,13 @@ design:
 - **Translation only fills `glossZh`.** Nothing relocates, a card just gains
   Chinese. It gates nothing and runs for as long as it likes; an article is
   fully readable throughout, showing JMdict's English until the Chinese lands —
-  the state the card was already built for.
+  the state the card was already built for. Gating nothing also means it has no
+  natural place to appear, which is its own problem: a card showing English is
+  indistinguishable from one that will always show English. The **Dictionary**
+  carries the figure for that reason, under its summary line, saying outright
+  that English stands in until the backlog clears. An entry counts as done only
+  when none of its senses is still null, or the number would reach 100% while
+  cards still showed English.
 
 Resolution is also the cheap one: 33 requests against 459, about 7% of the work.
 Gating on the small structural pass and letting the large cosmetic one run free
@@ -233,10 +239,13 @@ view; and both passes work at **whole-database scope**. That last one was also a
 real bug in the first cut — scoped per-import, an entry left untranslated was
 never revisited unless a later article happened to contain it too.
 
-The Library polls itself while anything is pending (`AnalysisPoller` calls
-`router.refresh()`, which re-runs the server component because the page is
-`force-dynamic`) and unmounts when the last article lands, so an idle Library
-costs nothing and the progress figures stay computed in exactly one place.
+Both pages showing progress poll themselves while anything is pending
+(`AnalysisPoller` calls `router.refresh()`, which re-runs the server component
+because the pages are `force-dynamic`) and unmount it when the last item lands,
+so an idle page costs nothing and every figure stays computed in exactly one
+place. The poller skips a hidden tab: a backgrounded Library must not sit
+refreshing against a local model host. Both pages fire `ensureDraining` too —
+printing a figure that nothing is advancing would be worse than printing none.
 
 ### Rejected: a queue table
 
