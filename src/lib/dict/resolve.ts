@@ -29,12 +29,12 @@ interface AmbiguousLexeme {
 }
 
 /**
- * The `lemma_reading_multi` lexemes this work introduced that have not been
- * resolved yet -- `dict_resolver is null`. Only these: a clean `lemma_reading`
- * is never touched, and a link the model already resolved is never re-resolved,
- * so the Dictionary's grouping does not shift under a reader between runs.
+ * The `lemma_reading_multi` lexemes in a section that have not been resolved --
+ * `dictResolver is null`. Only these: a clean `lemma_reading` is never touched,
+ * and a link the model already resolved is never re-resolved, so the Dictionary
+ * grouping does not shift under a reader between runs.
  */
-function ambiguousLexemes(workId: string): AmbiguousLexeme[] {
+export function ambiguousLexemes(sectionId: string): AmbiguousLexeme[] {
   return db
     .selectDistinct({
       id: lexemes.id,
@@ -47,10 +47,9 @@ function ambiguousLexemes(workId: string): AmbiguousLexeme[] {
     .from(lexemes)
     .innerJoin(tokens, eq(tokens.lexemeId, lexemes.id))
     .innerJoin(sentences, eq(sentences.id, tokens.sentenceId))
-    .innerJoin(sections, eq(sections.id, sentences.sectionId))
     .where(
       and(
-        eq(sections.workId, workId),
+        eq(sentences.sectionId, sectionId),
         eq(lexemes.dictMatch, 'lemma_reading_multi'),
         isNull(lexemes.dictResolver),
       ),
@@ -91,15 +90,16 @@ function candidateOf(entryId: string): ResolverCandidate | null {
  *  pick from. */
 function occurrenceOf(
   lexemeId: string,
-  workId: string,
+  sectionId: string,
 ): { sentence: string; surface: string } | null {
   return (
     db
       .select({ sentence: sentences.text, surface: tokens.surface })
       .from(tokens)
       .innerJoin(sentences, eq(sentences.id, tokens.sentenceId))
-      .innerJoin(sections, eq(sections.id, sentences.sectionId))
-      .where(and(eq(tokens.lexemeId, lexemeId), eq(sections.workId, workId)))
+      .where(
+        and(eq(tokens.lexemeId, lexemeId), eq(sentences.sectionId, sectionId)),
+      )
       .orderBy(asc(sentences.orderIndex), asc(tokens.orderIndex))
       .limit(1)
       .get() ?? null
@@ -129,42 +129,70 @@ async function resolveOne(
 }
 
 /**
- * Settles the homograph ambiguity this work introduced, where JMdict itself
- * cannot: several entries survived lemma, reading and grammar, and the
- * commonest was taken deterministically even when it is the wrong word -- なる
- * takes 生る over 成る because frequency points that way.
+ * Settles the homograph ambiguity in one section, where JMdict itself cannot:
+ * several entries survived lemma, reading and grammar, and the commonest was
+ * taken deterministically even when it is the wrong word -- なる takes 生る over
+ * 成る because frequency points that way.
  *
  * Fires only where the survivors actually mean different things: two 三 both
  * glossing "three" is a choice with no visible consequence, so asking is pure
  * cost. When the model picks a valid candidate the link moves to it and the pick
  * is stamped with the model, so it reads as resolved rather than computed and is
- * never asked again. An unreachable host leaves every link at its deterministic
- * pick, to be revisited only if the word turns up in a later import.
+ * never asked again.
+ *
+ * Stamps `section.resolvedAt` on completion, which is what makes the section
+ * readable -- until then the Library greys it, because the links this pass moves
+ * are the ones the Dictionary groups on.
+ *
+ * Returns false when the host could not be reached, leaving the section pending
+ * so a later drain resumes it. Progress counters are rewritten at the start of
+ * every run, so a resumed pass reports the work that is actually left rather
+ * than counting the entries a previous run already finished.
  */
-export async function resolveAmbiguousForWork(
-  workId: string,
+export async function resolveSectionAmbiguity(
+  sectionId: string,
   provider?: LlmProvider,
-): Promise<void> {
-  const ambiguous = ambiguousLexemes(workId);
-  if (ambiguous.length === 0) return;
+): Promise<boolean> {
+  const pending = ambiguousLexemes(sectionId);
+
+  db.update(sections)
+    .set({ resolveTotal: pending.length, resolveDone: 0 })
+    .where(eq(sections.id, sectionId))
+    .run();
 
   let llm: LlmProvider | null = null;
-  for (const lexeme of ambiguous) {
-    const found = matchCandidates(lexeme.lemma, lexeme.reading, lexeme);
-    if (!found || found.survivors.length < 2) continue;
+  let done = 0;
 
-    const candidates = found.survivors
-      .map(candidateOf)
-      .filter((candidate): candidate is ResolverCandidate => candidate !== null);
-    if (candidates.length < 2) continue;
+  const advance = () => {
+    done += 1;
+    db.update(sections)
+      .set({ resolveDone: done })
+      .where(eq(sections.id, sectionId))
+      .run();
+  };
+
+  for (const lexeme of pending) {
+    const found = matchCandidates(lexeme.lemma, lexeme.reading, lexeme);
+    const candidates =
+      found === null || found.survivors.length < 2
+        ? []
+        : found.survivors
+            .map(candidateOf)
+            .filter((c): c is ResolverCandidate => c !== null);
 
     // Only ask when the survivors genuinely differ. If every candidate reduces
-    // to the same leading meaning, the deterministic pick is as good as any.
-    const meanings = new Set(candidates.map((candidate) => sameMeaning(candidate.glossEn)));
-    if (meanings.size < 2) continue;
+    // to the same leading meaning, the deterministic pick is as good as any --
+    // and the lexeme is finished without a request ever being made.
+    const meanings = new Set(candidates.map((c) => sameMeaning(c.glossEn)));
+    const occurrence =
+      candidates.length < 2 || meanings.size < 2
+        ? null
+        : occurrenceOf(lexeme.id, sectionId);
 
-    const occurrence = occurrenceOf(lexeme.id, workId);
-    if (!occurrence) continue;
+    if (!occurrence) {
+      advance();
+      continue;
+    }
 
     llm ??= provider ?? getLlmProvider();
     let chosen: string | null;
@@ -175,14 +203,23 @@ export async function resolveAmbiguousForWork(
         candidates,
       });
     } catch {
-      // Host unreachable: leave every remaining link at its deterministic pick.
-      return;
+      // Host unreachable: leave this section pending for a later drain.
+      return false;
     }
-    if (!chosen) continue;
 
-    db.update(lexemes)
-      .set({ dictEntryId: chosen, dictResolver: llm.model })
-      .where(eq(lexemes.id, lexeme.id))
-      .run();
+    if (chosen) {
+      db.update(lexemes)
+        .set({ dictEntryId: chosen, dictResolver: llm.model })
+        .where(eq(lexemes.id, lexeme.id))
+        .run();
+    }
+    advance();
   }
+
+  db.update(sections)
+    .set({ resolvedAt: Math.floor(Date.now() / 1000) })
+    .where(eq(sections.id, sectionId))
+    .run();
+
+  return true;
 }

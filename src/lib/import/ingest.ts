@@ -1,11 +1,10 @@
 import { randomUUID } from 'node:crypto';
+import { eq, sql } from 'drizzle-orm';
 import { db } from '../../db/client.ts';
-import { sections, sentences, works } from '../../db/schema.ts';
+import { lexemes, sections, sentences, tokens, works } from '../../db/schema.ts';
 import { getAnalyzer } from '../analyzer/index.ts';
 import { linkLexemes } from '../dict/match.ts';
-import { resolveAmbiguousForWork } from '../dict/resolve.ts';
 import { segmentSentences, type SegmentedSentence } from '../text/sentences.ts';
-import { translatePendingForWork } from '../translate/translate.ts';
 import { LexemeResolver, writeSentenceTokens } from './tokens.ts';
 
 /** Sparse ordering leaves room to insert without renumbering siblings. */
@@ -106,27 +105,48 @@ export async function ingestWork(input: IngestWork): Promise<IngestResult> {
     // no-op when JMdict has not been imported yet.
     linkLexemes(tx);
 
+    // The denominator for the Library's progress readout, counted now so a
+    // freshly imported article shows "0 / n" rather than an empty bar while the
+    // drain is still spinning up. The drain recomputes it when it starts.
+    for (const sectionId of sectionIds) {
+      const ambiguous = tx
+        .select({ n: sql<number>`count(distinct ${lexemes.id})` })
+        .from(lexemes)
+        .innerJoin(tokens, eq(tokens.lexemeId, lexemes.id))
+        .innerJoin(sentences, eq(sentences.id, tokens.sentenceId))
+        .where(
+          sql`${sentences.sectionId} = ${sectionId}
+            and ${lexemes.dictMatch} = 'lemma_reading_multi'
+            and ${lexemes.dictResolver} is null`,
+        )
+        .get();
+
+      // Nothing ambiguous means nothing to wait for: stamp it readable now
+      // rather than making the drain do a lap to discover an empty list.
+      const total = ambiguous?.n ?? 0;
+      tx.update(sections)
+        .set({
+          resolveTotal: total,
+          resolveDone: 0,
+          resolvedAt: total === 0 ? now : null,
+        })
+        .where(eq(sections.id, sectionId))
+        .run();
+    }
+
     return { workId, sectionIds };
   });
 
-  // The model work happens after the transaction commits: it is async, and a
-  // better-sqlite3 transaction cannot await. Both passes are lazy-at-import by
-  // design -- the words a reader is about to meet get their homographs settled
-  // and their Chinese written now rather than stalling a hover later. Neither
-  // may break an import: an unreachable host leaves the work undone for next
-  // time, and nothing else is allowed to escape into the caller either. When
-  // JMdict has not been imported nothing is linked, so both passes find no work
-  // and make no request.
+  // No model work here, deliberately. Both passes are background work owned by
+  // `ensureDraining`, which the caller kicks off after the response: a chapter
+  // needs hundreds of requests against a host Ollama serializes anyway, and
+  // holding the import open for that is what made a paste feel like a hang.
   //
-  // Resolution runs first so translation then covers the entry the resolver
-  // actually chose, not the deterministic pick it moved the link away from.
-  try {
-    await resolveAmbiguousForWork(result.workId);
-    await translatePendingForWork(result.workId);
-  } catch {
-    // Reading never blocks on translation or resolution.
-  }
-
+  // What the transaction leaves behind is a complete, correct article --
+  // sentences, tokens, lexemes and their JMdict links. All that is missing is
+  // the model's opinion: which entry an ambiguous word is, and the Chinese for
+  // the senses. The first gates reading (it moves `dictEntryId`), the second
+  // gates nothing.
   return result;
 }
 

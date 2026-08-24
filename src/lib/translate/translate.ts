@@ -1,13 +1,6 @@
-import { and, asc, eq, isNull } from 'drizzle-orm';
+import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '../../db/client.ts';
-import {
-  dictEntries,
-  dictSenses,
-  lexemes,
-  sections,
-  sentences,
-  tokens,
-} from '../../db/schema.ts';
+import { dictEntries, dictSenses, lexemes } from '../../db/schema.ts';
 import { collect, getLlmProvider, type LlmProvider } from '../llm/index.ts';
 import {
   buildTranslationMessages,
@@ -24,21 +17,21 @@ interface PendingEntry extends TranslationEntry {
 }
 
 /**
- * The JMdict entries this work's words matched that still have an untranslated
- * sense -- the queue is `gloss_zh is null`, scoped to the entries a reader of
- * this article will actually be shown a card for. An entry with every sense
- * already translated (carried across a JMdict re-import, or done by an earlier
- * article) is not re-sent.
+ * Every JMdict entry some word is linked to that still has an untranslated
+ * sense. The queue is `glossZh is null`; the join to `lexeme` is what keeps it
+ * to vocabulary that actually occurs, rather than setting the model at all
+ * 253,000 senses in JMdict.
+ *
+ * Whole-database scope, not per-import. Scoping to the work being imported was
+ * the flaw in the first cut: an entry left untranslated by one article was never
+ * revisited unless a later article happened to contain it too.
  */
-function pendingEntries(workId: string): PendingEntry[] {
+function pendingEntries(): PendingEntry[] {
   const entryIds = db
     .selectDistinct({ entryId: lexemes.dictEntryId })
-    .from(tokens)
-    .innerJoin(lexemes, eq(lexemes.id, tokens.lexemeId))
-    .innerJoin(sentences, eq(sentences.id, tokens.sentenceId))
-    .innerJoin(sections, eq(sections.id, sentences.sectionId))
+    .from(lexemes)
     .innerJoin(dictSenses, eq(dictSenses.entryId, lexemes.dictEntryId))
-    .where(and(eq(sections.workId, workId), isNull(dictSenses.glossZh)))
+    .where(isNull(dictSenses.glossZh))
     .all()
     .map((row) => row.entryId)
     .filter((id): id is string => id !== null);
@@ -77,7 +70,7 @@ function pendingEntries(workId: string): PendingEntry[] {
  * Translates one entry's senses, or returns null if the model's reply cannot be
  * trusted. Retries once on a malformed or miscounted reply -- structured output
  * is not a guarantee -- then gives up so the sense stays null for the next
- * import. A network failure is not caught here: it propagates so the caller can
+ * drain. A network failure is not caught here: it propagates so the caller can
  * stop the whole pass rather than hammer an unreachable host once per entry.
  */
 async function translateEntry(
@@ -114,20 +107,21 @@ function writeTranslations(
 }
 
 /**
- * Translates the untranslated senses of every JMdict entry this work's words
- * matched. Lazy, at import: the words a reader is about to meet get their
- * Chinese now rather than stalling a hover later.
+ * Translates every untranslated sense of every entry the vocabulary points at.
  *
- * If the model host is unreachable the pass stops and the rest stay null, to be
- * picked up by the next import -- reading never blocks on it. A single entry the
- * model mangles is left null and the pass moves on.
+ * Gates nothing. Unlike resolution this only fills `glossZh`, so a card gains
+ * Chinese and no row moves -- an article is perfectly readable while this is
+ * still running, showing JMdict's English until the Chinese lands.
+ *
+ * Returns false when the host could not be reached, leaving the rest null for
+ * the next drain. A single entry the model mangles is left null and the pass
+ * moves on.
  */
-export async function translatePendingForWork(
-  workId: string,
+export async function translatePending(
   provider?: LlmProvider,
-): Promise<void> {
-  const pending = pendingEntries(workId);
-  if (pending.length === 0) return;
+): Promise<boolean> {
+  const pending = pendingEntries();
+  if (pending.length === 0) return true;
 
   const llm = provider ?? getLlmProvider();
   for (const entry of pending) {
@@ -135,10 +129,23 @@ export async function translatePendingForWork(
     try {
       translated = await translateEntry(llm, entry);
     } catch {
-      // Host unreachable or the stream broke: leave the remainder for next time.
-      return;
+      // Host unreachable: leave the remainder for the next drain.
+      return false;
     }
     if (!translated) continue;
     writeTranslations(entry.senseIds, translated, llm.model);
   }
+  return true;
+}
+
+/** How many linked entries still have an untranslated sense. */
+export function pendingTranslationCount(): number {
+  return (
+    db
+      .select({ n: sql<number>`count(distinct ${lexemes.dictEntryId})` })
+      .from(lexemes)
+      .innerJoin(dictSenses, eq(dictSenses.entryId, lexemes.dictEntryId))
+      .where(isNull(dictSenses.glossZh))
+      .get()?.n ?? 0
+  );
 }

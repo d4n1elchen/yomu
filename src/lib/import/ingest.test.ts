@@ -13,6 +13,7 @@ const { db, sqlite } = await import('../../db/client.ts');
 const { lexemes, sections, sentences, tokens, works } = await import(
   '../../db/schema.ts'
 );
+const { isReadable } = await import('../analysis/drain.ts');
 const { ingestWork } = await import('./ingest.ts');
 const { migrate } = await import('drizzle-orm/better-sqlite3/migrator');
 const { and, eq, sql } = await import('drizzle-orm');
@@ -162,4 +163,47 @@ test('a transcript section is marked for review, a pasted one is not', async () 
     .all();
   // Words nobody has read yet must not silently become vocabulary.
   assert.equal(rows.every((r) => r.needsReview), true);
+});
+
+test('an import with nothing ambiguous is readable at once, without the model', async () => {
+  // No JMdict in the test database, so no lexeme links and nothing for the
+  // resolver to settle. A section with an empty resolver queue must be stamped
+  // readable inside the transaction rather than waiting for a drain that would
+  // have no work to do -- otherwise every article would sit greyed forever on a
+  // machine with no dictionary imported.
+  const { sectionIds } = await ingestWork({
+    title: '解析済み',
+    sourceType: 'paste',
+    sections: [{ body: '本を読む。' }],
+  });
+
+  const section = db
+    .select()
+    .from(sections)
+    .where(eq(sections.id, sectionIds[0]!))
+    .get();
+
+  assert.notEqual(section?.resolvedAt, null, 'section was left unreadable');
+  assert.equal(section?.resolveTotal, 0);
+  assert.equal(isReadable(sectionIds[0]!), true);
+});
+
+test('ingest performs no model work of its own', async () => {
+  // The passes moved to the background drain. If ingest ever reaches for a
+  // provider again this test hangs or throws rather than quietly restoring the
+  // blocking import the drain exists to prevent.
+  const previous = process.env.YOMU_OLLAMA_URL;
+  // A port nothing listens on: any request would fail loudly.
+  process.env.YOMU_OLLAMA_URL = 'http://127.0.0.1:9';
+  try {
+    const { sectionIds } = await ingestWork({
+      title: '模型なし',
+      sourceType: 'paste',
+      sections: [{ body: '図書館へ行く。' }],
+    });
+    assert.equal(sectionIds.length, 1);
+  } finally {
+    if (previous === undefined) delete process.env.YOMU_OLLAMA_URL;
+    else process.env.YOMU_OLLAMA_URL = previous;
+  }
 });
