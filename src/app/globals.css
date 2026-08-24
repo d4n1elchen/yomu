@@ -455,6 +455,10 @@ button:disabled {
    longer each land on their own line. */
 .para {
   margin: 0 0 1.1rem;
+  /* 字下げ: Japanese prose opens every paragraph with one full-width
+     character, the first included -- unlike the Western habit of leaving
+     the opening paragraph flush. 1em is exactly that one character. */
+  text-indent: 1em;
 }
 
 .para:last-child {
