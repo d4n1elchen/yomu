@@ -21,12 +21,12 @@ async function main(): Promise<void> {
 
   await ensureDraining();
 
-  const after = pendingTranslationCount();
+  const remaining = pendingTranslationCount();
   process.stdout.write(
-    `translated ${before - after}, ${after} still pending, ` +
+    `translated ${before - remaining}, ${remaining} still pending, ` +
       `in ${((Date.now() - started) / 1000).toFixed(1)}s\n`,
   );
-  if (after > 0) {
+  if (remaining > 0) {
     process.stdout.write(
       'Some remain: either the model host was unreachable, or it returned a ' +
         'reply that failed validation twice. Re-run to retry them.\n',

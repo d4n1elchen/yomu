@@ -1,4 +1,5 @@
 import { after } from 'next/server';
+import { AnalysisPoller } from '../../components/AnalysisPoller.tsx';
 import { ensureDraining } from '../../lib/analysis/drain.ts';
 import { listArticles } from '../../lib/article.ts';
 import { relativeTime } from '../../lib/time.ts';
@@ -16,9 +17,13 @@ export default function LibraryPage() {
   // every render.
   after(ensureDraining);
 
+  const analysing = articles.some((article) => article.analysis !== null);
+
   return (
     <main>
       <h1>文章庫</h1>
+      {/* Only while something is pending; it unmounts when the last one lands. */}
+      {analysing ? <AnalysisPoller /> : null}
 
       {articles.length === 0 ? (
         <p className="empty">
@@ -60,11 +65,35 @@ export default function LibraryPage() {
                   {article.analysis ? (
                     <span className="pending" aria-disabled="true">
                       {title}
-                      <span className="last analysing">
-                        分析中
-                        {article.analysis.total > 0
-                          ? ` ${article.analysis.done}/${article.analysis.total}`
-                          : ''}
+                      <span
+                        className="analysing"
+                        role="progressbar"
+                        aria-valuenow={article.analysis.done}
+                        aria-valuemin={0}
+                        aria-valuemax={article.analysis.total}
+                        aria-label="分析進度"
+                      >
+                        <span className="analysing-label">
+                          <span>分析中</span>
+                          {article.analysis.total > 0 ? (
+                            <span>
+                              {article.analysis.done}/{article.analysis.total}
+                            </span>
+                          ) : null}
+                        </span>
+                        <span
+                          className={
+                            article.analysis.total > 0
+                              ? 'analysing-bar'
+                              : 'analysing-bar indeterminate'
+                          }
+                          style={{
+                            ['--progress' as string]:
+                              article.analysis.total > 0
+                                ? article.analysis.done / article.analysis.total
+                                : 0,
+                          }}
+                        />
                       </span>
                       {counts}
                     </span>

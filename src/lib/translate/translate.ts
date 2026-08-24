@@ -26,12 +26,13 @@ interface PendingEntry extends TranslationEntry {
  * the flaw in the first cut: an entry left untranslated by one article was never
  * revisited unless a later article happened to contain it too.
  */
-function pendingEntries(): PendingEntry[] {
+function pendingEntries(limit: number): PendingEntry[] {
   const entryIds = db
     .selectDistinct({ entryId: lexemes.dictEntryId })
     .from(lexemes)
     .innerJoin(dictSenses, eq(dictSenses.entryId, lexemes.dictEntryId))
     .where(isNull(dictSenses.glossZh))
+    .limit(limit)
     .all()
     .map((row) => row.entryId)
     .filter((id): id is string => id !== null);
@@ -118,24 +119,31 @@ function writeTranslations(
  * moves on.
  */
 export async function translatePending(
-  provider?: LlmProvider,
-): Promise<boolean> {
-  const pending = pendingEntries();
-  if (pending.length === 0) return true;
+  options: { provider?: LlmProvider; limit?: number } = {},
+): Promise<{ reached: boolean; translated: number; exhausted: boolean }> {
+  const limit = options.limit ?? Number.MAX_SAFE_INTEGER;
+  const pending = pendingEntries(limit);
+  if (pending.length === 0) {
+    return { reached: true, translated: 0, exhausted: true };
+  }
 
-  const llm = provider ?? getLlmProvider();
+  const llm = options.provider ?? getLlmProvider();
+  let translated = 0;
   for (const entry of pending) {
-    let translated: string[] | null;
+    let zh: string[] | null;
     try {
-      translated = await translateEntry(llm, entry);
+      zh = await translateEntry(llm, entry);
     } catch {
       // Host unreachable: leave the remainder for the next drain.
-      return false;
+      return { reached: false, translated, exhausted: false };
     }
-    if (!translated) continue;
-    writeTranslations(entry.senseIds, translated, llm.model);
+    if (!zh) continue;
+    writeTranslations(entry.senseIds, zh, llm.model);
+    translated += 1;
   }
-  return true;
+
+  // A short batch means the queue ran dry rather than the limit being hit.
+  return { reached: true, translated, exhausted: pending.length < limit };
 }
 
 /** How many linked entries still have an untranslated sense. */

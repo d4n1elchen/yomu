@@ -36,6 +36,14 @@ let running = false;
 let unreachableSince = 0;
 const BACKOFF_MS = 2 * 60 * 1000;
 
+/**
+ * Entries translated before looking again for a section needing resolution.
+ * Small, because the wait it bounds is a reader staring at a greyed article:
+ * five entries is a few seconds, where draining the whole queue first was
+ * minutes.
+ */
+const TRANSLATE_CHUNK = 5;
+
 /** Sections whose resolution has not finished. */
 function pendingSections(): string[] {
   return db
@@ -63,17 +71,33 @@ export async function ensureDraining(): Promise<void> {
 
   running = true;
   try {
-    // Resolution first, and per section, so a section becomes readable as soon
-    // as its own ambiguity is settled rather than waiting on the whole backlog.
-    for (const sectionId of pendingSections()) {
-      if (!(await resolveSectionAmbiguity(sectionId))) {
+    for (;;) {
+      // Resolution first, every lap. It gates reading and translation does not,
+      // so an article imported while a long translation backlog is draining must
+      // not wait behind it -- that inversion left a freshly imported article
+      // greyed for as long as the previous article's glosses took, which is
+      // minutes, and it is the reason translation is chunked below rather than
+      // run to completion in one go.
+      for (const sectionId of pendingSections()) {
+        if (!(await resolveSectionAmbiguity(sectionId))) {
+          unreachableSince = Date.now();
+          return;
+        }
+      }
+
+      const { reached, exhausted } = await translatePending({
+        limit: TRANSLATE_CHUNK,
+      });
+      if (!reached) {
         unreachableSince = Date.now();
         return;
       }
-    }
+      unreachableSince = 0;
 
-    const reached = await translatePending();
-    unreachableSince = reached ? 0 : Date.now();
+      // Nothing left in either queue. Checked after translating rather than
+      // before, so a section that arrived mid-chunk starts the next lap.
+      if (exhausted && pendingSections().length === 0) return;
+    }
   } finally {
     running = false;
   }

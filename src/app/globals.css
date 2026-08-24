@@ -266,7 +266,8 @@ button:disabled {
 /* --- library --- */
 
 .library-head,
-.library li a {
+.library li a,
+.library li .pending {
   display: grid;
   grid-template-columns: 1fr 7rem 4rem 4rem;
   gap: 0 1.25rem;
@@ -321,9 +322,75 @@ button:disabled {
   color: var(--faint);
 }
 
-.library .last.analysing {
+/*
+ * The progress readout, in the column the last-read time would occupy. A label
+ * over a thin bar rather than a bare fraction: the number alone said nothing
+ * about how far along it was, and the bar carries that at a glance while the
+ * count stays available for anyone who wants it.
+ */
+.library .analysing {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.75rem;
   color: var(--accent);
+}
+
+.library .analysing-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.4rem;
   font-variant-numeric: tabular-nums;
+}
+
+.library .analysing-bar {
+  height: 3px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+/* Width comes from a custom property the row sets, so the bar needs no inline
+   style beyond the one number. */
+.library .analysing-bar::after {
+  content: '';
+  display: block;
+  height: 100%;
+  width: calc(var(--progress, 0) * 100%);
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 0.4s ease;
+}
+
+/*
+ * The denominator is not known yet -- the drain sets it as it picks the section
+ * up. A filled bar would read as finished and an empty one as stalled, so it
+ * slides instead: the one shape that says "working, length unknown".
+ */
+.library .analysing-bar.indeterminate::after {
+  width: 40%;
+  animation: analysing-slide 1.3s ease-in-out infinite;
+}
+
+@keyframes analysing-slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .library .analysing-bar.indeterminate::after {
+    animation: none;
+    width: 100%;
+    opacity: 0.4;
+  }
+
+  .library .analysing-bar::after {
+    transition: none;
+  }
 }
 
 .library .title {
