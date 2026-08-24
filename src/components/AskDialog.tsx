@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { LlmMessage } from '../lib/llm/index.ts';
 import type { SelectionSpan } from '../lib/qa/selection.ts';
+import { Markdown } from './Markdown.tsx';
 import { anchorStyle, useCardAnchor, type AnchorRect } from './useCardAnchor.ts';
 
 export interface ReaderSelection {
@@ -130,15 +131,32 @@ export function AskDialog({
           「{selection.text}」{'\n'}
           想知道這個部分的什麼呢？可以直接問，或從下面選一個。
         </p>
-        {turns.map((turn, i) => (
-          <p key={i} className={`bubble ${turn.role}`}>
-            {turn.content}
-          </p>
-        ))}
+        {/*
+          The answer is rendered as Markdown, the question is not: the model was
+          asked for 條列式 and emits bullets and bold, while the reader typed
+          plain text and formatting their own words back at them would be a
+          surprise. A div rather than a p, because a list cannot live inside a
+          paragraph.
+        */}
+        {turns.map((turn, i) =>
+          turn.role === 'assistant' ? (
+            <div key={i} className="bubble assistant">
+              <Markdown text={turn.content} />
+            </div>
+          ) : (
+            <p key={i} className="bubble user">
+              {turn.content}
+            </p>
+          ),
+        )}
         {streaming !== null ? (
-          <p className="bubble assistant">
-            {streaming || <span className="thinking">思考中…</span>}
-          </p>
+          <div className="bubble assistant">
+            {streaming ? (
+              <Markdown text={streaming} />
+            ) : (
+              <span className="thinking">思考中…</span>
+            )}
+          </div>
         ) : null}
       </div>
 
