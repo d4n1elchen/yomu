@@ -83,9 +83,10 @@ The entry page prints the runners-up rather than a warning, so a wrong pick is
 visible rather than apologised for. That stays regardless of what resolves the
 ambiguity, because it is what makes a resolver's mistakes visible too.
 
-The LLM resolver now settles this at import (`src/lib/dict/resolve.ts`): it fires
-only on `lemma_reading_multi` where the survivors' leading glosses actually
-differ, hands the model one occurrence sentence and the surviving entries, and
+The LLM resolver now settles this (`src/lib/dict/resolve.ts`), as background
+work rather than at import — see “Analysis runs in the background” below, and note
+that it is the pass which gates reading. It fires only on `lemma_reading_multi`
+where the survivors' leading glosses actually differ, hands the model one occurrence sentence and the surviving entries, and
 takes its pick only if the reply is one of the offered ids. The chosen link is
 stamped with the model in `lexeme.dictResolver`, so it reads as resolved rather
 than computed, is never asked twice, and a full JMdict relink clears the stamp
@@ -135,7 +136,7 @@ instead.
 
 ## Where the mock is out of date
 
-`design/*.dc.html` is committed and reads as current. Three places it is not,
+`design/*.dc.html` is committed and reads as current. Two places it is not,
 each a deliberate departure rather than an omission:
 
 - **Only marked words respond to a tap.** `Mobile.dc.html` has a 點選詞彙 tab
