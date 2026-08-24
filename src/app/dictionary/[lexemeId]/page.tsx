@@ -85,7 +85,12 @@ export default async function DictionaryEntryPage({
           {meaning.alternatives.length > 0 ? (
             <div className="alternatives">
               <p className="alternatives-label">
-                同形同音的其他詞條，這裡取了最常見的一個：
+                {meaning.resolver
+                  ? // The pick was resolved in context, not by frequency -- so
+                    // "took the commonest" would misdescribe it. The runners-up
+                    // still show, which is what makes a wrong resolution visible.
+                    '同形同音的其他詞條，這裡依句意選了其中一個：'
+                  : '同形同音的其他詞條，這裡取了最常見的一個：'}
               </p>
               <ul>
                 {meaning.alternatives.map((other) => (

@@ -280,6 +280,13 @@ export interface DictionaryMeaning {
   common: boolean;
   /** Whether the reading took part in the match, or only the lemma did. */
   match: string | null;
+  /**
+   * The model that resolved the pick when several entries survived, or null when
+   * the deterministic pick (the commonest survivor) stands. It changes what the
+   * runners-up line can honestly claim: "took the commonest" is only true when
+   * this is null.
+   */
+  resolver: string | null;
   senses: Array<{ zh: string | null; en: string }>;
   /**
    * The entries that also fitted, minus the one taken, and minus any whose
@@ -393,6 +400,7 @@ export function getDictionaryEntry(
       conjugationType: lexemes.conjugationType,
       entryId: lexemes.dictEntryId,
       match: lexemes.dictMatch,
+      resolver: lexemes.dictResolver,
       headword: dictEntries.headword,
       entryReading: dictEntries.reading,
       band: dictEntries.freqBand,
@@ -422,6 +430,7 @@ export function getDictionaryEntry(
           band: row.band,
           common: row.common ?? false,
           match: row.match,
+          resolver: row.resolver,
           senses: db
             .select({ zh: dictSenses.glossZh, en: dictSenses.glossEn })
             .from(dictSenses)
