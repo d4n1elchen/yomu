@@ -47,20 +47,29 @@ lemma+reading measured away — revisit only if marking feels wrong for fiction.
 JMnedict: 13.4 MB of names, larger than JMdict itself; deferred until we can
 count how many unmatched words in real reading are actually names.
 
-### Homograph ambiguity — the known limitation
+### Homograph ambiguity — what is left of it
 
-Matching on lemma **and** reading cannot separate two entries that share both.
-入る and 居る are both いる, both flagged common, and neither is ranked, so every
-いる in a text links to whichever the tiebreak prefers. Measured at **7 of 48**
-reading-matches in the current corpus.
+Grammar settles most of this. `lexeme.posDetail` and `conjugationType` carry
+IPADIC's finer answer, and the matcher narrows candidates by mapped JMdict POS
+before frequency gets a vote — 一段 against `v1`, 接尾 against `suf`. That fixed
+この (was 九, "nine"), さん (was 三, "three") and いる (was 入る, "to enter").
+They sit outside the lexeme identity key, so nothing re-files and no lexeme is
+split by a POS that varies between sentences.
 
-These are stored as `dictMatch = 'lemma_reading_multi'` rather than passed off
-as clean, and the Dictionary entry page says so where it shows the senses.
+What remains is entries sharing lemma, reading **and** grammar. なる is the
+whole of it today: 生る "to bear fruit" at nf07 against 成る "to become" at
+nf34, both `v5r,vi`, both `uk`, both flagged common. Nothing in JMdict
+separates them, and frequency actively points the wrong way.
 
-Resolving them needs the conjugation class — v5r against v1 — which IPADIC has
-on the *token* (`features.conjugatedType`) and the `lexeme` does not carry.
-Deliberately not built: it changes lexeme identity, and it should wait until
-there is enough real reading to say whether the wrong senses actually bite.
+Measured on the current corpus: **5 of 34** content words carry
+`lemma_reading_multi`, and **1** is actually wrong. The flag means several
+candidates survived, not that the pick is bad — two of the five choose between
+entries with the same gloss. That denominator is one five-sentence article and
+is far too small to be a rate; it needs a real book, like everything else here.
+
+The entry page prints the runners-up rather than a warning, so a wrong pick is
+visible rather than apologised for. That stays regardless of what resolves the
+ambiguity, because it is what makes a resolver's mistakes visible too.
 
 ## Phase C — Chinese glosses
 
@@ -93,6 +102,28 @@ invented readings (qwen3.8 rendered 窓の外 as まどのはら).
 - The card shows all senses; nothing picks one automatically. JMdict orders
   senses by commonness and the analyzer's POS already discards irrelevant ones.
   A per-occurrence `senseIndex` on `token` stays available but unbuilt.
+
+**Entry resolution rides along.** The same pass should settle the homograph
+ambiguity above, because it needs exactly this phase's plumbing — the provider,
+batching, structured output, count validation, and the rule that an unreachable
+host leaves the work undone rather than blocking. Building it first would mean
+building all of that twice.
+
+It selects, never names, which is the same grounding rule the glosses follow:
+given 「夕方になっても」 and a list of two to six real JMdict entries, choosing
+成る over 生る is not a task a model can invent its way out of.
+
+- Fires only on `lemma_reading_multi`, and only where the candidates' glosses
+  actually differ — 三 competes with another 三, and asking is pure cost.
+- `matchCandidates` in `src/lib/dict/match.ts` already returns the survivor
+  list; that is the hook.
+- The reply must be one of the candidate ids. Anything else, keep the
+  deterministic pick — same shape as validating the sense count.
+- Record it beside `dictMatch`, so a model-resolved link is distinguishable
+  from a computed one and can be re-run later.
+- Never override a clean `lemma_reading`, and never re-resolve on relink: the
+  Dictionary groups rows by `dict_entry_id`, so an unstable link would move the
+  shape of the page between runs.
 
 ## Deferred
 
