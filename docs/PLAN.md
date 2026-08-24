@@ -83,6 +83,16 @@ The entry page prints the runners-up rather than a warning, so a wrong pick is
 visible rather than apologised for. That stays regardless of what resolves the
 ambiguity, because it is what makes a resolver's mistakes visible too.
 
+The LLM resolver now settles this at import (`src/lib/dict/resolve.ts`): it fires
+only on `lemma_reading_multi` where the survivors' leading glosses actually
+differ, hands the model one occurrence sentence and the surviving entries, and
+takes its pick only if the reply is one of the offered ids. The chosen link is
+stamped with the model in `lexeme.dictResolver`, so it reads as resolved rather
+than computed, is never asked twice, and a full JMdict relink clears the stamp
+with the link it annotated. It selects, never names — the same grounding the
+glosses follow. Whether it actually improves picks is unmeasured: なる is the one
+wrong case on the current corpus, and one article is no way to know.
+
 ### Rejected designs
 
 Each of these was measured before it was rejected. The measurements are small —
@@ -136,63 +146,26 @@ each a deliberate departure rather than an omission:
 - **The difficulty slider runs 1–48, not 0–5.** That is the resolution the `nf`
   bands actually carry. 初級/進階 captions were added because 難易度 alone does
   not say which direction marks more words.
-- **The word card shows English glosses.** The mock draws Chinese. Phase C
-  fills the slot above them; until then a card with no meaning in it is not
-  worth hanging off a word.
 
-## Phase C — Chinese glosses
+## Phase C — Chinese glosses — shipped
 
-There is no free Japanese→Traditional Chinese dictionary. JMdict has no Chinese
-glosses at all, and Chinese Wiktionary (84k Japanese entries) has real coverage
-gaps and inconsistent Simplified/Traditional. So the Chinese comes from the LLM.
+Both the glosses and the homograph resolver are built. What is worth keeping is
+recorded where it stays true: the resolver's shape in the homograph subsection
+above, and the translation contract in the `dict_sense` comment block. Two notes
+that outlived the build:
 
-**It translates, never defines.** Given a real JMdict sense to render, it can
-mistranslate, but it cannot invent a meaning the dictionary never had. This is
-the same grounding rule that fixed the Q&A prompt after every model tested
-invented readings (qwen3.8 rendered 窓の外 as まどのはら).
+- The structured-output path is `LlmRequest.format` (Ollama's `format` field),
+  added deliberately because the interface had only `stream()` + temperature.
+  Both passes use it with `temperature: 0`; both validate the reply (sense count
+  for glosses, id-in-set for resolution), retry once, then leave the work undone.
+- **One entry per request**, all its senses, rather than the 5–10-entry batch the
+  plan first sketched: the per-entry count validation the plan also asks for is
+  unambiguous only when the request is one entry, and correctness won over the
+  round-trips. Revisit batching only if import latency against a live model bites.
 
-- **Lazy**: at article import, translate the senses of words that appear and
-  have no Chinese yet. Not on hover — that turns every unfamiliar word into a
-  stall at the worst moment.
-- **The queue is `glossZh IS NULL`.** No separate table. If the model host is
-  unreachable, entries stay null and are picked up next import; reading never
-  blocks. `dict_sense.id` is derived from (entry, position) rather than
-  generated, so re-importing JMdict carries translations across instead of
-  discarding them with the rows they were on.
-- **One entry at a time, all its senses**, so sense structure stays intact.
-  Batch 5–10 entries per request; larger batches lose input/output alignment.
-- **Validate the sense count returned equals the count sent.** Retry once, then
-  leave null and move on. Use Ollama's structured-output option rather than
-  trusting free text.
-- Store `glossEn` beside `glossZh`, plus the model that produced it — a
-  mistranslation is invisible in a way a wrong reading is not, and provenance
-  is what makes a later re-translation of a subset possible. Same reason
-  `section.analyzerId` exists.
-- The card shows all senses; nothing picks one automatically. JMdict orders
-  senses by commonness and the analyzer's POS already discards irrelevant ones.
-  A per-occurrence `senseIndex` on `token` stays available but unbuilt.
-
-**Entry resolution rides along.** The same pass should settle the homograph
-ambiguity above, because it needs exactly this phase's plumbing — the provider,
-batching, structured output, count validation, and the rule that an unreachable
-host leaves the work undone rather than blocking. Building it first would mean
-building all of that twice.
-
-It selects, never names, which is the same grounding rule the glosses follow:
-given 「夕方になっても」 and a list of two to six real JMdict entries, choosing
-成る over 生る is not a task a model can invent its way out of.
-
-- Fires only on `lemma_reading_multi`, and only where the candidates' glosses
-  actually differ — 三 competes with another 三, and asking is pure cost.
-- `matchCandidates` in `src/lib/dict/match.ts` already returns the survivor
-  list; that is the hook.
-- The reply must be one of the candidate ids. Anything else, keep the
-  deterministic pick — same shape as validating the sense count.
-- Record it beside `dictMatch`, so a model-resolved link is distinguishable
-  from a computed one and can be re-run later.
-- Never override a clean `lemma_reading`, and never re-resolve on relink: the
-  Dictionary groups rows by `dict_entry_id`, so an unstable link would move the
-  shape of the page between runs.
+The card showing all senses with nothing auto-picked, and the deferred
+per-occurrence `token.senseIndex`, both still hold — the analyzer's POS already
+discards irrelevant senses and JMdict orders the rest by commonness.
 
 ## Deferred
 
