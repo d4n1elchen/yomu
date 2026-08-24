@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import {
   index,
   integer,
+  primaryKey,
   real,
   sqliteTable,
   text,
@@ -120,12 +121,52 @@ export const lexemes = sqliteTable(
     /** Katakana reading of the lemma; empty when the analyzer knows none. */
     reading: text('reading').notNull(),
     pos: text('pos').notNull(),
+    /**
+     * IPADIC's finer grammar, carried here so that matching can use it.
+     *
+     * Deliberately NOT part of the identity key above. 勉強 is 名詞-一般 in one
+     * sentence and 名詞-サ変接続 in the next, and keying on the detail would
+     * file it as two Dictionary entries -- the exact splitting the lemma key
+     * exists to prevent. These are hints about a word, not part of what makes
+     * it that word, so first writer wins and nothing re-files.
+     *
+     * `posDetail` is `pos_detail_1`; `conjugationType` is `conjugated_type`.
+     * Between them they separate 居る (`v1`) from 入る (`v5r`) and the honorific
+     * さん (`suf`) from 三 (`num`) -- homographs sharing a reading, which
+     * nothing else in the data can tell apart.
+     */
+    posDetail: text('pos_detail'),
+    conjugationType: text('conjugation_type'),
+    /**
+     * The JMdict entry this word was matched to, or null when nothing matched.
+     * Null is not a failure state to be cleaned up: unmatched words are mostly
+     * names and mis-segmentations, and are marked hard precisely because
+     * nothing vouches for them.
+     */
+    dictEntryId: text('dict_entry_id').references(() => dictEntries.id),
+    /**
+     * How the match was made, because the three are not equally trustworthy:
+     *
+     * - 'lemma_reading'       one entry matched on both. The clean case.
+     * - 'lemma_reading_multi' several survived lemma, reading AND grammar, and
+     *                         the commonest was taken. Nothing available tells
+     *                         them apart, so the senses shown may be the other
+     *                         word's.
+     * - 'lemma'               the reading matched nothing, so the lemma went
+     *                         alone and may have picked the wrong homograph --
+     *                         along with the wrong word's frequency band.
+     *
+     * Recorded rather than inferred, so a bad band or a wrong sense can be
+     * traced instead of guessed at. See `MatchKind` in `src/lib/dict/match.ts`.
+     */
+    dictMatch: text('dict_match'),
     createdAt: integer('created_at')
       .notNull()
       .default(sql`(unixepoch())`),
   },
   (t) => [
     uniqueIndex('lexeme_key_idx').on(t.dictionary, t.lemma, t.reading, t.pos),
+    index('lexeme_dict_idx').on(t.dictEntryId),
   ],
 );
 
@@ -157,6 +198,116 @@ export const tokens = sqliteTable(
   ],
 );
 
+/**
+ * JMdict, imported whole. Entries keep their JMdict id verbatim, which is what
+ * lets the simplified JSON (structure, glosses) and the original XML
+ * (frequency bands, which the JSON conversion drops) be joined with no
+ * matching work at all.
+ */
+export const dictEntries = sqliteTable(
+  'dict_entry',
+  {
+    /** JMdict's `ent_seq`. Not generated here -- it is the join key. */
+    id: text('id').primaryKey(),
+    /**
+     * nf01-nf48 stored as 1-48: which set of 500 words by corpus frequency the
+     * entry falls in, so 1 is the commonest 500. Null means rarer than the top
+     * 24,000, which is not missing data -- it is itself the difficulty signal
+     * the reader's slider reads.
+     */
+    freqBand: integer('freq_band'),
+    /**
+     * jmdict-simplified's `common` flag, which is true when JMdict gave any of
+     * the entry's forms a priority tag (ichi1, spec1, gai1, news1...).
+     *
+     * It cannot drive the slider -- it is one bit, and says yes to most real
+     * reading vocabulary. It is here as a *floor* under `freqBand`, which is a
+     * different question. `nf` ranks come from a newspaper corpus, and 7,726
+     * entries JMdict marks common were never ranked by it: 本 carries `ichi1`
+     * and no `nf` at all. Without this, every one of those words would look
+     * rarer than the 24,000th and be marked hard.
+     */
+    common: integer('common', { mode: 'boolean' }).notNull().default(false),
+    /** The form to print as the headword. Equals `reading` for kana-only words. */
+    headword: text('headword').notNull(),
+    /** Hiragana, always -- see `dictForms` for why that conversion is deliberate. */
+    reading: text('reading').notNull(),
+  },
+  (t) => [index('dict_entry_band_idx').on(t.freqBand)],
+);
+
+/**
+ * Every (written form, reading) pair an entry can be looked up by -- the
+ * cross product of its kanji and kana forms, respecting JMdict's
+ * `appliesToKanji` so that a reading is never paired with a spelling it does
+ * not belong to.
+ *
+ * This exists so that matching a lexeme is one indexed query against the
+ * database rather than a pass over the 118 MB source file. Importing a new
+ * article creates new lexemes that need linking, and that must not require the
+ * download to still be on disk.
+ *
+ * `reading` is hiragana on both sides of the join by construction: kuromoji
+ * reports katakana, JMdict writes hiragana except for loanwords it lists in
+ * katakana, so both are folded to hiragana rather than either being trusted.
+ */
+export const dictForms = sqliteTable(
+  'dict_form',
+  {
+    entryId: text('entry_id')
+      .notNull()
+      .references(() => dictEntries.id, { onDelete: 'cascade' }),
+    /** The written form: a kanji spelling, or the kana itself for kana words. */
+    text: text('text').notNull(),
+    reading: text('reading').notNull(),
+  },
+  (t) => [
+    // Also the match index: (text, reading) is its leftmost prefix, and
+    // (text) alone serves the reading-less fallback.
+    primaryKey({ columns: [t.text, t.reading, t.entryId] }),
+  ],
+);
+
+/**
+ * A JMdict sense, in JMdict's own order -- which is by commonness, so the first
+ * sense is the one to lead with and nothing has to pick.
+ */
+export const dictSenses = sqliteTable(
+  'dict_sense',
+  {
+    id: text('id').primaryKey(),
+    entryId: text('entry_id')
+      .notNull()
+      .references(() => dictEntries.id, { onDelete: 'cascade' }),
+    orderIndex: integer('order_index').notNull(),
+    /** JMdict's own POS tags (n, v5r, adj-i), not IPADIC's. Comma-joined. */
+    pos: text('pos').notNull(),
+    /** JMdict's English glosses for this sense, joined with '; '. */
+    glossEn: text('gloss_en').notNull(),
+    /**
+     * Traditional Chinese, translated from `glossEn` rather than defined from
+     * scratch: given a real sense to render the model can mistranslate, but it
+     * cannot invent a meaning the dictionary never had.
+     *
+     * Null until translated, and `gloss_zh is null` IS the work queue -- no
+     * separate table. An unreachable model leaves nulls that the next import
+     * picks up, and reading never blocks on it.
+     */
+    glossZh: text('gloss_zh'),
+    /**
+     * The model that wrote `glossZh`. A mistranslation is invisible in a way a
+     * wrong reading is not, so provenance is what makes re-translating a subset
+     * possible later -- same reason `section.analyzerId` exists.
+     */
+    glossModel: text('gloss_model'),
+  },
+  (t) => [
+    index('dict_sense_entry_idx').on(t.entryId, t.orderIndex),
+    // The Phase C translation queue.
+    index('dict_sense_untranslated_idx').on(t.glossZh),
+  ],
+);
+
 /*
  * ---------------------------------------------------------------------------
  * Designed for, deliberately not created yet.
@@ -167,14 +318,6 @@ export const tokens = sqliteTable(
  *   state that changes independently of content, which is why it lives here
  *   and not on `token` (storing "hard" per token means rewriting every token
  *   when you learn a word) or on `lexeme`.
- *
- * dict_entry / dict_sense
- *   JMdict imported for meanings and frequency rank. Entries keep their JMdict
- *   id, so the simplified JSON (structure, glosses) and the original XML
- *   (frequency bands, which the JSON conversion drops) can be joined without
- *   any matching work. Senses carry an English gloss plus a Traditional Chinese
- *   translation produced lazily on first encounter, with the model that wrote
- *   it recorded alongside -- same reason `section.analyzerId` exists.
  *
  * ---------------------------------------------------------------------------
  * Grammar: deferred, and the earlier design was wrong.

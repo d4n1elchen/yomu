@@ -36,6 +36,10 @@ yarn-error.log*
 # Claude Code — shared config is committed, personal overrides are not
 .claude/settings.local.json
 
+# JMdict source data — delivered by scripts/fetch-jmdict.ts, ~11 MB of JSON
+# plus the XML it is derived from. Regenerable, so never committed.
+data/
+
 # Local SQLite database
 yomu.db
 yomu.db-shm

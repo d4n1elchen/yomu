@@ -9,6 +9,8 @@
     "start": "next start",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node src/db/migrate.ts",
+    "data:jmdict": "node scripts/fetch-jmdict.ts",
+    "db:jmdict": "node scripts/import-jmdict.ts",
     "test": "node --test \"src/**/*.test.ts\""
   },
   "dependencies": {

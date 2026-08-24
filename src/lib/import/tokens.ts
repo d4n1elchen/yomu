@@ -15,6 +15,16 @@ interface LexemeKey {
 }
 
 /**
+ * Written alongside a new lexeme but not part of its identity -- see the
+ * `posDetail` comment in the schema. Recorded so that JMdict matching can tell
+ * homographs apart later, without the analyzer having to be re-run.
+ */
+interface LexemeHints {
+  posDetail: string | null;
+  conjugationType: string | null;
+}
+
+/**
  * NUL as the separator, because no analyzer output can contain one -- a
  * space would let a lemma with a space in it collide with the next field.
  * Written as an escape rather than a literal byte: a literal NUL makes git
@@ -35,7 +45,7 @@ export class LexemeResolver {
     this.tx = tx;
   }
 
-  resolve(key: LexemeKey): string {
+  resolve(key: LexemeKey, hints: LexemeHints): string {
     const cacheKey = keyOf(key);
     const cached = this.cache.get(cacheKey);
     if (cached !== undefined) return cached;
@@ -55,12 +65,15 @@ export class LexemeResolver {
 
     const id = existing?.id ?? randomUUID();
     if (!existing) {
-      this.tx.insert(lexemes).values({ id, ...key }).run();
+      this.tx.insert(lexemes).values({ id, ...key, ...hints }).run();
     }
     this.cache.set(cacheKey, id);
     return id;
   }
 }
+
+/** IPADIC's placeholder for "no value". */
+const blank = (raw: string): string | null => (raw === '' || raw === '*' ? null : raw);
 
 /**
  * The single place token rows are written.
@@ -90,12 +103,20 @@ export function writeSentenceTokens(
   const rows = analyzed.map((token, index) => ({
     id: randomUUID(),
     sentenceId,
-    lexemeId: resolver.resolve({
-      dictionary,
-      lemma: token.lemma,
-      reading: token.lemmaReading,
-      pos: token.pos,
-    }),
+    lexemeId: resolver.resolve(
+      {
+        dictionary,
+        lemma: token.lemma,
+        reading: token.lemmaReading,
+        pos: token.pos,
+      },
+      {
+        // IPADIC writes '*' where it has no value; the analyzer already
+        // normalises that to the string, so it is dropped to null here.
+        posDetail: blank(token.features.posDetail1),
+        conjugationType: blank(token.features.conjugatedType),
+      },
+    ),
     orderIndex: index,
     charStart: token.charStart - sentenceStart,
     charEnd: token.charEnd - sentenceStart,

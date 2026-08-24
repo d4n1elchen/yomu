@@ -1,0 +1,1 @@
+ALTER TABLE `dict_entry` ADD `common` integer DEFAULT false NOT NULL;

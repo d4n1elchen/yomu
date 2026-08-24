@@ -29,6 +29,27 @@
       "when": 1787514290231,
       "tag": "0003_mature_princess_powerful",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1787525230413,
+      "tag": "0004_hard_victor_mancha",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1787526525433,
+      "tag": "0005_smart_captain_midlands",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1787541129082,
+      "tag": "0006_open_avengers",
+      "breakpoints": true
     }
   ]
 }

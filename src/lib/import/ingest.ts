@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { db } from '../../db/client.ts';
 import { sections, sentences, works } from '../../db/schema.ts';
 import { getAnalyzer } from '../analyzer/index.ts';
+import { linkLexemes } from '../dict/match.ts';
 import { segmentSentences, type SegmentedSentence } from '../text/sentences.ts';
 import { LexemeResolver, writeSentenceTokens } from './tokens.ts';
 
@@ -96,6 +97,12 @@ export async function ingestWork(input: IngestWork): Promise<IngestResult> {
         needsReview: origin === 'transcript',
       });
     });
+
+    // New text means new lexemes, and a lexeme with no dictionary entry has no
+    // frequency band -- so the reader would mark every word in a freshly
+    // imported article as hard. Only the unlinked rows are touched, and it is a
+    // no-op when JMdict has not been imported yet.
+    linkLexemes(tx);
 
     return { workId, sectionIds };
   });
