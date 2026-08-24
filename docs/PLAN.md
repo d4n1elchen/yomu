@@ -202,6 +202,21 @@ Resolution is also the cheap one: 33 requests against 459, about 7% of the work.
 Gating on the small structural pass and letting the large cosmetic one run free
 is what makes this cost nothing.
 
+**Translation must never starve resolution — this was a real bug, not a
+hypothetical.** The first cut resolved every pending section and only then
+translated, holding the one-at-a-time flag for the entire backlog. Importing an
+article while a previous one's glosses were still draining therefore queued the
+new article's *resolution* behind hundreds of *translations* — the pass that
+gates reading stuck behind the pass that gates nothing. Observed with 598 entries
+queued: the new import sat greyed at 0%, indefinitely, while the drain worked on
+glosses for an article already readable.
+
+So the drain loops: resolve every pending section, translate **five** entries,
+look again. Five is chosen against what the wait actually costs — a reader
+staring at a greyed article — and bounds it to seconds instead of minutes. Any
+scheme where translation runs to completion before resolution is rechecked
+reintroduces this, however the queues are stored.
+
 **Recovery is a page load.** Opening the Library calls `ensureDraining`, which
 picks up every unresolved section and every untranslated entry, whatever import
 left them behind — so a drain killed by a server restart resumes by itself.
@@ -211,11 +226,17 @@ does the same on demand.
 
 Three details that make it safe: a module-level flag keeps one drain in flight
 (better-sqlite3 is a single synchronous connection, so there is no second worker
-to coordinate with, and the writes are individually guarded anyway); a two-minute
-backoff stops a downed host being retried on every page view; and both passes
-work at **whole-database scope**. That last one was a real bug in the first cut
-— scoped per-import, an entry left untranslated was never revisited unless a
-later article happened to contain it too.
+to coordinate with, and the writes are individually guarded anyway — but see the
+starvation note above, because that flag is exactly what made the inversion
+possible); a two-minute backoff stops a downed host being retried on every page
+view; and both passes work at **whole-database scope**. That last one was also a
+real bug in the first cut — scoped per-import, an entry left untranslated was
+never revisited unless a later article happened to contain it too.
+
+The Library polls itself while anything is pending (`AnalysisPoller` calls
+`router.refresh()`, which re-runs the server component because the page is
+`force-dynamic`) and unmounts when the last article lands, so an idle Library
+costs nothing and the progress figures stay computed in exactly one place.
 
 ### Rejected: a queue table
 
