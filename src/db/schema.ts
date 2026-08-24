@@ -63,6 +63,34 @@ export const sections = sqliteTable(
     analyzerVersion: text('analyzer_version').notNull(),
     tokenizedAt: integer('tokenized_at'),
     /**
+     * When homograph resolution finished. Null means it has not, and the section
+     * is NOT readable yet -- the Library greys the row and the reader turns it
+     * away.
+     *
+     * Gated because resolution moves `lexeme.dictEntryId`, and that column is
+     * what the Dictionary groups on, what `getDictionaryEntry` collects members
+     * by, and what the article's sense map is keyed on. Reading an article whose
+     * links are still moving would show a word under one entry and then another.
+     * Translation gates nothing by contrast: it only fills `glossZh`, so a card
+     * gains Chinese and nothing relocates.
+     *
+     * Deliberately shaped like `tokenizedAt` -- a nullable stamp for "this stage
+     * is finished", not a status string that could disagree with the rows.
+     */
+    resolvedAt: integer('resolved_at'),
+    /**
+     * How many ambiguous lexemes this section's import handed the resolver, and
+     * how many it has got through. Only for the Library's progress readout.
+     *
+     * Counters rather than a derived count because "done" is not visible in the
+     * lexeme rows: a candidate set whose glosses all agree is skipped without
+     * ever being asked, and stays `dictResolver is null` exactly like one that
+     * was never reached. Deriving progress would report those as outstanding
+     * forever.
+     */
+    resolveTotal: integer('resolve_total').notNull().default(0),
+    resolveDone: integer('resolve_done').notNull().default(0),
+    /**
      * Stamped after ten seconds of reading, with the timer paused while the tab
      * is hidden. On `section` rather than `work` because a book needs to know
      * which chapter you were last in; the Library row shows the most recent
