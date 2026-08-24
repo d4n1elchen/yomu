@@ -12,7 +12,9 @@ const { ingestWork } = await import('./import/ingest.ts');
 const { listDictionary, getDictionaryEntry } = await import(
   './dictionary.ts'
 );
-const { dictEntries, dictForms, dictSenses } = await import('../db/schema.ts');
+const { dictEntries, dictForms, dictSenses, lexemes } = await import(
+  '../db/schema.ts'
+);
 const { migrate } = await import('drizzle-orm/better-sqlite3/migrator');
 
 const find = (lemma: string) =>
@@ -185,4 +187,62 @@ test('a word JMdict never matched still stands on its own', () => {
   const unmatched = listDictionary().entries.filter((e) => e.lemma === '図書館');
   assert.equal(unmatched.length, 1);
   assert.equal(unmatched[0]!.occurrences, 1);
+});
+
+test('a word that fitted several entries shows the ones it did not take', () => {
+  // Two entries, same spelling and reading, different meanings. The commoner
+  // one is taken; the other has to stay visible, because nothing in the data
+  // says the pick is right.
+  db.insert(dictEntries)
+    .values([
+      { id: 'jm-2', freqBand: 7, common: true, headword: '生る', reading: 'なる' },
+      { id: 'jm-3', freqBand: 34, common: true, headword: '成る', reading: 'なる' },
+      // A near-duplicate of the winner: same meaning, so warning about it
+      // would train the reader to ignore the warning that matters.
+      { id: 'jm-4', freqBand: null, common: false, headword: '生る', reading: 'なる' },
+    ])
+    .run();
+  db.insert(dictForms)
+    .values(
+      ['jm-2', 'jm-3', 'jm-4'].map((entryId) => ({ entryId, text: 'なる', reading: 'なる' })),
+    )
+    .run();
+  db.insert(dictSenses)
+    .values([
+      { id: 'jm-2:0', entryId: 'jm-2', orderIndex: 0, pos: 'v5r,vi', glossEn: 'to bear fruit' },
+      { id: 'jm-3:0', entryId: 'jm-3', orderIndex: 0, pos: 'v5r,vi', glossEn: 'to become' },
+      { id: 'jm-4:0', entryId: 'jm-4', orderIndex: 0, pos: 'v5r,vi', glossEn: 'to bear fruit' },
+    ])
+    .run();
+
+  const lexeme = db
+    .insert(lexemes)
+    .values({
+      id: 'lex-naru',
+      dictionary: 'ipadic',
+      lemma: 'なる',
+      reading: 'ナル',
+      pos: '動詞',
+      posDetail: '自立',
+      conjugationType: '五段・ラ行',
+      dictEntryId: 'jm-2',
+      dictMatch: 'lemma_reading_multi',
+    })
+    .returning({ id: lexemes.id })
+    .get();
+
+  const detail = getDictionaryEntry(lexeme.id);
+  const alternatives = detail?.meaning?.alternatives ?? [];
+
+  // 成る is shown: a different meaning that also fitted.
+  assert.deepEqual(
+    alternatives.map((a) => a.glossEn),
+    ['to become'],
+  );
+  // The duplicate reading of the same meaning is not, and neither is the
+  // entry actually taken.
+  assert.equal(
+    alternatives.some((a) => a.glossEn === 'to bear fruit'),
+    false,
+  );
 });

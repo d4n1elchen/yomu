@@ -155,6 +155,29 @@ export function matchLexeme(
   analyzer: AnalyzerPos,
   tx: Tx | typeof db = db,
 ): Match | null {
+  const found = matchCandidates(lemma, reading, analyzer, tx);
+  return found === null ? null : { entryId: found.survivors[0]!, kind: found.kind };
+}
+
+/**
+ * Every entry that survived lemma, reading and grammar, best first.
+ *
+ * `matchLexeme` takes the head of this list and throws the rest away, which is
+ * the right thing for a link but the wrong thing to tell a reader. The
+ * Dictionary shows the runners-up, so that when the pick is wrong -- なる takes
+ * 生る "to bear fruit" over 成る "to become", and no signal in JMdict separates
+ * them -- the right answer is visible one line below rather than hidden behind
+ * an apology.
+ *
+ * Recomputed rather than stored: it is two indexed queries, and storing it
+ * would mean a table that goes stale every time the matching rule improves.
+ */
+export function matchCandidates(
+  lemma: string,
+  reading: string,
+  analyzer: AnalyzerPos,
+  tx: Tx | typeof db = db,
+): { survivors: string[]; kind: MatchKind } | null {
   if (lemma === '') return null;
 
   if (reading !== '') {
@@ -162,7 +185,7 @@ export function matchLexeme(
     if (ranked.length > 0) {
       const survivors = narrow(ranked, tagsFor(tx, ranked), analyzer);
       return {
-        entryId: survivors[0]!,
+        survivors,
         kind: survivors.length > 1 ? 'lemma_reading_multi' : 'lemma_reading',
       };
     }
@@ -170,8 +193,7 @@ export function matchLexeme(
 
   const ranked = candidates(tx, lemma, null);
   if (ranked.length === 0) return null;
-  const survivors = narrow(ranked, tagsFor(tx, ranked), analyzer);
-  return { entryId: survivors[0]!, kind: 'lemma' };
+  return { survivors: narrow(ranked, tagsFor(tx, ranked), analyzer), kind: 'lemma' };
 }
 
 /**

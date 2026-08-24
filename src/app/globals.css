@@ -1017,6 +1017,52 @@ rt {
   color: var(--review);
 }
 
+/* The entries that also fitted. Quiet, but present: this is where a wrong
+   match becomes visible instead of being apologised for. */
+.alternatives {
+  margin-top: 1rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.alternatives-label {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  color: var(--faint);
+}
+
+.alternatives ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.alternatives li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.2rem 0;
+  font-size: 0.85rem;
+}
+
+.alt-headword {
+  font-family: var(--serif);
+  font-size: 1rem;
+}
+
+.alt-reading {
+  margin-left: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.alt-gloss {
+  color: var(--muted);
+}
+
 .edrdg {
   margin-top: 3rem;
   padding-top: 0.9rem;

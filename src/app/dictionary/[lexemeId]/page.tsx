@@ -74,10 +74,37 @@ export default async function DictionaryEntryPage({
             <p className="caveat">
               這個詞只以辭書形對到 JMdict，沒有比對讀音，可能對到同形異音的另一個詞。
             </p>
-          ) : meaning.match === 'lemma_reading_multi' ? (
-            <p className="caveat">
-              JMdict 裡有多個同形同音的詞條，這裡取最常見的一個，語義未必相符。
-            </p>
+          ) : null}
+
+          {/*
+            The runners-up, rather than a warning that says only "this might be
+            wrong". When the pick is wrong -- なる takes 生る「結果實」over
+            成る「成為」, and nothing in JMdict separates them -- the right
+            answer is one line below instead of hidden behind an apology.
+          */}
+          {meaning.alternatives.length > 0 ? (
+            <div className="alternatives">
+              <p className="alternatives-label">
+                同形同音的其他詞條，這裡取了最常見的一個：
+              </p>
+              <ul>
+                {meaning.alternatives.map((other) => (
+                  <li key={other.entryId}>
+                    <span className="alt-headword" lang="ja">
+                      {other.headword}
+                      <span className="alt-reading">{other.reading}</span>
+                    </span>
+                    {other.glossZh ? (
+                      <span className="alt-gloss">{other.glossZh}</span>
+                    ) : (
+                      <span className="alt-gloss" lang="en">
+                        {other.glossEn}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
           ) : null}
         </>
       )}

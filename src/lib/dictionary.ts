@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, like, or, sql } from 'drizzle-orm';
 import { db } from '../db/client.ts';
+import { matchCandidates } from './dict/match.ts';
 import {
   dictEntries,
   dictSenses,
@@ -257,6 +258,16 @@ export interface Occurrence {
   workTitle: string;
 }
 
+/** Another entry that fitted the same lemma, reading and grammar. */
+export interface Alternative {
+  entryId: string;
+  headword: string;
+  reading: string;
+  /** JMdict's first gloss -- enough to recognise the word, or rule it out. */
+  glossEn: string;
+  glossZh: string | null;
+}
+
 /** What JMdict knows about the word, when it was matched to an entry. */
 export interface DictionaryMeaning {
   entryId: string;
@@ -270,6 +281,14 @@ export interface DictionaryMeaning {
   /** Whether the reading took part in the match, or only the lemma did. */
   match: string | null;
   senses: Array<{ zh: string | null; en: string }>;
+  /**
+   * The entries that also fitted, minus the one taken, and minus any whose
+   * meaning is the same as the one taken -- 三 competes with another 三 and
+   * つもり with 心算, and warning about a choice the reader cannot see the
+   * effect of is noise. What is left is a genuine alternative reading of the
+   * word.
+   */
+  alternatives: Alternative[];
 }
 
 export interface DictionaryDetail {
@@ -278,6 +297,82 @@ export interface DictionaryDetail {
   forms: string[];
   /** Null when nothing in JMdict matched -- a name, or a mis-segmentation. */
   meaning: DictionaryMeaning | null;
+}
+
+/**
+ * Enough to recognise a wrong pick, not so many that the list is scenery.
+ * Survivors arrive best-first, so a cap keeps the plausible alternatives and
+ * drops the tail -- いる otherwise trails 沃る and 率る, both of which JMdict
+ * marks poetical.
+ */
+const MAX_ALTERNATIVES = 3;
+
+/**
+ * The part of a gloss that decides whether two entries mean the same thing.
+ *
+ * JMdict's leading sense often restates itself -- one 三 glosses "three; 3"
+ * and another simply "three" -- so comparing the whole string calls them
+ * different and warns about a choice with no visible consequence.
+ */
+function sameMeaning(gloss: string): string {
+  return gloss.split(';')[0]!.trim().toLowerCase();
+}
+
+/** The first sense of an entry, which is the one JMdict leads with. */
+function leadGloss(entryId: string) {
+  return db
+    .select({ en: dictSenses.glossEn, zh: dictSenses.glossZh })
+    .from(dictSenses)
+    .where(eq(dictSenses.entryId, entryId))
+    .orderBy(asc(dictSenses.orderIndex))
+    .limit(1)
+    .get();
+}
+
+/**
+ * The entries that fitted but were not taken, worth showing to the reader.
+ *
+ * Two are dropped: the entry actually linked, and any whose leading gloss reads
+ * the same as it. JMdict carries near-duplicate entries -- two 三 both meaning
+ * "three", 積もり and 心算 both "intention; plan" -- and flagging a choice with
+ * no visible consequence trains the reader to ignore the flag that matters.
+ */
+function alternativesFor(row: {
+  lemma: string;
+  reading: string;
+  pos: string;
+  posDetail: string | null;
+  conjugationType: string | null;
+  entryId: string | null;
+}): Alternative[] {
+  if (row.entryId === null) return [];
+
+  const found = matchCandidates(row.lemma, row.reading, row);
+  if (!found || found.survivors.length < 2) return [];
+
+  const taken = sameMeaning(leadGloss(row.entryId)?.en ?? '');
+  const alternatives: Alternative[] = [];
+
+  for (const entryId of found.survivors) {
+    if (alternatives.length >= MAX_ALTERNATIVES) break;
+    if (entryId === row.entryId) continue;
+    const gloss = leadGloss(entryId);
+    if (!gloss || sameMeaning(gloss.en) === taken) continue;
+    const entry = db
+      .select({ headword: dictEntries.headword, reading: dictEntries.reading })
+      .from(dictEntries)
+      .where(eq(dictEntries.id, entryId))
+      .get();
+    if (!entry) continue;
+    alternatives.push({
+      entryId,
+      headword: entry.headword,
+      reading: entry.reading,
+      glossEn: gloss.en,
+      glossZh: gloss.zh,
+    });
+  }
+  return alternatives;
 }
 
 /**
@@ -294,6 +389,8 @@ export function getDictionaryEntry(
       lemma: lexemes.lemma,
       reading: lexemes.reading,
       pos: lexemes.pos,
+      posDetail: lexemes.posDetail,
+      conjugationType: lexemes.conjugationType,
       entryId: lexemes.dictEntryId,
       match: lexemes.dictMatch,
       headword: dictEntries.headword,
@@ -331,6 +428,7 @@ export function getDictionaryEntry(
             .where(eq(dictSenses.entryId, row.entryId))
             .orderBy(asc(dictSenses.orderIndex))
             .all(),
+          alternatives: alternativesFor(row),
         };
 
   // Every lexeme the listing folded into this row, so the occurrence list and
