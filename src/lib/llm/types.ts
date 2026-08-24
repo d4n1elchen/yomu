@@ -6,6 +6,14 @@ export interface LlmMessage {
 export interface LlmRequest {
   messages: LlmMessage[];
   temperature?: number;
+  /**
+   * A JSON schema constraining the reply to structured output -- Ollama's
+   * `format` field. When set, the model must emit JSON matching it, which is how
+   * translation and homograph resolution get an answer that parses instead of
+   * prose to scrape. Left unset for streamed prose like Q&A, where the reader is
+   * the parser.
+   */
+  format?: unknown;
   signal?: AbortSignal;
 }
 

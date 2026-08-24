@@ -29,6 +29,9 @@ export function createOllamaProvider(options: {
           // These models emit a long private reasoning block by default, which
           // the reader never sees but still waits for.
           think: false,
+          // A JSON schema when the caller wants structured output; JSON.stringify
+          // drops the key when it is undefined, so prose requests are unaffected.
+          format: request.format,
           options: { temperature: request.temperature ?? 0.3 },
           messages: request.messages,
         }),
