@@ -233,6 +233,17 @@ export interface ArticleSummary {
   lastReadAt: number | null;
   /** Distinct content words, counted the way the Dictionary counts them. */
   vocabCount: number;
+  /**
+   * Homograph-resolution progress while the article is still being analysed, and
+   * null once it is readable. Non-null means the Library greys the row and
+   * refuses to link it: resolution moves `lexeme.dictEntryId`, which the
+   * Dictionary groups on, so reading before it settles would show a word filed
+   * under one entry and then another.
+   *
+   * Translation is deliberately not represented here. It only fills `glossZh`,
+   * so it gates nothing and an article is readable throughout.
+   */
+  analysis: { done: number; total: number } | null;
 }
 
 /**
@@ -256,6 +267,9 @@ export function listArticles(): ArticleSummary[] {
       workId: sections.workId,
       orderIndex: sections.orderIndex,
       lastReadAt: sections.lastReadAt,
+      resolvedAt: sections.resolvedAt,
+      resolveDone: sections.resolveDone,
+      resolveTotal: sections.resolveTotal,
     })
     .from(sections)
     .orderBy(asc(sections.orderIndex))
@@ -297,6 +311,10 @@ export function listArticles(): ArticleSummary[] {
       owned.find((s) => s.lastReadAt !== null && s.lastReadAt === lastRead) ??
       owned[0]!;
 
+    // A work is still analysing while any of its sections is: a book becomes
+    // readable when every chapter's links have settled, not the first.
+    const unresolved = owned.filter((s) => s.resolvedAt === null);
+
     summaries.push({
       workId: work.workId,
       title: work.title,
@@ -305,6 +323,13 @@ export function listArticles(): ArticleSummary[] {
       createdAt: work.createdAt,
       lastReadAt: lastRead,
       vocabCount: vocabByWork.get(work.workId) ?? 0,
+      analysis:
+        unresolved.length === 0
+          ? null
+          : {
+              done: owned.reduce((n, s) => n + s.resolveDone, 0),
+              total: owned.reduce((n, s) => n + s.resolveTotal, 0),
+            },
     });
   }
 

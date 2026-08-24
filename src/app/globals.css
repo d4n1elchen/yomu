@@ -301,6 +301,31 @@ button:disabled {
   border-color: var(--border);
 }
 
+/*
+ * An article whose homograph resolution has not finished. Rendered as a span
+ * rather than a link, so this only has to look unavailable -- there is nothing
+ * to click and nothing to disable. Greyed rather than hidden: the article exists
+ * and its vocabulary is already counted, it just cannot be opened until the
+ * links the Dictionary groups on have stopped moving.
+ */
+.library li .pending {
+  padding: 0.9rem 0.75rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--faint);
+  cursor: default;
+}
+
+.library li .pending .title,
+.library li .pending .num {
+  color: var(--faint);
+}
+
+.library .last.analysing {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
 .library .title {
   font-family: var(--serif);
   font-size: 1.1rem;

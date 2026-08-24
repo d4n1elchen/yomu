@@ -1,5 +1,6 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { Reader } from '../../../components/Reader.tsx';
+import { isReadable } from '../../../lib/analysis/drain.ts';
 import { getArticle } from '../../../lib/article.ts';
 
 export const dynamic = 'force-dynamic';
@@ -10,6 +11,13 @@ export default async function ReadPage({
   params: Promise<{ sectionId: string }>;
 }) {
   const { sectionId } = await params;
+
+  // Homograph resolution moves `lexeme.dictEntryId`, and the Dictionary groups
+  // on it -- so an article read mid-resolution would file a word under one entry
+  // and then another. The Library is where the progress is, so send them back to
+  // it rather than rendering a half-settled page.
+  if (!isReadable(sectionId)) redirect('/library');
+
   const article = getArticle(sectionId);
   if (!article) notFound();
 
