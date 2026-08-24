@@ -448,6 +448,15 @@ button:disabled {
   font-family: var(--serif);
   font-size: 1.2rem;
   line-height: 2.7;
+  /* 600 lands on a real drawn face, not a synthesized smear of the regular:
+     verified by pixel comparison that it renders identically to asking for
+     the "Yu Mincho Demibold" family by name (Hiragino Mincho ProN W6 is the
+     macOS counterpart). Yu Mincho ships only those two faces, so on Windows
+     the weight is binary -- 400 is the regular and 500 through 800 all give
+     the same demibold. Do not bother tuning the number; 600 is here to name
+     the demibold honestly, not because 700 would look different.
+     Furigana stays light regardless: `rt` sets its own font-weight: normal. */
+  font-weight: 600;
 }
 
 /* A paragraph is the block; sentences flow inside it as prose. A newline in the
