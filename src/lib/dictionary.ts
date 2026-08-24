@@ -37,6 +37,24 @@ export const contentWord = sql`${lexemes.pos} not in ${[
 ]}`;
 
 /**
+ * What counts as one word in the Dictionary listing.
+ *
+ * IPADIC's lemma keeps the spelling you wrote, so 分かる, 判る and 解る come back
+ * as three lexemes -- three rows, three occurrence counts, for one word you
+ * have met three times. JMdict is the only thing that knows they are the same
+ * word, and the entry each of them matched is that answer. A word that matched
+ * nothing falls back to standing alone, keyed on itself.
+ *
+ * This is a grouping and deliberately not an identity. Keying `lexeme` on the
+ * matched entry would put the least reliable link in the chain -- 5 of 34
+ * content words here are ambiguous -- underneath the data model, so a bad match
+ * would pool two different words' occurrences instead of mislabelling one page,
+ * and every improvement to matching would become a row merge rather than a
+ * rewritten pointer.
+ */
+const wordGroup = sql`coalesce(${lexemes.dictEntryId}, ${lexemes.id})`;
+
+/**
  * A word earns a place in the Dictionary by appearing in text somebody has
  * actually read. Occurrences inside unreviewed transcript sentences are
  * excluded by default: a transcription error tokenizes just as cleanly as real
@@ -97,12 +115,17 @@ export function listDictionary(query: DictionaryQuery = {}): DictionaryPage {
   const limit = query.limit ?? 300;
   const where = filters(query);
 
-  const rows = db
+  const scope = () =>
+    db
+      .select()
+      .from(lexemes)
+      .innerJoin(tokens, eq(tokens.lexemeId, lexemes.id))
+      .innerJoin(sentences, eq(sentences.id, tokens.sentenceId))
+      .innerJoin(sections, eq(sections.id, sentences.sectionId));
+
+  const groups = db
     .select({
-      id: lexemes.id,
-      lemma: lexemes.lemma,
-      reading: lexemes.reading,
-      pos: lexemes.pos,
+      groupId: sql<string>`${wordGroup}`.as('group_id'),
       occurrences: sql<number>`count(${tokens.id})`.as('occurrences'),
       workCount: sql<number>`count(distinct ${sections.workId})`,
     })
@@ -111,10 +134,50 @@ export function listDictionary(query: DictionaryQuery = {}): DictionaryPage {
     .innerJoin(sentences, eq(sentences.id, tokens.sentenceId))
     .innerJoin(sections, eq(sections.id, sentences.sectionId))
     .where(where)
-    .groupBy(lexemes.id)
-    .orderBy(desc(sql`occurrences`), asc(lexemes.lemma))
+    .groupBy(sql`group_id`)
+    .orderBy(desc(sql`occurrences`))
     .limit(limit)
     .all();
+
+  const groupIds = groups.map((group) => group.groupId);
+
+  // The lexemes behind those groups. The one seen most often speaks for the
+  // group: 分かる should head the row rather than 解る because that is the
+  // spelling actually read, and JMdict's own headword is no help here -- it
+  // offers 迄 for まで and 積もり for つもり.
+  const members =
+    groupIds.length === 0
+      ? []
+      : db
+          .select({
+            groupId: sql<string>`${wordGroup}`.as('group_id'),
+            id: lexemes.id,
+            lemma: lexemes.lemma,
+            reading: lexemes.reading,
+            pos: lexemes.pos,
+            occurrences: sql<number>`count(${tokens.id})`.as('member_count'),
+          })
+          .from(lexemes)
+          .innerJoin(tokens, eq(tokens.lexemeId, lexemes.id))
+          .innerJoin(sentences, eq(sentences.id, tokens.sentenceId))
+          .innerJoin(sections, eq(sections.id, sentences.sectionId))
+          .where(and(where, sql`${wordGroup} in ${groupIds}`))
+          .groupBy(lexemes.id)
+          .all();
+
+  const leadByGroup = new Map<string, (typeof members)[number]>();
+  const groupOfLexeme = new Map<string, string>();
+  for (const member of members) {
+    groupOfLexeme.set(member.id, member.groupId);
+    const best = leadByGroup.get(member.groupId);
+    if (
+      !best ||
+      member.occurrences > best.occurrences ||
+      (member.occurrences === best.occurrences && member.lemma < best.lemma)
+    ) {
+      leadByGroup.set(member.groupId, member);
+    }
+  }
 
   // Distinct surfaces, fetched separately rather than with GROUP_CONCAT so
   // that a form containing a comma cannot corrupt the split.
@@ -127,15 +190,17 @@ export function listDictionary(query: DictionaryQuery = {}): DictionaryPage {
     .where(where)
     .all();
 
-  const formsByLexeme = new Map<string, string[]>();
+  const formsByGroup = new Map<string, Set<string>>();
   for (const row of formRows) {
-    const list = formsByLexeme.get(row.lexemeId);
-    if (list) list.push(row.surface);
-    else formsByLexeme.set(row.lexemeId, [row.surface]);
+    const groupId = groupOfLexeme.get(row.lexemeId);
+    if (groupId === undefined) continue;
+    let forms = formsByGroup.get(groupId);
+    if (!forms) formsByGroup.set(groupId, (forms = new Set()));
+    forms.add(row.surface);
   }
 
   const counted = db
-    .select({ n: sql<number>`count(distinct ${lexemes.id})` })
+    .select({ n: sql<number>`count(distinct ${wordGroup})` })
     .from(lexemes)
     .innerJoin(tokens, eq(tokens.lexemeId, lexemes.id))
     .innerJoin(sentences, eq(sentences.id, tokens.sentenceId))
@@ -146,7 +211,7 @@ export function listDictionary(query: DictionaryQuery = {}): DictionaryPage {
   const facets = db
     .select({
       pos: lexemes.pos,
-      count: sql<number>`count(distinct ${lexemes.id})`.as('count'),
+      count: sql<number>`count(distinct ${wordGroup})`.as('count'),
     })
     .from(lexemes)
     .innerJoin(tokens, eq(tokens.lexemeId, lexemes.id))
@@ -157,14 +222,25 @@ export function listDictionary(query: DictionaryQuery = {}): DictionaryPage {
     .orderBy(desc(sql`count`))
     .all();
 
-  return {
-    entries: rows.map((row) => ({
-      ...row,
-      forms: formsByLexeme.get(row.id) ?? [],
-    })),
-    total: counted?.n ?? 0,
-    facets,
-  };
+  const entries: DictionaryEntry[] = [];
+  for (const group of groups) {
+    const lead = leadByGroup.get(group.groupId);
+    if (!lead) continue;
+    entries.push({
+      id: lead.id,
+      lemma: lead.lemma,
+      reading: lead.reading,
+      pos: lead.pos,
+      occurrences: group.occurrences,
+      workCount: group.workCount,
+      forms: [...(formsByGroup.get(group.groupId) ?? [])],
+    });
+  }
+  // The SQL ordering ranks groups; the lemma tiebreak needs the representative,
+  // which is only known once the members have been read.
+  entries.sort((a, b) => b.occurrences - a.occurrences || a.lemma.localeCompare(b.lemma));
+
+  return { entries, total: counted?.n ?? 0, facets };
 }
 
 export interface Occurrence {
@@ -257,6 +333,19 @@ export function getDictionaryEntry(
             .all(),
         };
 
+  // Every lexeme the listing folded into this row, so the occurrence list and
+  // the count on the row cannot disagree.
+  const groupMembers = db
+    .select({ id: lexemes.id })
+    .from(lexemes)
+    .where(
+      row.entryId === null
+        ? eq(lexemes.id, lexemeId)
+        : eq(lexemes.dictEntryId, row.entryId),
+    )
+    .all()
+    .map((member) => member.id);
+
   const occurrences = db
     .select({
       tokenId: tokens.id,
@@ -276,7 +365,7 @@ export function getDictionaryEntry(
     .innerJoin(works, eq(works.id, sections.workId))
     .where(
       and(
-        eq(tokens.lexemeId, lexemeId),
+        sql`${tokens.lexemeId} in ${groupMembers}`,
         options.includeUnreviewed ? undefined : reviewed,
       ),
     )
