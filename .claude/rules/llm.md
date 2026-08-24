@@ -25,6 +25,11 @@ entirely — the sentence's main grammar point.
 response has begun, a failure has to travel in the body — the status code is
 already sent.
 
+The client renders that text as Markdown, so it re-parses a **half-written**
+answer on every chunk. Anything that consumes the stream has to tolerate
+syntax that is not closed yet — an unterminated `**` stays literal rather than
+turning the rest of the answer bold until its partner arrives.
+
 **Store nothing.** Q&A is a lookup, not a record — it streams and is discarded
 when the panel closes. Durable learning belongs in the Dictionary as entries and
 occurrences, not as saved prose.
