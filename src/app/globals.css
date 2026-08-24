@@ -450,12 +450,6 @@ button:disabled {
   line-height: 2.7;
 }
 
-.reader-hint {
-  margin-top: 2rem;
-  font-size: 0.75rem;
-  color: var(--faint);
-}
-
 .sentence {
   display: block;
   margin: 0 0 0.35rem;

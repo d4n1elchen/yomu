@@ -260,9 +260,6 @@ export function Reader({ article }: { article: Article }) {
         ))}
       </div>
 
-      <p className="reader-hint">
-        虛線是超出目前難易度的詞 — 滑過去或點一下看說明。選取任一段文字即可提問；關掉「詞彙解說」則只讀原文。
-      </p>
 
       {selection ? (
         <AskDialog
