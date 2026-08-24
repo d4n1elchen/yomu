@@ -344,16 +344,18 @@ button:disabled {
 }
 
 .library .analysing-bar {
+  /* Explicit, not inherited from being a flex child: a bare inline span ignores
+     height and gives the fill nothing to be a percentage of. */
+  display: block;
   height: 3px;
   border-radius: 999px;
   background: var(--border);
   overflow: hidden;
 }
 
-/* Width comes from a custom property the row sets, so the bar needs no inline
-   style beyond the one number. */
-.library .analysing-bar::after {
-  content: '';
+/* A real element rather than a ::after, so the fill can be inspected and
+   measured like anything else on the page. */
+.library .analysing-fill {
   display: block;
   height: 100%;
   width: calc(var(--progress, 0) * 100%);
@@ -367,7 +369,7 @@ button:disabled {
  * up. A filled bar would read as finished and an empty one as stalled, so it
  * slides instead: the one shape that says "working, length unknown".
  */
-.library .analysing-bar.indeterminate::after {
+.library .analysing-fill.indeterminate {
   width: 40%;
   animation: analysing-slide 1.3s ease-in-out infinite;
 }
@@ -382,13 +384,13 @@ button:disabled {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .library .analysing-bar.indeterminate::after {
+  .library .analysing-fill.indeterminate {
     animation: none;
     width: 100%;
     opacity: 0.4;
   }
 
-  .library .analysing-bar::after {
+  .library .analysing-fill {
     transition: none;
   }
 }

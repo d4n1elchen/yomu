@@ -77,23 +77,31 @@ export default function LibraryPage() {
                           <span>分析中</span>
                           {article.analysis.total > 0 ? (
                             <span>
-                              {article.analysis.done}/{article.analysis.total}
+                              {Math.floor(
+                                (article.analysis.done /
+                                  article.analysis.total) *
+                                  100,
+                              )}
+                              %
                             </span>
                           ) : null}
                         </span>
-                        <span
-                          className={
-                            article.analysis.total > 0
-                              ? 'analysing-bar'
-                              : 'analysing-bar indeterminate'
-                          }
-                          style={{
-                            ['--progress' as string]:
+                        <span className="analysing-bar">
+                          <span
+                            className={
                               article.analysis.total > 0
-                                ? article.analysis.done / article.analysis.total
-                                : 0,
-                          }}
-                        />
+                                ? 'analysing-fill'
+                                : 'analysing-fill indeterminate'
+                            }
+                            style={{
+                              ['--progress' as string]:
+                                article.analysis.total > 0
+                                  ? article.analysis.done /
+                                    article.analysis.total
+                                  : 0,
+                            }}
+                          />
+                        </span>
                       </span>
                       {counts}
                     </span>
