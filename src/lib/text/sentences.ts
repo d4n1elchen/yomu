@@ -7,6 +7,13 @@ export interface SegmentedSentence {
   charEnd: number;
   /** Tokens still carrying absolute offsets; whitespace removed. */
   tokens: AnalyzedToken[];
+  /**
+   * Whether this sentence opens a new paragraph -- true for the first, and for
+   * any sentence a newline started. Segmentation breaks on both 。 and newlines,
+   * so without this the reader cannot tell a mid-paragraph sentence break from a
+   * paragraph break and lays every sentence on its own line.
+   */
+  paragraphStart: boolean;
 }
 
 const TERMINATORS = new Set(['。', '！', '？', '!', '?']);
@@ -41,6 +48,10 @@ export function segmentSentences(
   let current: AnalyzedToken[] = [];
   let depth = 0;
   let pending = false;
+  // The first sentence opens a paragraph; after that, only a newline does. Set
+  // when a newline flushes, consumed by the next sentence that starts building.
+  let paragraphNext = true;
+  let startsParagraph = true;
 
   const flush = () => {
     if (current.length === 0) return;
@@ -51,6 +62,7 @@ export function segmentSentences(
       charStart,
       charEnd,
       tokens: current,
+      paragraphStart: startsParagraph,
     });
     current = [];
     pending = false;
@@ -63,6 +75,7 @@ export function segmentSentences(
       if (token.surface.includes('\n')) {
         flush();
         depth = 0;
+        paragraphNext = true;
       }
       continue;
     }
@@ -77,6 +90,13 @@ export function segmentSentences(
         continue;
       }
       flush();
+    }
+
+    // The first content token of a sentence fixes whether it opens a paragraph:
+    // a newline since the last flush means it does, a bare 。 break does not.
+    if (current.length === 0) {
+      startsParagraph = paragraphNext;
+      paragraphNext = false;
     }
 
     if (OPENERS.has(surface)) depth++;

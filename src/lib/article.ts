@@ -57,6 +57,8 @@ export interface ArticleSentence {
   id: string;
   text: string;
   needsReview: boolean;
+  /** Whether this sentence opens a paragraph -- the reader groups on it. */
+  paragraphStart: boolean;
   tokens: ArticleToken[];
 }
 
@@ -113,6 +115,7 @@ export function getArticle(sectionId: string): Article | null {
       sentenceId: sentences.id,
       sentenceText: sentences.text,
       needsReview: sentences.needsReview,
+      paragraphStart: sentences.paragraphStart,
       sentenceOrder: sentences.orderIndex,
       tokenId: tokens.id,
       lexemeId: tokens.lexemeId,
@@ -144,6 +147,7 @@ export function getArticle(sectionId: string): Article | null {
         id: row.sentenceId,
         text: row.sentenceText,
         needsReview: row.needsReview,
+        paragraphStart: row.paragraphStart,
         tokens: [],
       };
       bySentence.set(row.sentenceId, sentence);

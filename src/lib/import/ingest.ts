@@ -153,6 +153,7 @@ function writeSentences(
         orderIndex: (index + 1) * ORDER_STEP,
         text: sentence.text,
         needsReview,
+        paragraphStart: sentence.paragraphStart,
       })
       .run();
 

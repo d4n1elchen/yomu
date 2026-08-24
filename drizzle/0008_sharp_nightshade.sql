@@ -1,0 +1,1 @@
+ALTER TABLE `sentence` ADD `paragraph_start` integer DEFAULT true NOT NULL;

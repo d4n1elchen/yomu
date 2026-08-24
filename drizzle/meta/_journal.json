@@ -57,6 +57,13 @@
       "when": 1787548958744,
       "tag": "0007_happy_stark_industries",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1787560997947,
+      "tag": "0008_sharp_nightshade",
+      "breakpoints": true
     }
   ]
 }

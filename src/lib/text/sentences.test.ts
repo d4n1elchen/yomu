@@ -10,6 +10,11 @@ async function split(text: string): Promise<string[]> {
   return segmentSentences(text, tokens).map((s) => s.text);
 }
 
+async function paragraphs(text: string): Promise<boolean[]> {
+  const tokens = await analyzer.analyze(text);
+  return segmentSentences(text, tokens).map((s) => s.paragraphStart);
+}
+
 test('splits on sentence-final punctuation', async () => {
   assert.deepEqual(await split('本を読む。図書館へ行く。'), [
     '本を読む。',
@@ -62,6 +67,28 @@ test('recovers from unbalanced quotes at the next newline', async () => {
   const parts = await split('「行くぞ。まだ続く。\n次の段落だ。');
   assert.equal(parts.length, 2);
   assert.equal(parts[1], '次の段落だ。');
+});
+
+test('two sentences on one line share a paragraph; a newline starts a new one', async () => {
+  // 。 alone breaks a sentence but not a paragraph, so the second sentence flows
+  // after the first; only the newline before the third opens a new line.
+  assert.deepEqual(await paragraphs('本を読む。図書館へ行く。\n次の段落だ。'), [
+    true,
+    false,
+    true,
+  ]);
+});
+
+test('the first sentence always opens a paragraph', async () => {
+  assert.deepEqual(await paragraphs('本を読む。'), [true]);
+});
+
+test('a blank line is still a single paragraph break', async () => {
+  assert.deepEqual(await paragraphs('一行目です。\n\n二行目だ。'), [true, true]);
+});
+
+test('leading whitespace does not consume the first paragraph break', async () => {
+  assert.deepEqual(await paragraphs('  本を読む。図書館へ行く。'), [true, false]);
 });
 
 test('token offsets are absolute and select their own surface', async () => {

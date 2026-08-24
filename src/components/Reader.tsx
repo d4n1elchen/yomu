@@ -85,6 +85,19 @@ export function Reader({ article }: { article: Article }) {
     [explain, level],
   );
 
+  // Consecutive sentences flow within a paragraph; a sentence marked as opening
+  // one starts the next. A newline in the source is the only paragraph boundary,
+  // so a run of 。-separated sentences reads as prose rather than a stack of
+  // lines. A leading sentence not flagged (older data) still starts a paragraph.
+  const paragraphs = useMemo(() => {
+    const groups: ArticleSentence[][] = [];
+    for (const sentence of article.sentences) {
+      if (sentence.paragraphStart || groups.length === 0) groups.push([sentence]);
+      else groups[groups.length - 1]!.push(sentence);
+    }
+    return groups;
+  }, [article.sentences]);
+
   // Distinct words, not occurrences: the count sits under a control for how
   // much of the vocabulary is unfamiliar, and a word appearing twice is one
   // word you either know or do not.
@@ -248,15 +261,19 @@ export function Reader({ article }: { article: Article }) {
       ) : null}
 
       <div className="reader" ref={rootRef}>
-        {article.sentences.map((sentence) => (
-          <Sentence
-            key={sentence.id}
-            sentence={sentence}
-            marked={marked}
-            selectedId={word?.token.id ?? null}
-            onSelect={onSelectToken}
-            onHover={onHoverToken}
-          />
+        {paragraphs.map((group) => (
+          <p className="para" key={group[0]!.id}>
+            {group.map((sentence) => (
+              <Sentence
+                key={sentence.id}
+                sentence={sentence}
+                marked={marked}
+                selectedId={word?.token.id ?? null}
+                onSelect={onSelectToken}
+                onHover={onHoverToken}
+              />
+            ))}
+          </p>
         ))}
       </div>
 

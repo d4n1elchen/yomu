@@ -450,11 +450,24 @@ button:disabled {
   line-height: 2.7;
 }
 
+/* A paragraph is the block; sentences flow inside it as prose. A newline in the
+   source opens a new paragraph -- see `Reader` -- so 。-separated sentences no
+   longer each land on their own line. */
+.para {
+  margin: 0 0 1.1rem;
+}
+
+.para:last-child {
+  margin-bottom: 0;
+}
+
+/* Inline, so consecutive sentences run together the way Japanese prose does.
+   `box-decoration-break: clone` lets the target and review backgrounds wrap
+   across lines as a continuous highlight instead of one flat rectangle. */
 .sentence {
-  display: block;
-  margin: 0 0 0.35rem;
-  padding: 0.1rem 0.2rem;
   border-radius: 4px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 
 .sentence:target {
@@ -462,9 +475,13 @@ button:disabled {
   outline: 1px solid var(--accent);
 }
 
+/* Left border became a wavy underline once sentences went inline: a border can
+   only bracket a block, but the underline follows the text across wraps and
+   still reads as "this segment is unverified". */
 .sentence.review {
-  border-left: 2px solid var(--review);
-  padding-left: 0.5rem;
+  text-decoration: underline wavy var(--review);
+  text-decoration-skip-ink: none;
+  text-underline-offset: 0.35em;
 }
 
 .token {

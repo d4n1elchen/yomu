@@ -97,6 +97,16 @@ export const sentences = sqliteTable(
     needsReview: integer('needs_review', { mode: 'boolean' })
       .notNull()
       .default(false),
+    /**
+     * Whether this sentence opens a paragraph. Segmentation breaks on both 。 and
+     * newlines, but only a newline is a paragraph boundary; without this the
+     * reader flows every sentence onto its own line. Defaults true so a sentence
+     * from before this column keeps its own line rather than merging into the
+     * one before it.
+     */
+    paragraphStart: integer('paragraph_start', { mode: 'boolean' })
+      .notNull()
+      .default(true),
     /** Transcriber's per-segment confidence, when the engine reports one. */
     confidence: real('confidence'),
     /** Media timings, for playback sync once audio/video input lands. */
