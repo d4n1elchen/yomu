@@ -41,6 +41,18 @@ with the simplified JSON, and neither signal it carries is sufficient alone:
   the 24,000th" put a dashed underline under the word for "book". This was
   found by building it; the phase plan had assumed no band meant hard.
 
+**Not imported yet: `misc`.** JMdict's sense-level flags, worth a pass when
+either of these starts to matter:
+
+- `uk` ("usually written using kana alone") would fix headword choice.
+  `headwordOf` takes the first common kanji, so it offers 積もり for つもり, 未だ
+  for まだ and 迄 for まで. Only worth doing if `dict_entry.headword` is ever
+  displayed — nothing shows it today, because Dictionary rows are headed by the
+  spelling actually read.
+- `poet`, `arch`, `obs`, `rare` would push dead vocabulary down the candidate
+  list. いる currently trails 沃る and 率る, both marked poetical. This shortens
+  the runners-up shown on an entry page; it changes no pick.
+
 **Rejected, and still rejected.** BCCWJ: a balanced corpus and better data than
 newspaper frequency, but UniDic lemmas would reintroduce the matching problem
 lemma+reading measured away — revisit only if marking feels wrong for fiction.
@@ -70,6 +82,63 @@ is far too small to be a rate; it needs a real book, like everything else here.
 The entry page prints the runners-up rather than a warning, so a wrong pick is
 visible rather than apologised for. That stays regardless of what resolves the
 ambiguity, because it is what makes a resolver's mistakes visible too.
+
+### Rejected designs
+
+Each of these was measured before it was rejected. The measurements are small —
+one article — but they are what there is.
+
+**JMdict as the analyzer's dictionary.** It has no inflected forms (it lists
+眺める, never 眺め) and no costs at all, and cost is the entire mechanism that
+resolves segmentation ambiguity. Building a MeCab dictionary from it means
+recreating IPADIC without IPADIC's annotated corpus. The popup-dictionary
+alternative — deinflect by rule, longest match wins — answers "what word is at
+this cursor" and cannot produce a token stream, which the occurrence rows,
+furigana alignment and selection offsets are all built on.
+
+**A JMdict fallback for words matching nothing.** There is nothing to fix: 0 of
+34 content words are unmatched. And the naive rule was wrong 2 of 3 times on a
+constructed test — 待っ+た rebuilds to 待った, which JMdict glosses "false start
+of a bout", and い+た to いた, "board", at nf08 and so commoner than the right
+answer. If revisited, the gate matters more than the lookup: only where
+matching already failed, POS must agree, and no span may swallow a function
+word. The real win class is narrow — compound verbs like 読み終わる that IPADIC
+decomposes and JMdict lists whole, while keeping 読み返す together.
+
+**Dropping `pos` from the lexeme identity key.** Tempting, because it looks
+like it would stop one word splitting across parts of speech. It would not:
+coarse POS varies only on function words — の is 名詞 and 助詞, ない is 形容詞
+and 助動詞 — and merging those leaves the lexeme carrying whichever arrived
+first. If の lands on 名詞, the commonest particle in the language walks past
+`contentWord` into the vocabulary list and inflates every count. (勉強, which
+seemed to motivate this, does not split: only the coarse POS is in the key and
+it is 名詞 in both readings.)
+
+**Keying `lexeme` on the matched JMdict entry.** It would merge 分かる, 判る and
+解る everywhere for free, rather than only where a query remembers to group.
+Rejected because it puts the least reliable link in the chain underneath the
+data model: a bad match would pool two different words' occurrences instead of
+mislabelling one page, and every improvement to matching would become a row
+merge — with no principled answer for which `user_lexeme_state` survives it.
+The Dictionary groups on `coalesce(dict_entry_id, lexeme.id)` at query time
+instead.
+
+## Where the mock is out of date
+
+`design/*.dc.html` is committed and reads as current. Three places it is not,
+each a deliberate departure rather than an omission:
+
+- **Only marked words respond to a tap.** `Mobile.dc.html` has a 點選詞彙 tab
+  implying any word is tappable. Tapping plain words was removed: an unmarked
+  word is running text, with no cursor change and no focus stop, so nothing
+  invites a tap that would open a card with nothing worth stopping for. This
+  leaves touch devices reaching only marked words.
+- **The difficulty slider runs 1–48, not 0–5.** That is the resolution the `nf`
+  bands actually carry. 初級/進階 captions were added because 難易度 alone does
+  not say which direction marks more words.
+- **The word card shows English glosses.** The mock draws Chinese. Phase C
+  fills the slot above them; until then a card with no meaning in it is not
+  worth hanging off a word.
 
 ## Phase C — Chinese glosses
 
