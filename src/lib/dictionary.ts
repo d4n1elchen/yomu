@@ -1,6 +1,14 @@
 import { and, asc, desc, eq, like, or, sql } from 'drizzle-orm';
 import { db } from '../db/client.ts';
-import { lexemes, sections, sentences, tokens, works } from '../db/schema.ts';
+import {
+  dictEntries,
+  dictSenses,
+  lexemes,
+  sections,
+  sentences,
+  tokens,
+  works,
+} from '../db/schema.ts';
 
 /**
  * Symbols and punctuation are tokens but not vocabulary. Everything else --
@@ -173,10 +181,27 @@ export interface Occurrence {
   workTitle: string;
 }
 
+/** What JMdict knows about the word, when it was matched to an entry. */
+export interface DictionaryMeaning {
+  entryId: string;
+  /** JMdict's own headword and reading, which need not equal the analyzer's. */
+  headword: string;
+  reading: string;
+  /** nf band 1-48, or null for rarer than the top 24,000 words. */
+  band: number | null;
+  /** JMdict marks the word common, whether or not the corpus ranked it. */
+  common: boolean;
+  /** Whether the reading took part in the match, or only the lemma did. */
+  match: string | null;
+  senses: Array<{ zh: string | null; en: string }>;
+}
+
 export interface DictionaryDetail {
   entry: Omit<DictionaryEntry, 'occurrences' | 'workCount' | 'forms'>;
   occurrences: Occurrence[];
   forms: string[];
+  /** Null when nothing in JMdict matched -- a name, or a mis-segmentation. */
+  meaning: DictionaryMeaning | null;
 }
 
 /**
@@ -187,18 +212,50 @@ export function getDictionaryEntry(
   lexemeId: string,
   options: { includeUnreviewed?: boolean } = {},
 ): DictionaryDetail | null {
-  const entry = db
+  const row = db
     .select({
       id: lexemes.id,
       lemma: lexemes.lemma,
       reading: lexemes.reading,
       pos: lexemes.pos,
+      entryId: lexemes.dictEntryId,
+      match: lexemes.dictMatch,
+      headword: dictEntries.headword,
+      entryReading: dictEntries.reading,
+      band: dictEntries.freqBand,
+      common: dictEntries.common,
     })
     .from(lexemes)
+    .leftJoin(dictEntries, eq(dictEntries.id, lexemes.dictEntryId))
     .where(eq(lexemes.id, lexemeId))
     .get();
 
-  if (!entry) return null;
+  if (!row) return null;
+
+  const entry = {
+    id: row.id,
+    lemma: row.lemma,
+    reading: row.reading,
+    pos: row.pos,
+  };
+
+  const meaning: DictionaryMeaning | null =
+    row.entryId === null
+      ? null
+      : {
+          entryId: row.entryId,
+          headword: row.headword ?? row.lemma,
+          reading: row.entryReading ?? '',
+          band: row.band,
+          common: row.common ?? false,
+          match: row.match,
+          senses: db
+            .select({ zh: dictSenses.glossZh, en: dictSenses.glossEn })
+            .from(dictSenses)
+            .where(eq(dictSenses.entryId, row.entryId))
+            .orderBy(asc(dictSenses.orderIndex))
+            .all(),
+        };
 
   const occurrences = db
     .select({
@@ -230,5 +287,6 @@ export function getDictionaryEntry(
     entry,
     occurrences,
     forms: [...new Set(occurrences.map((o) => o.surface))],
+    meaning,
   };
 }

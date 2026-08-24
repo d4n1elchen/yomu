@@ -1,12 +1,31 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Article, ArticleSentence, ArticleToken } from '../lib/article.ts';
+import { DEFAULT_LEVEL, MAX_BAND, isHardWord } from '../lib/marking.ts';
 import { selectionSpans, type TouchedToken } from '../lib/qa/selection.ts';
 import { AskDialog, type ReaderSelection } from './AskDialog.tsx';
 import { ReadStamp } from './ReadStamp.tsx';
 import { TokenSpan } from './TokenSpan.tsx';
-import { WordPanel } from './WordPanel.tsx';
+import { WordCard } from './WordCard.tsx';
+import type { AnchorRect } from './useCardAnchor.ts';
+
+/**
+ * Long enough to cross the gap between a word and the card hanging off it,
+ * short enough that the card does not linger over text you have moved on from.
+ */
+const HOVER_GRACE_MS = 140;
+
+/** A card is open on this word, anchored to where the word was on screen. */
+interface OpenWord {
+  token: ArticleToken;
+  rect: AnchorRect;
+}
+
+function anchorOf(element: HTMLElement): AnchorRect {
+  const rect = element.getBoundingClientRect();
+  return { top: rect.top, bottom: rect.bottom, left: rect.left };
+}
 
 function readToken(element: Element): TouchedToken | null {
   const sentenceId = element.getAttribute('data-sentence');
@@ -54,10 +73,37 @@ function touchedTokens(range: Range): TouchedToken[] {
 
 export function Reader({ article }: { article: Article }) {
   const [explain, setExplain] = useState(true);
-  const [word, setWord] = useState<ArticleToken | null>(null);
+  const [level, setLevel] = useState(DEFAULT_LEVEL);
+  const [word, setWord] = useState<OpenWord | null>(null);
   const [selection, setSelection] = useState<ReaderSelection | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const marked = useCallback(
+    (token: ArticleToken) => explain && isHardWord(token, level),
+    [explain, level],
+  );
+
+  // Distinct words, not occurrences: the count sits under a control for how
+  // much of the vocabulary is unfamiliar, and a word appearing twice is one
+  // word you either know or do not.
+  const markedCount = useMemo(() => {
+    const found = new Set<string>();
+    for (const sentence of article.sentences) {
+      for (const token of sentence.tokens) {
+        if (isHardWord(token, level)) found.add(token.lexemeId);
+      }
+    }
+    return found.size;
+  }, [article.sentences, level]);
+
+  useEffect(
+    () => () => {
+      if (closeTimer.current) clearTimeout(closeTimer.current);
+    },
+    [],
+  );
 
   const textOf = useCallback(
     (sentenceId: string, charStart: number, charEnd: number) =>
@@ -128,11 +174,38 @@ export function Reader({ article }: { article: Article }) {
     };
   }, [settle]);
 
-  const onSelectToken = (token: ArticleToken) => {
+  const hold = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = null;
+  };
+
+  const onSelectToken = (token: ArticleToken, element: HTMLElement) => {
     // A drag that begins and ends inside one word still fires a click. That is
     // a selection, not a tap, and the word card must not cover it.
     if (window.getSelection()?.isCollapsed === false) return;
-    setWord(token);
+    hold();
+    setWord({ token, rect: anchorOf(element) });
+  };
+
+  /**
+   * Hovering a marked word opens its card; leaving closes it, but not at once.
+   * The card is a fixed-position element rather than a child of the word, so
+   * the pointer is over neither of them on the way between the two -- closing
+   * on the first `mouseleave` would put the card out of reach.
+   */
+  const onHoverToken = (token: ArticleToken | null, element: HTMLElement) => {
+    if (token === null) {
+      hold();
+      closeTimer.current = setTimeout(() => setWord(null), HOVER_GRACE_MS);
+      return;
+    }
+    // A selection and a word card are two answers to the same gesture, and the
+    // selection wins -- the same rule tapping already follows. Mid-drag the
+    // pointer also sweeps over words on its way to the end of the selection,
+    // and none of those crossings is a request to explain anything.
+    if (selection || dragging.current) return;
+    hold();
+    setWord({ token, rect: anchorOf(element) });
   };
 
   return (
@@ -156,20 +229,39 @@ export function Reader({ article }: { article: Article }) {
         </label>
       </div>
 
+      {article.dictionaryReady && explain ? (
+        <div className="level-control">
+          <span className="level-label">難易度</span>
+          <span className="level-end">初級</span>
+          <input
+            type="range"
+            min={1}
+            max={MAX_BAND}
+            step={1}
+            value={level}
+            onChange={(event) => setLevel(Number(event.target.value))}
+            aria-label="難易度：往右代表已知的詞越多，標記越少"
+          />
+          <span className="level-end">進階</span>
+          <span className="level-count">已標記 {markedCount} 個詞</span>
+        </div>
+      ) : null}
+
       <div className="reader" ref={rootRef}>
         {article.sentences.map((sentence) => (
           <Sentence
             key={sentence.id}
             sentence={sentence}
-            explain={explain}
-            selectedId={word?.id ?? null}
+            marked={marked}
+            selectedId={word?.token.id ?? null}
             onSelect={onSelectToken}
+            onHover={onHoverToken}
           />
         ))}
       </div>
 
       <p className="reader-hint">
-        選取任一段文字即可提問。點詞看說明；關掉「詞彙解說」則只讀原文。
+        虛線是超出目前難易度的詞 — 滑過去或點一下看說明。選取任一段文字即可提問；關掉「詞彙解說」則只讀原文。
       </p>
 
       {selection ? (
@@ -181,7 +273,18 @@ export function Reader({ article }: { article: Article }) {
           onClose={() => setSelection(null)}
         />
       ) : word ? (
-        <WordPanel token={word} onClose={() => setWord(null)} />
+        <WordCard
+          token={word.token}
+          senses={
+            word.token.entryId ? (article.senses[word.token.entryId] ?? []) : []
+          }
+          rect={word.rect}
+          onClose={() => setWord(null)}
+          onPointerEnter={hold}
+          onPointerLeave={() => {
+            closeTimer.current = setTimeout(() => setWord(null), HOVER_GRACE_MS);
+          }}
+        />
       ) : null}
     </>
   );
@@ -189,14 +292,16 @@ export function Reader({ article }: { article: Article }) {
 
 function Sentence({
   sentence,
-  explain,
+  marked,
   selectedId,
   onSelect,
+  onHover,
 }: {
   sentence: ArticleSentence;
-  explain: boolean;
+  marked: (token: ArticleToken) => boolean;
   selectedId: string | null;
-  onSelect: (token: ArticleToken) => void;
+  onSelect: (token: ArticleToken, element: HTMLElement) => void;
+  onHover: (token: ArticleToken | null, element: HTMLElement) => void;
 }) {
   const parts: React.ReactNode[] = [];
   let cursor = 0;
@@ -216,9 +321,10 @@ function Sentence({
       <TokenSpan
         key={token.id}
         token={token}
-        explain={explain}
+        marked={marked(token)}
         selected={token.id === selectedId}
         onSelect={onSelect}
+        onHover={onHover}
       />,
     );
     cursor = token.charEnd;

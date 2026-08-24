@@ -1,3 +1,4 @@
+import { EdrdgNotice } from '../../components/EdrdgNotice.tsx';
 import { listDictionary } from '../../lib/dictionary.ts';
 import { toHiragana } from '../../lib/text/kana.ts';
 import { posLabel } from '../../lib/text/pos.ts';
@@ -85,6 +86,8 @@ export default async function DictionaryPage({
           ))}
         </ul>
       )}
+
+      <EdrdgNotice />
     </main>
   );
 }

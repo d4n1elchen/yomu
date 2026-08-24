@@ -1,21 +1,19 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { LlmMessage } from '../lib/llm/index.ts';
 import type { SelectionSpan } from '../lib/qa/selection.ts';
+import { anchorStyle, useCardAnchor, type AnchorRect } from './useCardAnchor.ts';
 
 export interface ReaderSelection {
   spans: SelectionSpan[];
   /** The selected text, snapped out to whole tokens. */
   text: string;
   /** The selection's box in viewport coordinates. */
-  rect: { top: number; bottom: number; left: number };
+  rect: AnchorRect;
 }
 
 const CHIPS = ['說明文法', '為何是這個形式？', '語感差異'];
-
-/** Breathing room between the card and both the selection and the viewport. */
-const GAP = 12;
 
 /**
  * A chat, not an answer. The card opens on a templated greeting so it appears
@@ -39,55 +37,9 @@ export function AskDialog({
   const [draft, setDraft] = useState('');
   const abort = useRef<AbortController | null>(null);
   const threadRef = useRef<HTMLDivElement>(null);
-  const cardRef = useRef<HTMLDivElement>(null);
+  const cardRef = useCardAnchor<HTMLDivElement>(selection.rect);
 
   useEffect(() => () => abort.current?.abort(), []);
-
-  /**
-   * Hang the card off the selection without letting it run off screen.
-   *
-   * Measuring the rendered card rather than assuming its size is what keeps the
-   * size a pure CSS decision -- widening the desktop card must not mean
-   * remembering to change a number in here too. `useLayoutEffect` runs before
-   * paint, so the corrected position is the first one drawn.
-   *
-   * The card also has to be capped to the room on the side it was placed. It
-   * opens holding only the greeting and grows as the conversation does, so
-   * positioning it once against its opening height would let a card near the
-   * bottom of the window grow straight off the screen.
-   *
-   * The mobile sheet is positioned entirely by CSS, which reads none of these
-   * custom properties, so writing them there is harmless.
-   */
-  useLayoutEffect(() => {
-    const card = cardRef.current;
-    if (!card) return;
-
-    const { top, bottom, left } = selection.rect;
-    const spaceBelow = window.innerHeight - bottom - GAP * 2;
-    const spaceAbove = top - GAP * 2;
-    const below = spaceBelow >= spaceAbove;
-
-    card.style.setProperty(
-      '--ask-room',
-      `${Math.max(0, below ? spaceBelow : spaceAbove)}px`,
-    );
-
-    // Read after writing the cap, so this is the height that will be painted
-    // rather than the uncapped one.
-    const { width, height } = card.getBoundingClientRect();
-
-    const x = Math.min(
-      Math.max(GAP, left),
-      Math.max(GAP, window.innerWidth - width - GAP),
-    );
-    const y = below
-      ? bottom + GAP
-      : Math.max(GAP, top - GAP - height);
-
-    card.style.setProperty('--ask-x', `${x}px`);
-    card.style.setProperty('--ask-y', `${y}px`);
-  }, [selection.rect]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -161,14 +113,7 @@ export function AskDialog({
       role="dialog"
       aria-label="關於選取內容的問答"
       ref={cardRef}
-      // A first guess that needs no knowledge of the card's size; the layout
-      // effect above corrects it once there is something to measure.
-      style={
-        {
-          '--ask-x': `${selection.rect.left}px`,
-          '--ask-y': `${selection.rect.bottom + GAP}px`,
-        } as React.CSSProperties
-      }
+      style={anchorStyle(selection.rect)}
     >
       <div className="ask-head">
         <div className="ask-selection">

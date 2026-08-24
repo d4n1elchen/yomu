@@ -18,6 +18,9 @@
   --accent-strong: #5c3620;
   --accent-soft: #f0e6dc;
   --review: #b4791f;
+  /* The dashed underline under a hard word. Warm enough to belong to the paper
+     ground, distinct enough not to read as the review stripe. */
+  --mark: #b08a5e;
   --scroll-thumb: #d6d0c4;
   --scroll-thumb-hover: #b3ada1;
   --sans: 'IBM Plex Sans', system-ui, sans-serif;
@@ -405,6 +408,42 @@ button:disabled {
   outline-offset: 2px;
 }
 
+.level-control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.7rem;
+  margin-bottom: 1.4rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.78rem;
+  color: var(--faint);
+}
+
+.level-label {
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.level-control input[type='range'] {
+  flex: 1 1 8rem;
+  min-width: 6rem;
+  max-width: 16rem;
+  accent-color: var(--accent);
+}
+
+.level-end {
+  white-space: nowrap;
+}
+
+/* Pushed to the end of the row: it is the readout, not part of the control. */
+.level-count {
+  margin-left: auto;
+  color: var(--muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 .reader {
   font-family: var(--serif);
   font-size: 1.2rem;
@@ -439,12 +478,24 @@ button:disabled {
   padding: 0 0.02em;
 }
 
-.token.tappable {
-  cursor: pointer;
+/*
+ * A hard word: rarer than the difficulty slider's setting, or in no dictionary
+ * at all. `cursor: help` rather than `pointer` -- hovering explains it, and it
+ * is still running text rather than a control.
+ */
+.token.marked {
+  border-bottom: 1.5px dashed var(--mark);
+  cursor: help;
 }
 
-.token.tappable:hover {
+.token.marked:hover {
   background: var(--accent-soft);
+}
+
+.token.marked:focus-visible {
+  background: var(--accent-soft);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .token.selected {
@@ -463,62 +514,134 @@ rt {
   -webkit-user-select: none;
 }
 
-/* --- word panel --- */
+/* --- word card --- */
 
-.panel {
+/*
+ * Mobile first, and mobile keeps the sheet: a bubble anchored to the word would
+ * sit on top of the word it is explaining on a narrow screen. The desktop rules
+ * below turn it into the bubble from the mock, positioned by `useCardAnchor`.
+ */
+.word-card {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 10;
+  z-index: 30;
+  max-height: 60vh;
+  overflow-y: auto;
   border-top: 1px solid var(--border);
+  border-radius: 12px 12px 0 0;
   background: var(--surface);
-  padding: 1rem 1.25rem 1.4rem;
+  box-shadow: 0 -6px 22px rgba(34, 32, 28, 0.12);
+  padding: 0.85rem 1.1rem 1.2rem;
 }
 
-.panel-inner {
-  max-width: 48rem;
-  margin: 0 auto;
+@media (min-width: 48rem) {
+  .word-card {
+    top: var(--card-y);
+    left: var(--card-x);
+    right: auto;
+    bottom: auto;
+    width: 19rem;
+    /* Capped to the room it was placed in, the same contract the Q&A card
+       follows -- a card near the bottom of the window scrolls rather than
+       running off it. */
+    max-height: min(22rem, max(9rem, var(--card-room, 22rem)));
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(34, 32, 28, 0.16);
+    padding: 0.8rem 0.95rem 0.85rem;
+  }
+}
+
+.word-head {
   display: flex;
-  align-items: flex-start;
-  gap: 1.25rem;
+  align-items: baseline;
+  gap: 0.5rem;
 }
 
-.panel dl {
-  margin: 0;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.2rem 0.9rem;
-  font-size: 0.9rem;
-  flex: 1;
-}
-
-.panel dt {
-  color: var(--muted);
-  font-size: 0.78rem;
-  align-self: center;
-}
-
-.panel dd {
-  margin: 0;
+.word-lemma {
   font-family: var(--serif);
-  font-size: 1.05rem;
+  font-size: 1.2rem;
+  font-weight: 600;
 }
 
-.panel dd.pos {
-  font-family: var(--sans);
-  font-size: 0.95rem;
-}
-
-.panel .unknown {
+.word-reading {
+  font-family: var(--serif);
+  font-size: 0.85rem;
   color: var(--muted);
-  font-family: var(--sans);
-  font-size: 0.9rem;
 }
 
-.panel .lemma-reading {
+.word-unknown {
+  font-size: 0.8rem;
+  color: var(--faint);
+}
+
+.word-pos {
+  margin-left: auto;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+
+.word-inflected {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  color: var(--faint);
+}
+
+.word-inflected span {
+  font-family: var(--serif);
+  font-size: 0.95rem;
+  color: var(--ink);
+  margin-left: 0.35rem;
+}
+
+.word-senses {
+  margin: 0.6rem 0 0;
+  padding-left: 1.15rem;
+}
+
+.word-senses li {
+  font-size: 0.85rem;
+  line-height: 1.7;
+  margin-bottom: 0.15rem;
+}
+
+.gloss-zh {
+  display: block;
+}
+
+/* JMdict's English, under the Chinese translation of it. On its own -- which is
+   every sense until Phase C runs -- it is the only thing the card has to say,
+   so it is not dimmed into a footnote. */
+.gloss-en {
+  color: var(--faint);
+  font-size: 0.78rem;
+}
+
+.gloss-en.sole {
   color: var(--muted);
   font-size: 0.85rem;
+}
+
+.word-empty {
+  margin: 0.6rem 0 0;
+  font-size: 0.82rem;
+  color: var(--faint);
+}
+
+.word-more {
+  display: inline-block;
+  margin-top: 0.7rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+  width: 100%;
+  font-size: 0.75rem;
+  color: var(--accent);
 }
 
 .close {
@@ -702,14 +825,14 @@ rt {
 
 @media (min-width: 48rem) {
   .ask-card {
-    top: var(--ask-y);
-    left: var(--ask-x);
+    top: var(--card-y);
+    left: var(--card-x);
     right: auto;
     bottom: auto;
     width: 30rem;
     /* Never taller than the room the card was placed in, and never so short
-       it stops being a conversation. `--ask-room` is measured on open. */
-    max-height: min(26rem, max(14rem, var(--ask-room, 26rem)));
+       it stops being a conversation. `--card-room` is measured on open. */
+    max-height: min(26rem, max(14rem, var(--card-room, 26rem)));
     border: 1px solid var(--border);
     border-radius: 10px;
     box-shadow: 0 12px 38px rgba(34, 32, 28, 0.18);
@@ -840,4 +963,69 @@ rt {
   margin: 0.6rem 0 0;
   font-size: 0.7rem;
   color: var(--faint);
+}
+
+/* --- dictionary entry: meanings and provenance --- */
+
+.section-label {
+  margin: 2rem 0 0.8rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* JMdict's frequency band, beside the part of speech. Shown because a word's
+   rank is the thing driving the underline in the reader, so it should be
+   inspectable rather than an invisible number behind a slider. */
+.band {
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.senses {
+  margin: 0;
+  padding-left: 1.3rem;
+}
+
+.senses li {
+  font-size: 1rem;
+  line-height: 1.9;
+  margin-bottom: 0.35rem;
+}
+
+.senses .gloss-en {
+  font-size: 0.85rem;
+}
+
+.senses .gloss-en.sole {
+  font-size: 1rem;
+  color: var(--ink);
+}
+
+/* A lemma-only match may be the wrong homograph. Saying so is cheaper than
+   silently showing a plausible wrong meaning. */
+.caveat {
+  margin-top: 0.9rem;
+  font-size: 0.78rem;
+  color: var(--review);
+}
+
+.edrdg {
+  margin-top: 3rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.72rem;
+  line-height: 1.7;
+  color: var(--faint);
+}
+
+.edrdg a {
+  color: var(--muted);
 }

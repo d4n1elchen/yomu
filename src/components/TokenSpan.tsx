@@ -1,33 +1,38 @@
 'use client';
 
 import { alignFurigana } from '../lib/text/furigana.ts';
-import { isPunctuationOnly } from '../lib/text/kana.ts';
 import type { ArticleToken } from '../lib/article.ts';
 
 /**
  * Furigana is always on -- it is the point of the reader, not a preference --
  * so there is no toggle and no bare-surface branch.
  *
- * The data attributes are load-bearing: they are how a browser selection is
- * mapped back onto our sentence-relative offsets. Every token carries them,
- * punctuation included, so a selection that runs through 「」 is not silently
- * clipped at the quotes.
+ * Only a marked word is a target. Every other word is running text: no cursor
+ * change, no focus stop, nothing inviting a tap that would open a card with
+ * nothing in it worth stopping for. The dashed underline is the affordance,
+ * and marking is what decides there is something to say.
+ *
+ * The data attributes are load-bearing on every token, marked or not: they are
+ * how a browser selection is mapped back onto our sentence-relative offsets.
+ * Punctuation carries them too, so a selection running through 「」 is not
+ * silently clipped at the quotes.
  */
 export function TokenSpan({
   token,
-  explain,
+  marked,
   selected,
   onSelect,
+  onHover,
 }: {
   token: ArticleToken;
-  /** Word explanations are switched off; the word is text, not a control. */
-  explain: boolean;
+  /** Above the difficulty slider: gets the dashed underline and the card. */
+  marked: boolean;
   selected: boolean;
-  onSelect: (token: ArticleToken) => void;
+  onSelect: (token: ArticleToken, element: HTMLElement) => void;
+  /** Null on the way out. Hover is the pointer affordance; tapping still works. */
+  onHover: (token: ArticleToken | null, element: HTMLElement) => void;
 }) {
-  const tappable = explain && !isPunctuationOnly(token.surface);
-
-  const className = ['token', tappable ? 'tappable' : '', selected ? 'selected' : '']
+  const className = ['token', marked ? 'marked' : '', selected ? 'selected' : '']
     .filter(Boolean)
     .join(' ');
 
@@ -49,7 +54,7 @@ export function TokenSpan({
     'data-end': token.charEnd,
   };
 
-  if (!tappable) {
+  if (!marked) {
     return (
       <span className={className} {...anchors}>
         {content}
@@ -63,14 +68,16 @@ export function TokenSpan({
       {...anchors}
       role="button"
       // Ruby markup gives the element no computed name of its own, which would
-      // leave every word announced as an unlabelled button.
+      // leave the word announced as an unlabelled button.
       aria-label={token.surface}
       tabIndex={0}
-      onClick={() => onSelect(token)}
+      onClick={(event) => onSelect(token, event.currentTarget)}
+      onMouseEnter={(event) => onHover(token, event.currentTarget)}
+      onMouseLeave={(event) => onHover(null, event.currentTarget)}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
-          onSelect(token);
+          onSelect(token, event.currentTarget);
         }
       }}
     >

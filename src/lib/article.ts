@@ -1,10 +1,20 @@
 import { asc, eq, sql } from 'drizzle-orm';
 import { db } from '../db/client.ts';
-import { lexemes, sections, sentences, tokens, works } from '../db/schema.ts';
+import {
+  dictEntries,
+  dictSenses,
+  lexemes,
+  sections,
+  sentences,
+  tokens,
+  works,
+} from '../db/schema.ts';
 import { contentWord } from './dictionary.ts';
 
 export interface ArticleToken {
   id: string;
+  /** The Dictionary entry this word belongs to -- what the card links out to. */
+  lexemeId: string;
   sentenceId: string;
   charStart: number;
   charEnd: number;
@@ -14,6 +24,33 @@ export interface ArticleToken {
   lemma: string;
   lemmaReading: string;
   pos: string;
+  /**
+   * The JMdict frequency band, 1 (commonest 500 words) to 48 (the 24,000th).
+   * Null when the word is rarer than that, or matched nothing at all -- either
+   * way the reader treats it as unvouched-for and marks it.
+   */
+  band: number | null;
+  /**
+   * JMdict marks the word common. The floor under `band` -- see `isHardWord`,
+   * which needs both to decide anything.
+   */
+  common: boolean;
+  /** The matched JMdict entry, and the key into `Article.senses`. */
+  entryId: string | null;
+  /**
+   * Whether this word counts as vocabulary, decided by `contentWord` in SQL
+   * rather than re-spelled here. Only content words are ever marked hard: a
+   * dashed underline under を would be noise, not a difficulty signal.
+   */
+  contentWord: boolean;
+}
+
+/** A JMdict sense as the word card shows it. */
+export interface ArticleSense {
+  /** Traditional Chinese, once Phase C has translated it. */
+  zh: string | null;
+  /** JMdict's own English gloss -- the thing `zh` is a translation of. */
+  en: string;
 }
 
 export interface ArticleSentence {
@@ -38,6 +75,19 @@ export interface Article {
    */
   vocabCount: number;
   sentences: ArticleSentence[];
+  /**
+   * Senses for every entry this section's words matched, keyed by entry id and
+   * sent with the article rather than fetched when a card opens. Words repeat,
+   * so this is far smaller than one payload per token -- and a card that has to
+   * wait for a request is a stall at exactly the wrong moment.
+   */
+  senses: Record<string, ArticleSense[]>;
+  /**
+   * Whether JMdict has been imported at all. Without it every word has a null
+   * band, which would mark the entire article -- so the reader hides the
+   * difficulty slider rather than showing one that can only say "everything".
+   */
+  dictionaryReady: boolean;
 }
 
 export function getArticle(sectionId: string): Article | null {
@@ -65,6 +115,7 @@ export function getArticle(sectionId: string): Article | null {
       needsReview: sentences.needsReview,
       sentenceOrder: sentences.orderIndex,
       tokenId: tokens.id,
+      lexemeId: tokens.lexemeId,
       charStart: tokens.charStart,
       charEnd: tokens.charEnd,
       surface: tokens.surface,
@@ -72,10 +123,15 @@ export function getArticle(sectionId: string): Article | null {
       lemma: lexemes.lemma,
       lemmaReading: lexemes.reading,
       pos: lexemes.pos,
+      band: dictEntries.freqBand,
+      common: dictEntries.common,
+      entryId: lexemes.dictEntryId,
+      contentWord: sql<number>`(${contentWord})`,
     })
     .from(sentences)
     .leftJoin(tokens, eq(tokens.sentenceId, sentences.id))
     .leftJoin(lexemes, eq(lexemes.id, tokens.lexemeId))
+    .leftJoin(dictEntries, eq(dictEntries.id, lexemes.dictEntryId))
     .where(eq(sentences.sectionId, sectionId))
     .orderBy(asc(sentences.orderIndex), asc(tokens.orderIndex))
     .all();
@@ -96,6 +152,7 @@ export function getArticle(sectionId: string): Article | null {
     if (row.tokenId === null) continue;
     sentence.tokens.push({
       id: row.tokenId,
+      lexemeId: row.lexemeId!,
       sentenceId: row.sentenceId,
       charStart: row.charStart!,
       charEnd: row.charEnd!,
@@ -104,7 +161,41 @@ export function getArticle(sectionId: string): Article | null {
       lemma: row.lemma!,
       lemmaReading: row.lemmaReading!,
       pos: row.pos!,
+      band: row.band,
+      common: row.common ?? false,
+      entryId: row.entryId,
+      // SQLite has no boolean; the comparison comes back as 0 or 1.
+      contentWord: row.contentWord === 1,
     });
+  }
+
+  // The entries are found with a subquery rather than by binding the ids this
+  // function just collected: a long chapter can touch a couple of thousand
+  // distinct entries, and that many bound parameters is a limit worth not
+  // discovering later.
+  const senseRows = db
+    .select({
+      entryId: dictSenses.entryId,
+      zh: dictSenses.glossZh,
+      en: dictSenses.glossEn,
+    })
+    .from(dictSenses)
+    .where(
+      sql`${dictSenses.entryId} in (
+        select distinct ${lexemes.dictEntryId}
+        from ${tokens}
+        join ${lexemes} on ${lexemes.id} = ${tokens.lexemeId}
+        join ${sentences} on ${sentences.id} = ${tokens.sentenceId}
+        where ${sentences.sectionId} = ${sectionId}
+          and ${lexemes.dictEntryId} is not null
+      )`,
+    )
+    .orderBy(asc(dictSenses.entryId), asc(dictSenses.orderIndex))
+    .all();
+
+  const senses: Record<string, ArticleSense[]> = {};
+  for (const row of senseRows) {
+    (senses[row.entryId] ??= []).push({ zh: row.zh, en: row.en });
   }
 
   const vocab = db
@@ -120,6 +211,10 @@ export function getArticle(sectionId: string): Article | null {
     ...head,
     vocabCount: vocab?.count ?? 0,
     sentences: [...bySentence.values()],
+    senses,
+    dictionaryReady:
+      db.select({ one: sql<number>`1` }).from(dictEntries).limit(1).get() !==
+      undefined,
   };
 }
 
