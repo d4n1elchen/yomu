@@ -288,3 +288,20 @@ test('relink re-examines everything, including what already matched', () => {
   assert.equal(stats.considered, 5);
   assert.equal(stats.unmatched, 1);
 });
+
+test('relink clears a model-resolution stamp along with the link it annotated', () => {
+  // The stamp says the model chose this entry. Once relink recomputes the link
+  // deterministically it no longer describes anything, so it must not survive to
+  // mark a computed pick as model-made -- the resolver reads its absence as
+  // "still to consider".
+  db.update(lexemes)
+    .set({ dictResolver: 'qwen3.8:27b' })
+    .where(eq(lexemes.id, 'lex-1'))
+    .run();
+
+  linkLexemes(db, { relink: true });
+
+  const linked = db.select().from(lexemes).where(eq(lexemes.id, 'lex-1')).get();
+  assert.equal(linked?.dictResolver, null);
+  assert.equal(linked?.dictEntryId, '1');
+});

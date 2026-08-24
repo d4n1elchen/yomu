@@ -238,8 +238,11 @@ export function linkLexemes(
     if (!match) {
       stats.unmatched++;
       if (options.relink) {
+        // A relink recomputes the deterministic link, so any earlier model
+        // resolution of this row no longer describes it -- clear the provenance
+        // with the link it annotated rather than leave it pointing at nothing.
         tx.update(lexemes)
-          .set({ dictEntryId: null, dictMatch: null })
+          .set({ dictEntryId: null, dictMatch: null, dictResolver: null })
           .where(eq(lexemes.id, lexeme.id))
           .run();
       }
@@ -252,8 +255,15 @@ export function linkLexemes(
       if (match.kind === 'lemma_reading_multi') stats.ambiguous++;
     }
 
+    // The non-relink path only ever touches rows with no entry yet, whose
+    // `dictResolver` is already null; clearing it on relink keeps a rebuilt link
+    // from carrying a stale model stamp for a pick the model did not make.
     tx.update(lexemes)
-      .set({ dictEntryId: match.entryId, dictMatch: match.kind })
+      .set(
+        options.relink
+          ? { dictEntryId: match.entryId, dictMatch: match.kind, dictResolver: null }
+          : { dictEntryId: match.entryId, dictMatch: match.kind },
+      )
       .where(eq(lexemes.id, lexeme.id))
       .run();
   }

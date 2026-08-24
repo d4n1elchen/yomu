@@ -1,0 +1,1 @@
+ALTER TABLE `lexeme` ADD `dict_resolver` text;

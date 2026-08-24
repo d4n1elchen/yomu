@@ -3,7 +3,9 @@ import { db } from '../../db/client.ts';
 import { sections, sentences, works } from '../../db/schema.ts';
 import { getAnalyzer } from '../analyzer/index.ts';
 import { linkLexemes } from '../dict/match.ts';
+import { resolveAmbiguousForWork } from '../dict/resolve.ts';
 import { segmentSentences, type SegmentedSentence } from '../text/sentences.ts';
+import { translatePendingForWork } from '../translate/translate.ts';
 import { LexemeResolver, writeSentenceTokens } from './tokens.ts';
 
 /** Sparse ordering leaves room to insert without renumbering siblings. */
@@ -52,7 +54,7 @@ export async function ingestWork(input: IngestWork): Promise<IngestResult> {
     }),
   );
 
-  return db.transaction((tx) => {
+  const result = db.transaction((tx) => {
     const workId = randomUUID();
     tx.insert(works)
       .values({
@@ -106,6 +108,26 @@ export async function ingestWork(input: IngestWork): Promise<IngestResult> {
 
     return { workId, sectionIds };
   });
+
+  // The model work happens after the transaction commits: it is async, and a
+  // better-sqlite3 transaction cannot await. Both passes are lazy-at-import by
+  // design -- the words a reader is about to meet get their homographs settled
+  // and their Chinese written now rather than stalling a hover later. Neither
+  // may break an import: an unreachable host leaves the work undone for next
+  // time, and nothing else is allowed to escape into the caller either. When
+  // JMdict has not been imported nothing is linked, so both passes find no work
+  // and make no request.
+  //
+  // Resolution runs first so translation then covers the entry the resolver
+  // actually chose, not the deterministic pick it moved the link away from.
+  try {
+    await resolveAmbiguousForWork(result.workId);
+    await translatePendingForWork(result.workId);
+  } catch {
+    // Reading never blocks on translation or resolution.
+  }
+
+  return result;
 }
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];

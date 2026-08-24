@@ -314,7 +314,7 @@ const MAX_ALTERNATIVES = 3;
  * and another simply "three" -- so comparing the whole string calls them
  * different and warns about a choice with no visible consequence.
  */
-function sameMeaning(gloss: string): string {
+export function sameMeaning(gloss: string): string {
   return gloss.split(';')[0]!.trim().toLowerCase();
 }
 

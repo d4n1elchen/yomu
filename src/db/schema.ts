@@ -160,6 +160,20 @@ export const lexemes = sqliteTable(
      * traced instead of guessed at. See `MatchKind` in `src/lib/dict/match.ts`.
      */
     dictMatch: text('dict_match'),
+    /**
+     * The model that resolved a `lemma_reading_multi` link, when one did. Null
+     * means the deterministic pick stands -- the commonest surviving entry.
+     *
+     * Resolution is the model choosing among entries nothing in the data can
+     * separate -- 成る "to become" over 生る "to bear fruit", both `v5r,vi`, both
+     * common, frequency pointing the wrong way. It fires only on
+     * `lemma_reading_multi`, never on a clean `lemma_reading`, so a trustworthy
+     * match is never second-guessed. Recorded like `dictSense.glossModel`: to
+     * keep a model-chosen link distinguishable from a computed one, and
+     * re-runnable later. A full relink clears it along with the link it
+     * annotates, so it never outlives the pick it described.
+     */
+    dictResolver: text('dict_resolver'),
     createdAt: integer('created_at')
       .notNull()
       .default(sql`(unixepoch())`),
