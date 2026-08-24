@@ -28,6 +28,9 @@ invents them.
 ## Working here
 
 - Run `npm test` and `npx tsc --noEmit` before reporting work as done.
+- JMdict lives in a gitignored `data/`. A fresh clone needs `npm run
+  data:jmdict` then `npm run db:jmdict` before the reader can mark hard words;
+  without it the difficulty slider hides itself rather than marking everything.
 - `npm run build` kills a running dev server; restart it afterwards.
 - `docs/PLAN.md` carries what is decided but not yet built, and why. Read it
   before starting a phase. Do not `@`-import it here — that would load the

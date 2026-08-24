@@ -24,12 +24,17 @@ Breaking these fails silently, and each one is load-bearing for the Dictionary.
 - Never garbage-collect orphaned lexemes — the user may have learned the word.
 - `needsReview` gates the Dictionary. Transcription errors tokenize as cleanly
   as real Japanese; new Dictionary queries must keep the filter.
+- A word is hard when `isHardWord` in `src/lib/marking.ts` says so, and that
+  needs **both** `freqBand` and `common`. The band alone treats every word the
+  newspaper corpus never ranked — 本 among them — as rarer than the 24,000th.
 
 # Extending the schema
 
-Hard-vocab marking, quiz scheduling, the dictionary tables, and the sentence
-editor all have shapes worked out — read the comment block at the bottom of
-`src/db/schema.ts` before designing any of them.
+Hard-vocab marking, quiz scheduling, and the sentence editor all have shapes
+worked out — read the comment block at the bottom of `src/db/schema.ts` before
+designing any of them. The dictionary tables are built; `dict_form` exists so
+that matching a lexeme is an indexed query rather than a pass over the 118 MB
+source file, which an article import must not need on disk.
 
 **Grammar is the exception: deliberately undecided.** An earlier design had
 entries created during Q&A with the model judging novelty, which does not work

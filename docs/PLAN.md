@@ -23,57 +23,44 @@ dictionary headwords, readings, inflected forms. That is the line — if it is
 something you are learning, it stays Japanese; if it is the app talking to you,
 it is Chinese.
 
-## Phase B — JMdict import
+## Dictionary data
 
-No LLM in this phase. Ends with dashed underlines working on real frequency
-data.
+JMdict is imported by two scripts into a gitignored `data/`: `npm run
+data:jmdict` fetches, `npm run db:jmdict` imports and re-links. A fresh clone
+has no dictionary until both have run, and the reader hides the difficulty
+slider rather than marking every word.
 
-**Two files, one source.** The simplified JSON (11 MB) for structure and
-English glosses, plus a single scan of the original JMdict XML for frequency
-rank. Both carry the JMdict entry id, so they join with no matching work.
+**Two files, one source, and both are needed.** The XML pass is not redundant
+with the simplified JSON, and neither signal it carries is sufficient alone:
 
-The XML pass is necessary because jmdict-simplified collapses `nf01`–`nf48`
-into a binary `common` flag — and 95% of real reading vocabulary is flagged
-common, which cannot drive a slider. The bands are 500 words each covering the
-top 24,000; anything rarer carries no band, which is itself a difficulty
-signal. Roughly 49 usable levels.
+- `nf01`–`nf48` (XML only) gives the *gradation* the slider moves along. 22,431
+  entries carry one.
+- `common` (the JSON's collapsed priority flag) is the *floor*. 7,726 entries
+  JMdict marks common were never ranked by the newspaper corpus behind `nf` —
+  本 carries `ichi1` and no band at all — so reading "no band" as "rarer than
+  the 24,000th" put a dashed underline under the word for "book". This was
+  found by building it; the phase plan had assumed no band meant hard.
 
-- Delivered by a setup script into a gitignored `data/`.
-- Tables: `dict_entry`, `dict_sense`.
-- Link `lexeme` rows to their matched entry, matching on lemma **and** reading
-  (reading disambiguates homographs like 人気 にんき / ひとけ). kuromoji gives
-  katakana, JMdict gives hiragana — convert deliberately.
-- Measured match rate against our existing lexemes: **94.8%** on lemma+reading,
-  1.7% lemma-only, 2 misses in 58 words (`Kubernetes`, and `野家` from a
-  mis-segmentation). Re-measure once a real book is imported.
-- EDRDG attribution in the Dictionary footer — a licence condition.
+**Rejected, and still rejected.** BCCWJ: a balanced corpus and better data than
+newspaper frequency, but UniDic lemmas would reintroduce the matching problem
+lemma+reading measured away — revisit only if marking feels wrong for fiction.
+JMnedict: 13.4 MB of names, larger than JMdict itself; deferred until we can
+count how many unmatched words in real reading are actually names.
 
-**Rejected:** BCCWJ (a balanced corpus and better data than newspaper
-frequency, but UniDic lemmas would reintroduce the matching problem we just
-measured away — revisit only if marking feels wrong for fiction). JMnedict
-(12.8 MB of names, larger than JMdict itself; deferred until we can count how
-many unmatched words in real reading are actually names).
+### Homograph ambiguity — the known limitation
 
-### Hard-word marking
+Matching on lemma **and** reading cannot separate two entries that share both.
+入る and 居る are both いる, both flagged common, and neither is ranked, so every
+いる in a text links to whichever the tiebreak prefers. Measured at **7 of 48**
+reading-matches in the current corpus.
 
-Frequency rank drives the dashed underline, behind an **adjustable slider** —
-one number in the query, and it lets you tune per text, since news and fiction
-need different levels.
+These are stored as `dictMatch = 'lemma_reading_multi'` rather than passed off
+as clean, and the Dictionary entry page says so where it shows the senses.
 
-### The word card becomes a hover card here
-
-Phase A left the word card as a full-width panel pinned to the bottom on every
-screen size. Deliberately: the desktop split (a card floating near the word,
-mobile keeping the sheet) is decided, but there was nothing to hover over yet
-and nothing to put in the card beyond the four analyzer facts. In the mock the
-card only fires on a marked word, so marking is what gives it a trigger.
-
-So it is shaped once, here, rather than twice — the anchoring it needs already
-exists in `AskDialog`, which measures itself and clamps to the viewport rather
-than assuming its own size. Its senses arrive in Phase C.
-
-Phase A did already implement the half of this that the Q&A card depends on:
-the word card is suppressed while a selection exists or is being dragged.
+Resolving them needs the conjugation class — v5r against v1 — which IPADIC has
+on the *token* (`features.conjugatedType`) and the `lexeme` does not carry.
+Deliberately not built: it changes lexeme identity, and it should wait until
+there is enough real reading to say whether the wrong senses actually bite.
 
 ## Phase C — Chinese glosses
 
@@ -91,7 +78,9 @@ invented readings (qwen3.8 rendered 窓の外 as まどのはら).
   stall at the worst moment.
 - **The queue is `glossZh IS NULL`.** No separate table. If the model host is
   unreachable, entries stay null and are picked up next import; reading never
-  blocks.
+  blocks. `dict_sense.id` is derived from (entry, position) rather than
+  generated, so re-importing JMdict carries translations across instead of
+  discarding them with the rows they were on.
 - **One entry at a time, all its senses**, so sense structure stays intact.
   Batch 5–10 entries per request; larger batches lose input/output alignment.
 - **Validate the sense count returned equals the count sent.** Retry once, then
