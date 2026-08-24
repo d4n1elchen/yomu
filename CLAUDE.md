@@ -33,8 +33,13 @@ invents them.
   without it the difficulty slider hides itself rather than marking everything.
 - `npm run build` kills a running dev server; restart it afterwards.
 - `docs/PLAN.md` carries what is decided but not yet built, and why. Read it
-  before starting a phase. Do not `@`-import it here — that would load the
-  whole plan into every session.
+  before starting a phase, **and again at the end of every chunk of work** —
+  nothing else checks it, so it is the one file that goes stale silently while
+  the tests still pass. A phase can invalidate its own plan section before it
+  ships: this one described a fix as "deliberately not built" two commits after
+  building it. Record what was decided and what was rejected, with the
+  measurement that decided it; delete what shipped. Do not `@`-import it here —
+  that would load the whole plan into every session.
 - Decisions made in conversation leave this file quietly wrong, and a stale
   instruction reads exactly like a current one. When a name or a design
   changes, re-read it.
