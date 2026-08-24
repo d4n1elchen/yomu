@@ -161,11 +161,82 @@ that outlived the build:
 - **One entry per request**, all its senses, rather than the 5–10-entry batch the
   plan first sketched: the per-entry count validation the plan also asks for is
   unambiguous only when the request is one entry, and correctness won over the
-  round-trips. Revisit batching only if import latency against a live model bites.
+  round-trips. **Batching is now the one throughput lever left — see below.**
 
 The card showing all senses with nothing auto-picked, and the deferred
 per-occurrence `token.senseIndex`, both still hold — the analyzer's POS already
 discards irrelevant senses and JMdict orders the rest by commonness.
+
+## Analysis runs in the background
+
+Measured on the first real chapter (a 94-sentence prologue, 483 lexemes): **459
+entries to translate and 33 ambiguous lexemes to resolve.** One entry per
+request, and `qwen3.8:27b` reports model family `qwen35`, which Ollama's
+scheduler pins to `numParallel = 1` **regardless of `OLLAMA_NUM_PARALLEL`** — so
+client-side concurrency buys nothing and the requests are serial by
+construction. Blocking the import on that made a paste indistinguishable from a
+hang.
+
+So both passes moved out of the request into `ensureDraining`
+(`src/lib/analysis/drain.ts`). Import returns as soon as the transaction commits
+— 0.28s for a three-line article — and the action schedules the work with
+`after()` from `next/server`, which still runs when the action ends in a
+redirect.
+
+**The two passes are not alike, and only one gates reading.** This is the whole
+design:
+
+- **Resolution moves `lexeme.dictEntryId`**, and that is what the Dictionary
+  groups on, what `getDictionaryEntry` collects members by, and what the
+  article's sense map is keyed on. An article read while it is running would
+  file a word under one entry and then another. So a section is **not readable**
+  until `section.resolvedAt` is stamped; the Library greys the row, prints
+  progress, and refuses to link it, and the reader turns the URL away.
+- **Translation only fills `glossZh`.** Nothing relocates, a card just gains
+  Chinese. It gates nothing and runs for as long as it likes; an article is
+  fully readable throughout, showing JMdict's English until the Chinese lands —
+  the state the card was already built for.
+
+Resolution is also the cheap one: 33 requests against 459, about 7% of the work.
+Gating on the small structural pass and letting the large cosmetic one run free
+is what makes this cost nothing.
+
+**Recovery is a page load.** Opening the Library calls `ensureDraining`, which
+picks up every unresolved section and every untranslated entry, whatever import
+left them behind — so a drain killed by a server restart resumes by itself.
+Verified by stranding an article (importing through a script, which never fires
+`after()`) and watching a single Library visit finish it. `npm run db:translate`
+does the same on demand.
+
+Three details that make it safe: a module-level flag keeps one drain in flight
+(better-sqlite3 is a single synchronous connection, so there is no second worker
+to coordinate with, and the writes are individually guarded anyway); a two-minute
+backoff stops a downed host being retried on every page view; and both passes
+work at **whole-database scope**. That last one was a real bug in the first cut
+— scoped per-import, an entry left untranslated was never revisited unless a
+later article happened to contain it too.
+
+### Rejected: a queue table
+
+`glossZh is null` already is the translation queue, and `dictMatch =
+'lemma_reading_multi' and dictResolver is null` is the resolver's. A job table
+would be a second source of truth about work the data already describes, and it
+would have to be reconciled with the rows on every JMdict re-import — which the
+derived queues survive for free, because sense ids are `(entry, position)`.
+
+What would justify revisiting: **repeated failures**. An entry the model mangles
+twice is left null and retried from scratch on every drain, forever, with no
+record. An attempt counter would fix that, and needs a queue-ish place to live.
+Not built, because it has not been observed — measure before building.
+
+### Still open: batching
+
+459 sequential requests per chapter is the measurement that reopens the 5–10
+entries-per-request idea the first plan sketched. It is the only lever left,
+since server-side parallelism is off the table for this model family. The cost is
+that per-entry count validation has to move inside a batched reply. Deferred
+until the background drain has been lived with — the wait is now invisible, so
+throughput may simply not matter.
 
 ## Deferred
 
@@ -192,8 +263,14 @@ Undecided deliberately, until there is real reading to ground the choice in.
 ## Open questions
 
 - Which Ollama model beyond `qwen3.8:27b`.
-- Whether the reader must work when the model host is unreachable. Lazy
-  translation assumes it need not; if that is wrong, the common subset should
-  be pre-translated instead.
+- Whether the reader must work when the model host is unreachable. **Half
+  answered:** translation says no — an article reads fine with English glosses
+  and fills in later. Resolution says yes, and gates reading, so a **new** article
+  imported while Ollama is down stays greyed until the host returns. It is
+  recoverable rather than lost (any Library visit resumes it) and articles
+  already resolved are unaffected, but if that proves annoying the fallback is to
+  stamp `resolvedAt` anyway and accept the deterministic picks — which is simply
+  what shipped before Phase C. Deliberately not done, because it would discard
+  the model's input permanently rather than deferring it.
 - Transcriber choice — prefer one emitting per-segment confidence and timings,
   since `sentence.confidence`, `startMs` and `endMs` already exist for it.
