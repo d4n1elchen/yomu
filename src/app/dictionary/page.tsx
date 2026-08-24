@@ -1,5 +1,9 @@
+import { after } from 'next/server';
+import { AnalysisPoller } from '../../components/AnalysisPoller.tsx';
 import { EdrdgNotice } from '../../components/EdrdgNotice.tsx';
+import { ensureDraining } from '../../lib/analysis/drain.ts';
 import { listDictionary } from '../../lib/dictionary.ts';
+import { translationProgress } from '../../lib/translate/translate.ts';
 import { toHiragana } from '../../lib/text/kana.ts';
 import { posLabel } from '../../lib/text/pos.ts';
 
@@ -12,6 +16,16 @@ export default async function DictionaryPage({
 }) {
   const { pos, q } = await searchParams;
   const { entries, total, facets } = listDictionary({ pos, q });
+
+  // The gloss backlog is invisible everywhere else: translation gates nothing,
+  // so a card just quietly shows English until the Chinese lands. This is the
+  // page where that absence is felt, so it is where the progress belongs.
+  const glosses = translationProgress();
+  const translating = glosses.total > 0 && glosses.done < glosses.total;
+
+  // Same recovery trigger as the Library. Without it this page could print a
+  // figure that never moves, which is worse than not printing one.
+  after(ensureDraining);
 
   const href = (next: { pos?: string; q?: string }) => {
     const params = new URLSearchParams();
@@ -28,6 +42,36 @@ export default async function DictionaryPage({
         共 {total} 個詞
         {entries.length < total ? `，顯示前 ${entries.length} 個` : ''}
       </p>
+
+      {translating ? (
+        <>
+          <AnalysisPoller />
+          <p
+            className="gloss-progress"
+            role="progressbar"
+            aria-valuenow={glosses.done}
+            aria-valuemin={0}
+            aria-valuemax={glosses.total}
+            aria-label="中文語義翻譯進度"
+          >
+            <span>中文語義翻譯中</span>
+            <span className="analysing-bar">
+              <span
+                className="analysing-fill"
+                style={{
+                  ['--progress' as string]: glosses.done / glosses.total,
+                }}
+              />
+            </span>
+            <span className="pct">
+              {Math.floor((glosses.done / glosses.total) * 100)}%
+            </span>
+            <span>
+              尚有 {glosses.total - glosses.done} 個詞條待翻譯，完成前先顯示英文。
+            </span>
+          </p>
+        </>
+      ) : null}
 
       <form action="/dictionary" className="filter-form">
         {pos ? <input type="hidden" name="pos" value={pos} /> : null}

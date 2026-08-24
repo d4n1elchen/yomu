@@ -157,3 +157,31 @@ export function pendingTranslationCount(): number {
       .get()?.n ?? 0
   );
 }
+
+export interface TranslationProgress {
+  /** Entries whose every sense now carries Chinese. */
+  done: number;
+  /** Entries the vocabulary points at, translated or not. */
+  total: number;
+}
+
+/**
+ * How far the gloss backlog has got, counted over the entries the vocabulary
+ * actually points at rather than all of JMdict -- the same population
+ * `translatePending` works through, so the number cannot claim progress against
+ * senses nothing will ever ask for.
+ *
+ * An entry counts as done only when none of its senses is still null: a
+ * half-translated entry is not finished, and reporting it as such would let the
+ * figure sit at 100% while cards still show English.
+ */
+export function translationProgress(): TranslationProgress {
+  const total =
+    db
+      .select({ n: sql<number>`count(distinct ${lexemes.dictEntryId})` })
+      .from(lexemes)
+      .innerJoin(dictSenses, eq(dictSenses.entryId, lexemes.dictEntryId))
+      .get()?.n ?? 0;
+
+  return { done: total - pendingTranslationCount(), total };
+}
