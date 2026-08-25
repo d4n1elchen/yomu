@@ -774,57 +774,63 @@ rt {
 }
 
 /* The card's footer: the 生詞 toggle beside the way out to the Dictionary. */
+/*
+ * The card's footer: the 生詞 toggle and the way out to the Dictionary.
+ *
+ * The rule above the row lives here rather than on the link. It used to be the
+ * link's own `border-top` with `width: 100%`, from when it was the only thing
+ * down here -- which, once it became a flex item, made it demand the whole row
+ * and push the button off the edge. The card sets `overflow-y: auto`, and CSS
+ * turns the other axis from `visible` into `auto` to match, so that overflow
+ * arrived as a horizontal scrollbar rather than as anything obviously wrong.
+ */
 .word-actions {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  margin-top: 0.9rem;
+  margin-top: 0.7rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
 }
 
+/* Both items sit at their own width and never wrap: 標為生詞 broken across two
+   lines rendered the control as a tall oval. */
+.word-actions .learn,
 .word-actions .word-more {
   flex: 0 0 auto;
   white-space: nowrap;
 }
 
+/*
+ * Set as text rather than as a filled pill. A pill sat heavily beside the plain
+ * 辭典 link on a card this small, and the star already carries the state -- so
+ * the two ends of the footer now read as the same kind of thing.
+ */
 .word-actions .learn {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  /* Never wrap. As a flex item it will otherwise shrink below its own text and
-     break 標為生詞 across two lines, which turns the pill into a tall oval. */
-  flex: 0 0 auto;
-  white-space: nowrap;
-  padding: 0.3rem 0.7rem;
-  border: 1px solid var(--border);
-  border-radius: 999px;
+  gap: 0.3rem;
+  padding: 0;
+  border: 0;
   background: transparent;
   color: var(--muted);
-  font-size: 0.78rem;
-  line-height: 1.6;
+  font-size: 0.75rem;
   cursor: pointer;
 }
 
 .word-actions .learn:hover {
-  border-color: var(--accent);
   color: var(--accent);
   opacity: 1;
 }
 
-/* On the list. Filled rather than merely tinted, so the state is legible at a
-   glance on a card you are hovering for a fraction of a second. */
+/* On the list: the star fills and takes the accent, which is as much emphasis
+   as a note-to-self needs. */
 .word-actions .learn.on {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--bg);
+  color: var(--accent);
 }
 
 .word-more {
-  display: inline-block;
-  margin-top: 0.7rem;
-  padding-top: 0.6rem;
-  border-top: 1px solid var(--border);
-  width: 100%;
   font-size: 0.75rem;
   color: var(--accent);
 }
