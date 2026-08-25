@@ -782,16 +782,26 @@ rt {
   margin-top: 0.9rem;
 }
 
+.word-actions .word-more {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .word-actions .learn {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.3rem 0.6rem;
+  /* Never wrap. As a flex item it will otherwise shrink below its own text and
+     break 標為生詞 across two lines, which turns the pill into a tall oval. */
+  flex: 0 0 auto;
+  white-space: nowrap;
+  padding: 0.3rem 0.7rem;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: transparent;
   color: var(--muted);
   font-size: 0.78rem;
+  line-height: 1.6;
   cursor: pointer;
 }
 
