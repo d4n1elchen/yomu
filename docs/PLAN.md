@@ -321,14 +321,40 @@ twice is left null and retried from scratch on every drain, forever, with no
 record. An attempt counter would fix that, and needs a queue-ish place to live.
 Not built, because it has not been observed — measure before building.
 
-### Still open: batching
+### The drain gets out of the way
 
-459 sequential requests per chapter is the measurement that reopens the 5–10
-entries-per-request idea the first plan sketched. It is the only lever left,
-since server-side parallelism is off the table for this model family. The cost is
-that per-entry count validation has to move inside a batched reply. Deferred
-until the background drain has been lived with — the wait is now invisible, so
-throughput may simply not matter.
+The drain and `/api/ask` share one Ollama host that serves one request at a time
+and queues FIFO, so a grammar question asked mid-drain waited for the translation
+in flight to finish. **Measured against 上がる** — 26 senses, a 9.0s entry — a
+question's time to first token went from **0.4s to 9.4s**.
+
+Waiting politely between entries does not fix this, and building it first was a
+mistake worth recording: the drain awaits each entry, so it has a request
+outstanding almost all the time, a question nearly always arrives mid-entry, and
+FIFO already puts that question ahead of the drain's *next* request. The delay is
+the **current** entry. Only dropping it gives the time back.
+
+So `/api/ask` announces itself (`src/lib/analysis/priority.ts`) and the in-flight
+background request is aborted. This is cheap only because the queues are derived:
+an abandoned translation leaves `glossZh` null and an abandoned resolution leaves
+`dictResolver` null — exactly the state before it started — so the next drain
+picks them up and only the model time already spent is lost. **9.0s of added
+latency became 0.4s.**
+
+`abandoned` is kept distinct from `unreachable` throughout. They look identical
+at a catch site, but one means retry at once and the other stops the drain for
+two minutes; conflating them lets a single question idle the whole backlog.
+
+### Rejected: batching entries per request
+
+459 sequential requests per chapter looked like an argument for the 5–10
+entries-per-request batch the first plan sketched, and it is the only throughput
+lever left with server-side parallelism unavailable. Rejected on the contention
+measurement above: batching makes the blocking unit 5–10× longer, so a question
+arriving mid-batch waits for all of it. It trades round-trips for exactly the
+latency that hurts. The wait is invisible anyway now that the drain is
+background, so there was never much to buy — and per-entry count validation would
+have had to move inside a batched reply to get it.
 
 ## Deferred
 

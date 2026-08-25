@@ -30,6 +30,15 @@ answer on every chunk. Anything that consumes the stream has to tolerate
 syntax that is not closed yet — an unterminated `**` stays literal rather than
 turning the rest of the answer bold until its partner arrives.
 
+**Interactive work wins.** Ollama serves one request at a time for `qwen3.8:27b`
+(family `qwen35`, pinned to `numParallel = 1` whatever `OLLAMA_NUM_PARALLEL`
+says) and queues FIFO, so background analysis competing for the host adds its
+whole in-flight request to a reader's wait — measured at 9.0s. Anything that
+calls the model on a reader's behalf must announce itself through
+`src/lib/analysis/priority.ts`, and anything background must run through
+`runAbortable` so it can be dropped. An abandoned background request is **not**
+a failed one: it must never be treated as an unreachable host.
+
 **Store nothing.** Q&A is a lookup, not a record — it streams and is discarded
 when the panel closes. Durable learning belongs in the Dictionary as entries and
 occurrences, not as saved prose.
