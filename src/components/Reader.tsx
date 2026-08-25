@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { toggleLearning } from '../app/read/actions.ts';
 import type { Article, ArticleSentence, ArticleToken } from '../lib/article.ts';
 import { DEFAULT_LEVEL, MAX_BAND, isHardWord } from '../lib/marking.ts';
 import { selectionSpans, type TouchedToken } from '../lib/qa/selection.ts';
@@ -75,10 +76,33 @@ export function Reader({ article }: { article: Article }) {
   const [explain, setExplain] = useState(true);
   const [level, setLevel] = useState(DEFAULT_LEVEL);
   const [word, setWord] = useState<OpenWord | null>(null);
+  // The 生詞 list, held as group keys so that 見る and 観る toggle together --
+  // the same grouping the Dictionary lists them under.
+  const [learning, setLearningKeys] = useState<Set<string>>(
+    () => new Set(article.learning),
+  );
   const [selection, setSelection] = useState<ReaderSelection | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // `entryId ?? lexemeId` is `coalesce(dict_entry_id, lexeme.id)` -- the
+  // Dictionary's own grouping, so a word reads the same in both places.
+  const groupKey = (token: ArticleToken) => token.entryId ?? token.lexemeId;
+
+  const onToggleLearning = useCallback((token: ArticleToken) => {
+    const key = token.entryId ?? token.lexemeId;
+    setLearningKeys((current) => {
+      const next = new Set(current);
+      const on = !next.has(key);
+      if (on) next.add(key);
+      else next.delete(key);
+      // Optimistic: the list is a note to yourself, and waiting for a round trip
+      // to see a star fill in would be the only slow thing on the page.
+      void toggleLearning(token.lexemeId, on);
+      return next;
+    });
+  }, []);
 
   const marked = useCallback(
     (token: ArticleToken) => explain && isHardWord(token, level),
@@ -292,6 +316,8 @@ export function Reader({ article }: { article: Article }) {
           senses={
             word.token.entryId ? (article.senses[word.token.entryId] ?? []) : []
           }
+          learning={learning.has(groupKey(word.token))}
+          onToggleLearning={() => onToggleLearning(word.token)}
           rect={word.rect}
           onClose={() => setWord(null)}
           onPointerEnter={hold}

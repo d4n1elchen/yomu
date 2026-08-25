@@ -3,6 +3,7 @@ import { AnalysisPoller } from '../../components/AnalysisPoller.tsx';
 import { EdrdgNotice } from '../../components/EdrdgNotice.tsx';
 import { ensureDraining } from '../../lib/analysis/drain.ts';
 import { listDictionary } from '../../lib/dictionary.ts';
+import { learningCount } from '../../lib/vocab.ts';
 import { translationProgress } from '../../lib/translate/translate.ts';
 import { toHiragana } from '../../lib/text/kana.ts';
 import { posLabel } from '../../lib/text/pos.ts';
@@ -12,10 +13,12 @@ export const dynamic = 'force-dynamic';
 export default async function DictionaryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ pos?: string; q?: string }>;
+  searchParams: Promise<{ pos?: string; q?: string; learning?: string }>;
 }) {
-  const { pos, q } = await searchParams;
-  const { entries, total, facets } = listDictionary({ pos, q });
+  const { pos, q, learning: learningParam } = await searchParams;
+  const learning = learningParam === '1';
+  const { entries, total, facets } = listDictionary({ pos, q, learning });
+  const learningTotal = learningCount();
 
   // The gloss backlog is invisible everywhere else: translation gates nothing,
   // so a card just quietly shows English until the Chinese lands. This is the
@@ -27,10 +30,11 @@ export default async function DictionaryPage({
   // figure that never moves, which is worse than not printing one.
   after(ensureDraining);
 
-  const href = (next: { pos?: string; q?: string }) => {
+  const href = (next: { pos?: string; q?: string; learning?: boolean }) => {
     const params = new URLSearchParams();
     if (next.pos) params.set('pos', next.pos);
     if (next.q) params.set('q', next.q);
+    if (next.learning) params.set('learning', '1');
     const query = params.toString();
     return query ? `/dictionary?${query}` : '/dictionary';
   };
@@ -86,14 +90,22 @@ export default async function DictionaryPage({
       </form>
 
       <nav className="facets">
-        <a className={pos ? '' : 'active'} href={href({ q })}>
+        <a className={pos || learning ? '' : 'active'} href={href({ q })}>
           實詞
         </a>
+        {learningTotal > 0 ? (
+          <a
+            className={learning ? 'active' : ''}
+            href={href({ q, learning: true })}
+          >
+            生詞 <span className="count">{learningTotal}</span>
+          </a>
+        ) : null}
         {facets.map((facet) => (
           <a
             key={facet.pos}
-            className={pos === facet.pos ? 'active' : ''}
-            href={href({ pos: facet.pos, q })}
+            className={pos === facet.pos && !learning ? 'active' : ''}
+            href={href({ pos: facet.pos, q, learning })}
           >
             {posLabel(facet.pos)} <span className="count">{facet.count}</span>
           </a>
@@ -102,7 +114,11 @@ export default async function DictionaryPage({
 
       {entries.length === 0 ? (
         <p className="empty">
-          還沒有符合的詞。<a href="/new">新增一篇文章</a>，詞彙就會累積到這裡。
+          {learning
+            ? '還沒有標記生詞。閱讀時點選標記的詞，卡片上可以把它加進來。'
+            : '還沒有符合的詞。'}
+          {learning ? null : <a href="/new">新增一篇文章</a>}
+          {learning ? null : '，詞彙就會累積到這裡。'}
         </p>
       ) : (
         <ul className="entries">
@@ -110,6 +126,12 @@ export default async function DictionaryPage({
             <li key={entry.id}>
               <a href={`/dictionary/${entry.id}`}>
                 <span className="lemma" lang="ja">
+                  {/* Quiet: it marks the row without competing with the word. */}
+                  {entry.learning ? (
+                    <span className="learn-dot" title="生詞" aria-label="生詞">
+                      ★
+                    </span>
+                  ) : null}
                   {entry.lemma}
                   {entry.reading ? (
                     <span className="reading">{toHiragana(entry.reading)}</span>

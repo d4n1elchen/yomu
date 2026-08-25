@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, like, or, sql } from 'drizzle-orm';
 import { db } from '../db/client.ts';
 import { matchCandidates } from './dict/match.ts';
+import { learningGroupKeys } from './vocab.ts';
 import {
   dictEntries,
   dictSenses,
@@ -8,6 +9,7 @@ import {
   sections,
   sentences,
   tokens,
+  userLexemeState,
   works,
 } from '../db/schema.ts';
 
@@ -72,14 +74,31 @@ export interface DictionaryEntry {
   workCount: number;
   /** The distinct inflected forms seen, which is the point of the grouping. */
   forms: string[];
+  /** On the 生詞 list. Group-resolved, like every other state here. */
+  learning: boolean;
 }
 
 export interface DictionaryQuery {
   pos?: string;
   q?: string;
+  /** Only words on the 生詞 list. */
+  learning?: boolean;
   includeUnreviewed?: boolean;
   limit?: number;
 }
+
+/**
+ * Whether any lexeme in this row's group is on the 生詞 list.
+ *
+ * Asked of the group rather than the row because the Dictionary already folds
+ * 見る and 観る into one line, and a state that disagreed with that folding
+ * would show one word marked and unmarked at once.
+ */
+const onLearningList = sql`exists (
+  select 1 from ${userLexemeState}
+  join ${lexemes} as member on member.id = ${userLexemeState.lexemeId}
+  where coalesce(member.dict_entry_id, member.id) = ${wordGroup}
+)`;
 
 export interface DictionaryPage {
   entries: DictionaryEntry[];
@@ -108,6 +127,7 @@ function filters(query: DictionaryQuery, opts: { ignorePos?: boolean } = {}) {
           like(lexemes.reading, `%${query.q}%`),
         )
       : undefined,
+    query.learning ? onLearningList : undefined,
   ].filter(Boolean);
   return and(...clauses);
 }
@@ -223,6 +243,11 @@ export function listDictionary(query: DictionaryQuery = {}): DictionaryPage {
     .orderBy(desc(sql`count`))
     .all();
 
+  // One query for the whole list rather than a per-row exists: the set is small
+  // (it is words you picked by hand) and membership is by group key, which the
+  // rows already carry.
+  const learning = new Set(learningGroupKeys());
+
   const entries: DictionaryEntry[] = [];
   for (const group of groups) {
     const lead = leadByGroup.get(group.groupId);
@@ -235,6 +260,7 @@ export function listDictionary(query: DictionaryQuery = {}): DictionaryPage {
       occurrences: group.occurrences,
       workCount: group.workCount,
       forms: [...(formsByGroup.get(group.groupId) ?? [])],
+      learning: learning.has(group.groupId),
     });
   }
   // The SQL ordering ranks groups; the lemma tiebreak needs the representative,
@@ -418,6 +444,7 @@ export function getDictionaryEntry(
     lemma: row.lemma,
     reading: row.reading,
     pos: row.pos,
+    learning: new Set(learningGroupKeys()).has(row.entryId ?? row.id),
   };
 
   const meaning: DictionaryMeaning | null =

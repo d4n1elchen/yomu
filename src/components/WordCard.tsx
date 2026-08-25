@@ -21,6 +21,8 @@ import { anchorStyle, useCardAnchor, type AnchorRect } from './useCardAnchor.ts'
 export function WordCard({
   token,
   senses,
+  learning,
+  onToggleLearning,
   rect,
   onClose,
   onPointerEnter,
@@ -28,6 +30,9 @@ export function WordCard({
 }: {
   token: ArticleToken;
   senses: ArticleSense[];
+  /** Whether this word is already on the 生詞 list. */
+  learning: boolean;
+  onToggleLearning: () => void;
   rect: AnchorRect;
   onClose: () => void;
   /** Hovering the card itself keeps it open on the way over from the word. */
@@ -100,9 +105,25 @@ export function WordCard({
         <p className="word-empty">辭典中沒有這個詞。</p>
       )}
 
-      <a className="word-more" href={`/dictionary/${token.lexemeId}`}>
-        辭典
-      </a>
+      <div className="word-actions">
+        {/*
+          The word stays underlined either way -- marking is statistical and this
+          list is not -- so this toggle is reversible right here, on the same
+          word, rather than needing somewhere else to undo it.
+        */}
+        <button
+          type="button"
+          className={learning ? 'learn on' : 'learn'}
+          onClick={onToggleLearning}
+          aria-pressed={learning}
+        >
+          <span aria-hidden="true">{learning ? '★' : '☆'}</span>
+          {learning ? '已標為生詞' : '標為生詞'}
+        </button>
+        <a className="word-more" href={`/dictionary/${token.lexemeId}`}>
+          辭典
+        </a>
+      </div>
     </div>
   );
 }

@@ -360,16 +360,56 @@ export const dictSenses = sqliteTable(
   ],
 );
 
+
+/**
+ * The words you have picked out to learn -- 生詞.
+ *
+ * Presence is the state: a row means the word is on the list, and removing it
+ * deletes the row. There is no flag to keep consistent with the row's existence.
+ *
+ * **This does not affect what the reader underlines.** Marking is purely
+ * statistical -- `isHardWord` asks JMdict whether a word is common and nothing
+ * else -- and that separation is deliberate. It keeps the dashed line meaning
+ * one thing, and it is what makes this reversible: a word you mark stays
+ * underlined, so it stays reachable and you can unmark it where you marked it.
+ * An earlier design had "known" suppress the underline, which made a marked word
+ * untappable and the action one-way.
+ *
+ * Keyed on `lexeme` rather than on the matched entry, for the same reason the
+ * comment on `lexeme.dictEntryId` gives: the link is the least reliable thing in
+ * the chain and must not sit underneath user state. Reading resolves across the
+ * Dictionary's group instead, so 見る and 観る are one word here exactly as they
+ * are one row there.
+ *
+ * The SRS columns are null until there is a quiz. A word on this list is
+ * precisely a word a schedule would apply to, which is why they share a table
+ * rather than waiting for one of their own.
+ */
+export const userLexemeState = sqliteTable('user_lexeme_state', {
+  lexemeId: text('lexeme_id')
+    .primaryKey()
+    .references(() => lexemes.id, { onDelete: 'cascade' }),
+  addedAt: integer('added_at')
+    .notNull()
+    .default(sql`(unixepoch())`),
+  /** 0 until a quiz grades it. Reserved for SRS; nothing writes it yet. */
+  familiarity: integer('familiarity').notNull().default(0),
+  lastReviewedAt: integer('last_reviewed_at'),
+  srsDue: integer('srs_due'),
+});
+
 /*
  * ---------------------------------------------------------------------------
  * Designed for, deliberately not created yet.
  * ---------------------------------------------------------------------------
  *
- * user_lexeme_state(lexemeId pk, familiarity, markedHard, lastReviewedAt, srsDue)
- *   Hard-vocab marking and quiz scheduling are the same table. This is user
- *   state that changes independently of content, which is why it lives here
- *   and not on `token` (storing "hard" per token means rewriting every token
- *   when you learn a word) or on `lexeme`.
+ * Quiz scheduling, on `user_lexeme_state` above. The list of words to learn is
+ * built; what to ask and when is not. `familiarity`, `lastReviewedAt` and
+ * `srsDue` are there for it.
+ *
+ * The sketch here used to include `markedHard`, for forcing the underline onto a
+ * word JMdict calls common. Dropped: underlining is purely statistical and
+ * nothing overrides it, which is what keeps the dashed line meaning one thing.
  *
  * ---------------------------------------------------------------------------
  * Grammar: deferred, and the earlier design was wrong.

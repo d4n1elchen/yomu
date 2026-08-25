@@ -10,6 +10,7 @@ import {
   works,
 } from '../db/schema.ts';
 import { contentWord } from './dictionary.ts';
+import { learningGroupKeys } from './vocab.ts';
 
 export interface ArticleToken {
   id: string;
@@ -84,6 +85,16 @@ export interface Article {
    * wait for a request is a stall at exactly the wrong moment.
    */
   senses: Record<string, ArticleSense[]>;
+  /**
+   * The Dictionary group keys currently on the 生詞 list. A token is on it when
+   * `entryId ?? lexemeId` is in here -- the same grouping the Dictionary uses,
+   * so 見る and 観る are one word in both places.
+   *
+   * Sent as keys rather than as a flag per token because words repeat, and
+   * because the reader toggles them: a Set it can add to and remove from is the
+   * shape the optimistic update needs.
+   */
+  learning: string[];
   /**
    * Whether JMdict has been imported at all. Without it every word has a null
    * band, which would mark the entire article -- so the reader hides the
@@ -216,6 +227,7 @@ export function getArticle(sectionId: string): Article | null {
     vocabCount: vocab?.count ?? 0,
     sentences: [...bySentence.values()],
     senses,
+    learning: learningGroupKeys(),
     dictionaryReady:
       db.select({ one: sql<number>`1` }).from(dictEntries).limit(1).get() !==
       undefined,
