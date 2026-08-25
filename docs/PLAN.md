@@ -356,6 +356,41 @@ latency that hurts. The wait is invisible anyway now that the drain is
 background, so there was never much to buy — and per-entry count validation would
 have had to move inside a batched reply to get it.
 
+## 生詞 — picking words to learn
+
+Built. The reader marks words statistically and you pick the real ones out of
+them; the two are separate axes and that separation is the design.
+
+**Underlining is never affected by user state.** `isHardWord` asks JMdict whether
+a word is common and nothing else, so the dashed line means exactly one thing.
+An earlier design had a "known" state suppress it, which was wrong in a way worth
+recording: clearing the underline made the word plain text, plain text is not
+tappable (see the mock departure above), and the action therefore had no undo
+inside the reader. Marking now changes nothing about the word in the text, so the
+toggle sits on the card you already opened and flips straight back.
+
+The measurement that motivated it: **341 of 1,207** content words are marked at
+the default level, and **162 of them stay marked at every slider setting** — they
+have no frequency band and are not flagged common, so no slider position clears
+them. The slider has a floor, and picking words by hand is what gets under it.
+
+- **Presence is the state.** A row in `user_lexeme_state` means the word is on the
+  list; removing it deletes the row. No flag to keep consistent with the row.
+- **Keyed on `lexeme`, resolved on the Dictionary's group.** The JMdict link is
+  the least reliable thing in the chain and must not sit underneath user state,
+  so the key is the lexeme — which also means the 36 words that match nothing can
+  still be kept, and those are exactly the words worth keeping. Reading resolves
+  across `coalesce(dictEntryId, id)`, so 見る and 観る are one word here as they
+  are one row there. **32 groups** hold more than one spelling. Adding writes
+  against the spelling you met; removing clears the whole group, or the word
+  would still read as marked through a spelling you never touched.
+- **生詞 is a facet, not a page.** It joins the parts of speech in the Dictionary
+  rather than introducing a third noun beside Library and Dictionary.
+
+Still deferred: what to ask and when. `familiarity`, `lastReviewedAt` and
+`srsDue` are created and unused, because a word on this list is precisely a word
+a schedule would apply to — see Deferred below.
+
 ## Deferred
 
 **Grammar.** The earlier design — entries created during Q&A, with the agent

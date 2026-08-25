@@ -24,6 +24,13 @@ Breaking these fails silently, and each one is load-bearing for the Dictionary.
 - Never garbage-collect orphaned lexemes — the user may have learned the word.
 - `needsReview` gates the Dictionary. Transcription errors tokenize as cleanly
   as real Japanese; new Dictionary queries must keep the filter.
+- **Underlining is statistical only.** `isHardWord` reads JMdict, never user
+  state. The 生詞 list (`user_lexeme_state`) is a separate axis and must not feed
+  back into it -- a marked word stays marked after you pick it, which is what
+  keeps picking reversible in the reader.
+- User state is keyed on `lexeme` but read across the Dictionary's group,
+  `coalesce(dict_entry_id, lexeme.id)`. Adding writes one row; removing must
+  clear every member of the group.
 - A word is hard when `isHardWord` in `src/lib/marking.ts` says so, and that
   needs **both** `freqBand` and `common`. The band alone treats every word the
   newspaper corpus never ranked — 本 among them — as rarer than the 24,000th.
