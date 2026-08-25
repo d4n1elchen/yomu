@@ -1,6 +1,7 @@
 import { asc, eq } from 'drizzle-orm';
 import { db } from '../../db/client.ts';
 import { lexemes, sentences, tokens } from '../../db/schema.ts';
+import { beginInteractive } from '../analysis/priority.ts';
 import { getLlmProvider, type LlmMessage } from '../llm/index.ts';
 import { buildMessages, type PromptSentence } from './prompt.ts';
 import type { SelectionSpan } from './selection.ts';
@@ -70,5 +71,13 @@ export async function* askAboutSelection(
 
   const messages = buildMessages({ sentences: prompt, turns: input.turns });
 
-  yield* getLlmProvider().stream({ messages, signal: input.signal });
+  // The background drain stands aside while this runs. Released in `finally`,
+  // which a generator runs on an aborted stream too -- a reader who closes the
+  // card must not leave the drain waiting on a question nobody is asking.
+  const release = beginInteractive();
+  try {
+    yield* getLlmProvider().stream({ messages, signal: input.signal });
+  } finally {
+    release();
+  }
 }

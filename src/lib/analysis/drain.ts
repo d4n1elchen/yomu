@@ -79,10 +79,15 @@ export async function ensureDraining(): Promise<void> {
       // minutes, and it is the reason translation is chunked below rather than
       // run to completion in one go.
       for (const sectionId of pendingSections()) {
-        if (!(await resolveSectionAmbiguity(sectionId))) {
+        const outcome = await resolveSectionAmbiguity(sectionId);
+        if (outcome === 'unreachable') {
           unreachableSince = Date.now();
           return;
         }
+        // Stepped aside for a reader. Not a failure and not a reason to back
+        // off -- start the loop again, where the yield will hold until the
+        // question is answered.
+        if (outcome === 'abandoned') break;
       }
 
       const { reached, exhausted } = await translatePending({

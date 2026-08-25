@@ -8,6 +8,7 @@ import {
   sentences,
   tokens,
 } from '../../db/schema.ts';
+import { runAbortable, yieldToInteractive } from '../analysis/priority.ts';
 import { sameMeaning } from '../dictionary.ts';
 import { collect, getLlmProvider, type LlmProvider } from '../llm/index.ts';
 import { matchCandidates } from './match.ts';
@@ -115,17 +116,26 @@ function occurrenceOf(
 async function resolveOne(
   provider: LlmProvider,
   context: Parameters<typeof buildResolverMessages>[0],
-): Promise<string | null> {
+): Promise<{ entryId: string | null } | 'abandoned'> {
   const messages = buildResolverMessages(context);
   const ids = context.candidates.map((candidate) => candidate.entryId);
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const raw = await collect(
-      provider.stream({ messages, temperature: 0, format: RESOLVER_FORMAT }),
+    const run = await runAbortable((signal) =>
+      collect(
+        provider.stream({
+          messages,
+          temperature: 0,
+          format: RESOLVER_FORMAT,
+          signal,
+        }),
+      ),
     );
-    const chosen = parseResolution(raw, ids);
-    if (chosen) return chosen;
+    if (run === null) return 'abandoned';
+
+    const chosen = parseResolution(run.value, ids);
+    if (chosen) return { entryId: chosen };
   }
-  return null;
+  return { entryId: null };
 }
 
 /**
@@ -144,15 +154,21 @@ async function resolveOne(
  * readable -- until then the Library greys it, because the links this pass moves
  * are the ones the Dictionary groups on.
  *
- * Returns false when the host could not be reached, leaving the section pending
- * so a later drain resumes it. Progress counters are rewritten at the start of
- * every run, so a resumed pass reports the work that is actually left rather
- * than counting the entries a previous run already finished.
+ * The three outcomes are deliberately distinct. `unreachable` is the only one
+ * that should stop the drain and start a backoff; `abandoned` means a reader
+ * asked a question and this pass stepped aside, which must not be mistaken for a
+ * dead host or a single question would idle the drain for minutes.
+ *
+ * Progress counters are rewritten at the start of every run, so a resumed pass
+ * reports the work actually left rather than counting what a previous run
+ * already finished.
  */
+export type ResolveOutcome = 'done' | 'abandoned' | 'unreachable';
+
 export async function resolveSectionAmbiguity(
   sectionId: string,
   provider?: LlmProvider,
-): Promise<boolean> {
+): Promise<ResolveOutcome> {
   const pending = ambiguousLexemes(sectionId);
 
   db.update(sections)
@@ -194,22 +210,28 @@ export async function resolveSectionAmbiguity(
       continue;
     }
 
+    await yieldToInteractive();
     llm ??= provider ?? getLlmProvider();
-    let chosen: string | null;
+    let outcome: Awaited<ReturnType<typeof resolveOne>>;
     try {
-      chosen = await resolveOne(llm, {
+      outcome = await resolveOne(llm, {
         sentence: occurrence.sentence,
         surface: occurrence.surface,
         candidates,
       });
     } catch {
       // Host unreachable: leave this section pending for a later drain.
-      return false;
+      return 'unreachable';
     }
 
-    if (chosen) {
+    // Abandoned for a reader's question. The section stays unresolved, which is
+    // its own queue, so a later drain resumes exactly here -- and crucially this
+    // is not reported as a host failure.
+    if (outcome === 'abandoned') return 'abandoned';
+
+    if (outcome.entryId) {
       db.update(lexemes)
-        .set({ dictEntryId: chosen, dictResolver: llm.model })
+        .set({ dictEntryId: outcome.entryId, dictResolver: llm.model })
         .where(eq(lexemes.id, lexeme.id))
         .run();
     }
@@ -221,5 +243,5 @@ export async function resolveSectionAmbiguity(
     .where(eq(sections.id, sectionId))
     .run();
 
-  return true;
+  return 'done';
 }

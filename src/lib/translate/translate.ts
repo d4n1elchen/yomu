@@ -1,6 +1,7 @@
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '../../db/client.ts';
 import { dictEntries, dictSenses, lexemes } from '../../db/schema.ts';
+import { runAbortable, yieldToInteractive } from '../analysis/priority.ts';
 import { collect, getLlmProvider, type LlmProvider } from '../llm/index.ts';
 import {
   buildTranslationMessages,
@@ -77,16 +78,26 @@ function pendingEntries(limit: number): PendingEntry[] {
 async function translateEntry(
   provider: LlmProvider,
   entry: PendingEntry,
-): Promise<string[] | null> {
+): Promise<{ zh: string[] | null } | 'abandoned'> {
   const messages = buildTranslationMessages(entry);
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const raw = await collect(
-      provider.stream({ messages, temperature: 0, format: TRANSLATION_FORMAT }),
+    const run = await runAbortable((signal) =>
+      collect(
+        provider.stream({
+          messages,
+          temperature: 0,
+          format: TRANSLATION_FORMAT,
+          signal,
+        }),
+      ),
     );
-    const parsed = parseTranslation(raw, entry.senses.length);
-    if (parsed) return parsed;
+    // A reader asked something: drop this entry and let a later drain redo it.
+    if (run === null) return 'abandoned';
+
+    const parsed = parseTranslation(run.value, entry.senses.length);
+    if (parsed) return { zh: parsed };
   }
-  return null;
+  return { zh: null };
 }
 
 /** Writes the Chinese glosses back, filling only the senses still null so a
@@ -130,15 +141,25 @@ export async function translatePending(
   const llm = options.provider ?? getLlmProvider();
   let translated = 0;
   for (const entry of pending) {
-    let zh: string[] | null;
+    // Do not open a new entry while a reader is waiting; the one already in
+    // flight is abandoned by `runAbortable` rather than waited out.
+    await yieldToInteractive();
+
+    let outcome: Awaited<ReturnType<typeof translateEntry>>;
     try {
-      zh = await translateEntry(llm, entry);
+      outcome = await translateEntry(llm, entry);
     } catch {
       // Host unreachable: leave the remainder for the next drain.
       return { reached: false, translated, exhausted: false };
     }
-    if (!zh) continue;
-    writeTranslations(entry.senseIds, zh, llm.model);
+
+    // Abandoned is not failure -- the entry is exactly as it was, and the queue
+    // is `glossZh is null`, so it comes back on its own.
+    if (outcome === 'abandoned') {
+      return { reached: true, translated, exhausted: false };
+    }
+    if (!outcome.zh) continue;
+    writeTranslations(entry.senseIds, outcome.zh, llm.model);
     translated += 1;
   }
 
