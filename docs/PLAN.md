@@ -56,8 +56,10 @@ either of these starts to matter:
 **Rejected, and still rejected.** BCCWJ: a balanced corpus and better data than
 newspaper frequency, but UniDic lemmas would reintroduce the matching problem
 lemma+reading measured away — revisit only if marking feels wrong for fiction.
-JMnedict: 13.4 MB of names, larger than JMdict itself; deferred until we can
-count how many unmatched words in real reading are actually names.
+**JMnedict: measured, and now rejected rather than deferred.** It was deferred
+until we could count how many unmatched words in real reading are names. Counted:
+**none of the 36 are.** Three carry IPADIC's 固有名詞 tag and not one is a name
+(磨, `ToDo`, `ＫａｍｉＵ`). 13.4 MB to fix nothing.
 
 ### Homograph ambiguity — what is left of it
 
@@ -68,16 +70,28 @@ before frequency gets a vote — 一段 against `v1`, 接尾 against `suf`. That
 They sit outside the lexeme identity key, so nothing re-files and no lexeme is
 split by a POS that varies between sentences.
 
-What remains is entries sharing lemma, reading **and** grammar. なる is the
-whole of it today: 生る "to bear fruit" at nf07 against 成る "to become" at
-nf34, both `v5r,vi`, both `uk`, both flagged common. Nothing in JMdict
-separates them, and frequency actively points the wrong way.
+What remains is entries sharing lemma, reading **and** grammar. なる was the
+whole of it when the corpus was one article — 生る "to bear fruit" at nf07 against
+成る "to become" at nf34, both `v5r,vi`, both `uk`, both flagged common, with
+nothing in JMdict to separate them and frequency pointing the wrong way. On real
+chapters it is 73 words, so なる is the clearest example rather than the extent.
 
-Measured on the current corpus: **5 of 34** content words carry
-`lemma_reading_multi`, and **1** is actually wrong. The flag means several
-candidates survived, not that the pick is bad — two of the five choose between
-entries with the same gloss. That denominator is one five-sentence article and
-is far too small to be a rate; it needs a real book, like everything else here.
+**Measured on 1,207 content words** (six articles, two of them real chapters —
+the five-sentence denominator every earlier figure here used is gone):
+
+| | | |
+|---|---:|---:|
+| matched on lemma+reading | 1,151 | 95.4% |
+| …of those, ambiguous | 73 | 6.0% |
+| matched on lemma only | 20 | 1.7% |
+| unmatched | 36 | 3.0% |
+| **matched overall** | **1,171** | **97.0%** |
+
+Ambiguity is **6.0%**, not the ~15% that 5-of-34 implied — the small sample was
+pessimistic. But the other half of that old note was optimistic: it guessed most
+ambiguous cases would be entries with the same gloss and so not worth asking
+about. **69 of the 73 went to the model**, meaning their glosses genuinely
+differed. Asking is the common case, not the rare one.
 
 The entry page prints the runners-up rather than a warning, so a wrong pick is
 visible rather than apologised for. That stays regardless of what resolves the
@@ -94,6 +108,50 @@ with the link it annotated. It selects, never names — the same grounding the
 glosses follow. Whether it actually improves picks is unmeasured: なる is the one
 wrong case on the current corpus, and one article is no way to know.
 
+### What actually fails to match
+
+The 36 unmatched content words, read one by one. Not one is a name, which is the
+finding that retires JMnedict above.
+
+- **15 are flattened ruby** — 濡 喚 忙 抜 溢 吐 摸 頷 芻 煌 摑 嘩 憐 擢 痺, every one a
+  lone kanji the analyzer gave no reading. The source is text pasted from a page
+  that renders furigana as `<ruby>`: copying flattens it, so `頷うなずいた` arrives
+  with the reading sitting inline as ordinary characters. There is no `《》` or
+  `｜` left to strip — the markup is gone by the time we see it. This is an
+  **import problem, not a dictionary one**, and it is the single largest class.
+- **4 are Latin or symbols** — `ＭＶ`, `Ⅴ`, `ToDo`, `ＫａｍｉＵ`. Not Japanese
+  vocabulary and nothing should match them.
+- **4 are verb forms JMdict spells differently** — 出せる, こなせる, 巻ける
+  (potentials, which JMdict lists only in the plain form) and 差しかかる (which
+  JMdict has as 差し掛かる).
+- **3 are と-adverbs** — 黙々と, 整然と, 漠然と. JMdict carries 黙々 tagged
+  `adv-to`; the と is ours to strip.
+- **2 are ない-adjective stems** — ぴこち, 味気, where JMdict lists ぴこちない.
+- **8 miscellaneous**, including real mis-analyses (羨い/トモイ).
+
+Each of the last four groups is a small, mechanical rule against a known class,
+not a fuzzy lookup fallback — which is why the fallback stays rejected while
+these stay worth doing. None is urgent: together they are 13 words in 1,207.
+
+### Flattened ruby corrupts an import
+
+Worth its own note because it is invisible and it is **not only a matching
+problem**. `頷うなずいた` tokenizes as 頷 (unknown, no reading) + うなず + いた, so:
+
+- the reader prints the reading as running text instead of as furigana above the
+  kanji — you see 頷うなずいた on the page;
+- the Dictionary gains a junk single-kanji entry, and the real word never appears;
+- the vocabulary count is inflated by both halves.
+
+Only 17 tokens of 4,915 here (0.3%), so it is small — but it scales with how much
+of the library comes from ruby-bearing sources, and a whole novel pasted that way
+would carry it on every annotated word. Detection is the hard part: `読` + `んだ`
+is ordinary okurigana, and `頷` + `うなず` only differs in that the kana spell the
+kanji's own reading — which needs a reading dictionary to know. The cheap version
+is narrower and probably enough: **an unknown single-kanji token immediately
+followed by hiragana is flattened ruby**, since IPADIC knows the kanji that appear
+in ordinary okurigana compounds. Unbuilt, undecided.
+
 ### Rejected designs
 
 Each of these was measured before it was rejected. The measurements are small —
@@ -107,8 +165,11 @@ alternative — deinflect by rule, longest match wins — answers "what word is 
 this cursor" and cannot produce a token stream, which the occurrence rows,
 furigana alignment and selection offsets are all built on.
 
-**A JMdict fallback for words matching nothing.** There is nothing to fix: 0 of
-34 content words are unmatched. And the naive rule was wrong 2 of 3 times on a
+**A JMdict fallback for words matching nothing.** Still rejected, but the reason
+has changed: it used to be "nothing to fix, 0 of 34 unmatched", and on real
+chapters 36 of 1,207 (3.0%) are. Those 36 were then read, and a lookup fallback
+would not have helped any of them — see the breakdown below. And the naive rule
+was wrong 2 of 3 times on a
 constructed test — 待っ+た rebuilds to 待った, which JMdict glosses "false start
 of a bout", and い+た to いた, "board", at nf08 and so commoner than the right
 answer. If revisited, the gate matters more than the lookup: only where
