@@ -22,5 +22,18 @@
       "Read(./.env.development.local)",
       "Read(./.env.production.local)"
     ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -n \"$(git status --porcelain -- src 2>/dev/null)\" ]; then printf '%s' '{\"systemMessage\":\"Uncommitted source edits - check docs/PLAN.md before wrapping up (delete shipped sections, correct stale not-built claims).\",\"hookSpecificOutput\":{\"hookEventName\":\"Stop\",\"additionalContext\":\"There are uncommitted changes under src/. If this chunk shipped planned work or changed a decision, reconcile docs/PLAN.md - it is the one file no test checks. If the plan genuinely needs nothing, say so and move on.\"}}'; fi",
+            "statusMessage": "Checking PLAN.md freshness"
+          }
+        ]
+      }
+    ]
   }
 }
