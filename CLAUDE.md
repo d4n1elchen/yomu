@@ -45,6 +45,9 @@ invents them.
   on the machine that serves the app, from a checkout there — the database is a
   local file and the analyzer reads its dictionary off disk, so there is nothing
   to push. `scripts/deploy.sh --print-unit` shows the unit it would write.
+- `npm run update` fetches, fast-forwards and redeploys on that same machine.
+  It refuses a dirty, diverged or ahead-of-upstream checkout rather than
+  merging. `--check` reports what would be pulled without touching anything.
 - `docs/PLAN.md` carries what is decided but not yet built, and why. Read it
   before starting a phase, **and again at the end of every chunk of work** —
   nothing else checks it, so it is the one file that goes stale silently while
