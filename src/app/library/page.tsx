@@ -43,6 +43,11 @@ export default function LibraryPage() {
               const title = (
                 <span className="title" lang="ja">
                   {article.title}
+                  {/* A book's row speaks for all of its chapters, and says so.
+                      One section is an article and needs no count. */}
+                  {article.sectionCount > 1 ? (
+                    <span className="chapter-count">共 {article.sectionCount} 章</span>
+                  ) : null}
                   {article.author ? (
                     <span className="author">{article.author}</span>
                   ) : null}
@@ -56,63 +61,68 @@ export default function LibraryPage() {
                 </>
               );
 
-              // Still analysing: a span rather than a link, so there is nothing
-              // to click. The row is not hidden -- the article exists and its
-              // vocabulary is already counted; it just cannot be opened until
-              // the links stop moving.
+              // Progress displaces the last-read time while anything in the work
+              // is still resolving -- it is the more urgent of the two, and they
+              // share a column. A book shows both states at once: chapter one
+              // open, chapter twelve still being analysed.
+              const status = article.analysis ? (
+                <span
+                  className="analysing"
+                  role="progressbar"
+                  aria-valuenow={article.analysis.done}
+                  aria-valuemin={0}
+                  aria-valuemax={article.analysis.total}
+                  aria-label="分析進度"
+                >
+                  <span className="analysing-label">
+                    <span>分析中</span>
+                    {article.analysis.total > 0 ? (
+                      <span>
+                        {Math.floor(
+                          (article.analysis.done / article.analysis.total) * 100,
+                        )}
+                        %
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="analysing-bar">
+                    <span
+                      className={
+                        article.analysis.total > 0
+                          ? 'analysing-fill'
+                          : 'analysing-fill indeterminate'
+                      }
+                      style={{
+                        ['--progress' as string]:
+                          article.analysis.total > 0
+                            ? article.analysis.done / article.analysis.total
+                            : 0,
+                      }}
+                    />
+                  </span>
+                </span>
+              ) : (
+                <span className="last">{relativeTime(article.lastReadAt)}</span>
+              );
+
+              // Not readable: a span rather than a link, so there is nothing to
+              // click. The row is not hidden -- the work exists and its
+              // vocabulary is already counted; the chapter it would open just
+              // cannot be read until that chapter's links stop moving.
               return (
                 <li key={article.workId}>
-                  {article.analysis ? (
-                    <span className="pending" aria-disabled="true">
-                      {title}
-                      <span
-                        className="analysing"
-                        role="progressbar"
-                        aria-valuenow={article.analysis.done}
-                        aria-valuemin={0}
-                        aria-valuemax={article.analysis.total}
-                        aria-label="分析進度"
-                      >
-                        <span className="analysing-label">
-                          <span>分析中</span>
-                          {article.analysis.total > 0 ? (
-                            <span>
-                              {Math.floor(
-                                (article.analysis.done /
-                                  article.analysis.total) *
-                                  100,
-                              )}
-                              %
-                            </span>
-                          ) : null}
-                        </span>
-                        <span className="analysing-bar">
-                          <span
-                            className={
-                              article.analysis.total > 0
-                                ? 'analysing-fill'
-                                : 'analysing-fill indeterminate'
-                            }
-                            style={{
-                              ['--progress' as string]:
-                                article.analysis.total > 0
-                                  ? article.analysis.done /
-                                    article.analysis.total
-                                  : 0,
-                            }}
-                          />
-                        </span>
-                      </span>
-                      {counts}
-                    </span>
-                  ) : (
+                  {article.readable ? (
                     <a href={`/read/${article.sectionId}`}>
                       {title}
-                      <span className="last">
-                        {relativeTime(article.lastReadAt)}
-                      </span>
+                      {status}
                       {counts}
                     </a>
+                  ) : (
+                    <span className="pending" aria-disabled="true">
+                      {title}
+                      {status}
+                      {counts}
+                    </span>
                   )}
                 </li>
               );

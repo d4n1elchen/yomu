@@ -238,13 +238,32 @@ export interface ArticleSummary {
   workId: string;
   title: string;
   author: string | null;
-  /** The section a click opens: where you were last, else the first. */
+  /** The section a click opens: where you were last, else the first readable one. */
   sectionId: string;
+  /**
+   * Whether that section can be opened yet.
+   *
+   * Separate from `analysis`, and this is the distinction a book forced. Both
+   * used to be the same fact, because a work was one section: it was either
+   * resolved or it was not. An eighteen-chapter book resolves a chapter at a
+   * time, so waiting for the last one to open the first would have meant
+   * hundreds of model requests between importing a novel and reading any of it
+   * -- while chapter one had been ready for minutes.
+   *
+   * The invariant that actually matters is per-section and unchanged: a section
+   * is readable when its own links have stopped moving, which is what
+   * `isReadable` enforces and what the reader turns a URL away on. Gating the
+   * whole work on its slowest chapter was a Library display choice, not that
+   * invariant.
+   */
+  readable: boolean;
   createdAt: number;
   /** Most recent read across the work's sections. Null until one is stamped. */
   lastReadAt: number | null;
   /** Distinct content words, counted the way the Dictionary counts them. */
   vocabCount: number;
+  /** Chapters. One for a pasted article, which is why the Library only prints it above one. */
+  sectionCount: number;
   /**
    * Homograph-resolution progress while the article is still being analysed, and
    * null once it is readable. Non-null means the Library greys the row and
@@ -317,10 +336,14 @@ export function listArticles(): ArticleSummary[] {
           : best,
       null,
     );
-    // Resume where you left off; a work never opened starts at its first
-    // section, which the orderIndex sort already put first.
+    // Resume where you left off. A work never opened starts at the first
+    // chapter that is readable rather than at the first chapter: while a book is
+    // still resolving, those differ, and pointing at a section the reader would
+    // turn away is a link that goes nowhere. Falling back to the first keeps a
+    // row that is still entirely unresolved pointing somewhere real.
     const entry =
       owned.find((s) => s.lastReadAt !== null && s.lastReadAt === lastRead) ??
+      owned.find((s) => s.resolvedAt !== null) ??
       owned[0]!;
 
     // A work is still analysing while any of its sections is: a book becomes
@@ -332,9 +355,11 @@ export function listArticles(): ArticleSummary[] {
       title: work.title,
       author: work.author,
       sectionId: entry.id,
+      readable: entry.resolvedAt !== null,
       createdAt: work.createdAt,
       lastReadAt: lastRead,
       vocabCount: vocabByWork.get(work.workId) ?? 0,
+      sectionCount: owned.length,
       analysis:
         unresolved.length === 0
           ? null
