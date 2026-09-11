@@ -144,9 +144,10 @@ else
   npm install
 fi
 
-say "套用資料庫 migration"
-npm run db:migrate
-
+# Build before migrating, because the build is the step most likely to fail and
+# it touches nothing. Migrating first meant a failed build left the schema moved
+# forward with the old server still running on it -- which is the one state
+# nothing here is designed for.
 if [ "${YOMU_SKIP_BUILD:-}" = "1" ]; then
   say "略過 build（YOMU_SKIP_BUILD=1）"
   [ -d "$REPO/.next" ] || die "沒有既有的 .next 可以沿用。"
@@ -154,6 +155,9 @@ else
   say "建置"
   npm run build
 fi
+
+say "套用資料庫 migration"
+npm run db:migrate
 
 # JMdict is gitignored and regenerable, so a fresh machine has none. The reader
 # still works without it -- it hides the difficulty slider rather than marking
