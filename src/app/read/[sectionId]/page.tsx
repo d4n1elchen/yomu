@@ -1,4 +1,5 @@
 import { notFound, redirect } from 'next/navigation';
+import { Chapters } from '../../../components/Chapters.tsx';
 import { Reader } from '../../../components/Reader.tsx';
 import { isReadable } from '../../../lib/analysis/drain.ts';
 import { getArticle } from '../../../lib/article.ts';
@@ -21,14 +22,33 @@ export default async function ReadPage({
   const article = getArticle(sectionId);
   if (!article) notFound();
 
+  // A book puts the work's name above the chapter's; an article has only the
+  // one name and repeating it would read as a mistake.
+  const isBook = article.chapters.length > 1;
+
   return (
     <main>
+      {isBook ? (
+        <p className="work" lang="ja">
+          {article.workTitle}
+        </p>
+      ) : null}
       <h1 lang="ja">{article.sectionTitle ?? article.workTitle}</h1>
       <p className="subtitle">
         {article.sentences.length} 個句子 · {article.vocabCount} 個詞
         {article.author ? ` · ${article.author}` : ''}
       </p>
+      {isBook ? (
+        <Chapters chapters={article.chapters} current={article.sectionId} />
+      ) : null}
       <Reader article={article} />
+      {isBook ? (
+        <Chapters
+          chapters={article.chapters}
+          current={article.sectionId}
+          placement="foot"
+        />
+      ) : null}
     </main>
   );
 }

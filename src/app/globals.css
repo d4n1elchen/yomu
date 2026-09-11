@@ -1366,3 +1366,159 @@ h2.divider {
 h2.divider + .subtitle {
   margin-top: 0.35rem;
 }
+
+/* --- chapters --- */
+
+.library .chapter-count {
+  margin-left: 0.6rem;
+  font-family: var(--sans);
+  font-size: 0.72rem;
+  color: var(--faint);
+  white-space: nowrap;
+}
+
+/*
+ * The work's name above the chapter's. Small and quiet: while you are reading,
+ * the chapter is what you are in and the book is only where you are.
+ */
+.work {
+  margin: 0 0 0.2rem;
+  font-family: var(--serif);
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+/*
+ * Closed by default. A fifteen-chapter contents list opened above every chapter
+ * would push the prose off the screen, and the reason to look at it is to leave
+ * the page you are on.
+ */
+.chapters {
+  margin: 1.4rem 0 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.chapters > summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0.85rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none;
+}
+
+.chapters > summary::-webkit-details-marker {
+  display: none;
+}
+
+.chapters > summary:hover {
+  color: var(--ink);
+}
+
+.chapters .position {
+  font-variant-numeric: tabular-nums;
+  color: var(--faint);
+}
+
+.chapters ol {
+  margin: 0;
+  padding: 0 0.35rem 0.4rem;
+  list-style: none;
+  counter-reset: chapter;
+}
+
+.chapters li {
+  counter-increment: chapter;
+}
+
+.chapters li a,
+.chapters li .pending,
+.chapters li.current {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  padding: 0.45rem 0.5rem;
+  border-radius: 6px;
+  text-decoration: none;
+  color: var(--ink);
+}
+
+.chapters li a::before,
+.chapters li .pending::before,
+.chapters li.current::before {
+  content: counter(chapter);
+  min-width: 1.4rem;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--faint);
+  text-align: right;
+}
+
+.chapters li .name {
+  font-family: var(--serif);
+}
+
+.chapters li a:hover {
+  background: var(--accent-soft);
+}
+
+.chapters li.current {
+  background: var(--accent-soft);
+}
+
+.chapters li .pending {
+  color: var(--faint);
+  cursor: default;
+}
+
+/* Same wording the Library uses for a section whose links are still moving. */
+.chapters li .pending .analysing-label {
+  display: inline;
+  font-size: 0.72rem;
+}
+
+/*
+ * Where you are when a chapter ends. Two links at most, and the previous one
+ * keeps its slot with an empty span so the next stays right-aligned at the
+ * start of a book.
+ */
+.chapter-ends {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 3rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--border);
+}
+
+.chapter-ends a {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  max-width: 45%;
+  text-decoration: none;
+  color: var(--muted);
+}
+
+.chapter-ends .next {
+  margin-left: auto;
+  text-align: right;
+}
+
+.chapter-ends .direction {
+  font-size: 0.75rem;
+  color: var(--faint);
+}
+
+.chapter-ends .name {
+  font-family: var(--serif);
+  color: var(--ink);
+}
+
+.chapter-ends a:hover .name {
+  color: var(--accent);
+}

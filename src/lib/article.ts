@@ -63,6 +63,13 @@ export interface ArticleSentence {
   tokens: ArticleToken[];
 }
 
+export interface ArticleChapter {
+  sectionId: string;
+  title: string | null;
+  /** False while homograph resolution is still moving this section's links. */
+  readable: boolean;
+}
+
 export interface Article {
   sectionId: string;
   sectionTitle: string | null;
@@ -101,6 +108,15 @@ export interface Article {
    * difficulty slider rather than showing one that can only say "everything".
    */
   dictionaryReady: boolean;
+  /**
+   * Every section of this work, in reading order.
+   *
+   * A book imported from an EPUB is one Library row with fifteen chapters
+   * behind it, and the Library links to exactly one of them -- so without a
+   * list carried into the reader, chapter seven is unreachable. A pasted
+   * article has a single entry here and the reader draws no navigation for it.
+   */
+  chapters: ArticleChapter[];
 }
 
 export function getArticle(sectionId: string): Article | null {
@@ -222,11 +238,28 @@ export function getArticle(sectionId: string): Article | null {
       and ${sentences.needsReview} = 0`)
     .get();
 
+  const chapters = db
+    .select({
+      sectionId: sections.id,
+      title: sections.title,
+      resolvedAt: sections.resolvedAt,
+    })
+    .from(sections)
+    .where(eq(sections.workId, head.workId))
+    .orderBy(asc(sections.orderIndex))
+    .all()
+    .map((row) => ({
+      sectionId: row.sectionId,
+      title: row.title,
+      readable: row.resolvedAt !== null,
+    }));
+
   return {
     ...head,
     vocabCount: vocab?.count ?? 0,
     sentences: [...bySentence.values()],
     senses,
+    chapters,
     learning: learningGroupKeys(),
     dictionaryReady:
       db.select({ one: sql<number>`1` }).from(dictEntries).limit(1).get() !==
