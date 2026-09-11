@@ -45,6 +45,9 @@ invents them.
   on the machine that serves the app, from a checkout there — the database is a
   local file and the analyzer reads its dictionary off disk, so there is nothing
   to push. `scripts/deploy.sh --print-unit` shows the unit it would write.
+  `YOMU_HOST`, `YOMU_PORT` and `YOMU_SERVICE` live in `.env.local` and are read
+  by the script, never by the app — the unit is regenerated every deploy, so a
+  value passed on the command line does not survive the next one.
 - `npm run update` fetches, fast-forwards and redeploys on that same machine.
   It refuses a dirty, diverged or ahead-of-upstream checkout rather than
   merging. `--check` reports what would be pulled without touching anything.

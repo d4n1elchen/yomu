@@ -108,7 +108,20 @@ npm run update    # fetch, fast-forward, redeploy
 
 `scripts/deploy.sh --print-unit` shows the unit file it would write.
 `npm run update -- --check` reports what would be pulled without touching
-anything. Port and bind address come from `YOMU_PORT` and `YOMU_HOST`.
+anything.
+
+Where the service listens is set in `.env.local`, alongside `YOMU_OLLAMA_URL`:
+
+```ini
+YOMU_HOST=0.0.0.0   # 127.0.0.1 to keep it off the network
+YOMU_PORT=3000
+YOMU_SERVICE=yomu   # the systemd unit's name
+```
+
+The app never reads those three. They become `-H`, `-p` and the unit's filename
+when the unit is generated. Setting them on the command line works for a one-off
+and is deliberately not persistent: the unit is rewritten from scratch on every
+deploy, so a port passed that way reverts on the next plain `npm run deploy`.
 
 ## Scripts
 

@@ -16,6 +16,9 @@
 # so a changed port or path takes effect on the next deploy rather than sitting
 # stale in ~/.config.
 #
+# Settings come from `.env.local`, the same file as YOMU_OLLAMA_URL, and can be
+# overridden on the command line for a one-off. See "settings" below.
+#
 #   YOMU_PORT      port to listen on            (default 3000)
 #   YOMU_HOST      address to bind              (default 0.0.0.0)
 #   YOMU_SERVICE   systemd unit name            (default yomu)
@@ -23,13 +26,8 @@
 
 set -euo pipefail
 
-PORT="${YOMU_PORT:-3000}"
-HOST="${YOMU_HOST:-0.0.0.0}"
-SERVICE="${YOMU_SERVICE:-yomu}"
-
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-UNIT_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
-UNIT="$UNIT_DIR/$SERVICE.service"
+ENV_FILE="$REPO/.env.local"
 
 NODE="$(command -v node || echo node)"
 NEXT_BIN="$REPO/node_modules/next/dist/bin/next"
@@ -37,6 +35,59 @@ NEXT_BIN="$REPO/node_modules/next/dist/bin/next"
 say() { printf '\033[1m==>\033[0m %s\n' "$1"; }
 warn() { printf '\033[33m警告:\033[0m %s\n' "$1" >&2; }
 die() { printf '\033[31m錯誤:\033[0m %s\n' "$1" >&2; exit 1; }
+
+# --- settings ---------------------------------------------------------------
+#
+# `.env.local` is the place to set these, next to YOMU_OLLAMA_URL. It is the one
+# file that already holds this machine's configuration, it is gitignored, and it
+# survives a deploy -- whereas a value passed on the command line does not, and
+# the unit is rewritten from scratch on every run, so a port set that way would
+# silently revert to 3000 on the next plain `npm run deploy`.
+#
+# Note that Next itself never reads YOMU_PORT or YOMU_HOST. They become `-p` and
+# `-H` on the generated ExecStart line, which is why they are read here.
+#
+# Precedence: the environment wins, for a deliberate one-off; then .env.local;
+# then the default.
+
+# Read one KEY=value out of the env file. Parsed rather than sourced: sourcing
+# would execute whatever is in there, and would trip over values that are fine
+# for dotenv but not for the shell.
+env_value() {
+  [ -f "$ENV_FILE" ] || return 0
+  sed -n "s/^[[:space:]]*$1[[:space:]]*=//p" "$ENV_FILE" |
+    tail -n 1 |
+    tr -d '\r' |
+    sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' \
+        -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'$/\1/" \
+        -e 's/[[:space:]]*#.*$//'
+}
+
+# The same trap the Next.js notes warn about: PowerShell's `>` and `Set-Content`
+# write UTF-16, which Next ignores without a word. It would be ignored here too,
+# so say so rather than quietly falling back to every default.
+#
+# Detected by counting bytes with and without NULs, because a NUL cannot be put
+# into a grep pattern from bash -- `$'\x00'` collapses to the empty string, which
+# matches every file and warns about all of them.
+if [ -f "$ENV_FILE" ]; then
+  bytes="$(wc -c < "$ENV_FILE")"
+  without_nul="$(LC_ALL=C tr -d '\0' < "$ENV_FILE" | wc -c)"
+  if [ "$bytes" -ne "$without_nul" ]; then
+    warn "$ENV_FILE 看起來不是 UTF-8（含有 NUL 位元組）。Next 與這個指令稿都會忽略它。"
+  fi
+fi
+
+PORT="${YOMU_PORT:-$(env_value YOMU_PORT)}"
+HOST="${YOMU_HOST:-$(env_value YOMU_HOST)}"
+SERVICE="${YOMU_SERVICE:-$(env_value YOMU_SERVICE)}"
+
+PORT="${PORT:-3000}"
+HOST="${HOST:-0.0.0.0}"
+SERVICE="${SERVICE:-yomu}"
+
+UNIT_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
+UNIT="$UNIT_DIR/$SERVICE.service"
 
 # These three are interpolated into a generated unit file, so they are checked
 # here rather than left to systemd. Nothing reaches a shell -- ExecStart is an
