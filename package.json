@@ -12,7 +12,8 @@
     "data:jmdict": "node scripts/fetch-jmdict.ts",
     "db:jmdict": "node scripts/import-jmdict.ts",
     "test": "node --test \"src/**/*.test.ts\"",
-    "db:translate": "node scripts/translate.ts"
+    "db:translate": "node scripts/translate.ts",
+    "deploy": "bash scripts/deploy.sh"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",

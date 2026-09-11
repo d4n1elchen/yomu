@@ -41,6 +41,10 @@ invents them.
   data:jmdict` then `npm run db:jmdict` before the reader can mark hard words;
   without it the difficulty slider hides itself rather than marking everything.
 - `npm run build` kills a running dev server; restart it afterwards.
+- `npm run deploy` installs a **systemd user service** and restarts it. It runs
+  on the machine that serves the app, from a checkout there — the database is a
+  local file and the analyzer reads its dictionary off disk, so there is nothing
+  to push. `scripts/deploy.sh --print-unit` shows the unit it would write.
 - `docs/PLAN.md` carries what is decided but not yet built, and why. Read it
   before starting a phase, **and again at the end of every chunk of work** —
   nothing else checks it, so it is the one file that goes stale silently while
