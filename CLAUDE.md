@@ -24,6 +24,11 @@ invents them.
   parser (`src/lib/markdown.ts`): bullets, numbered lists, headings, bold,
   code. It must keep parsing **partial** input, because answers stream. Adding
   remark for this would be thirty packages for four constructs.
+- No zip or XML library. An EPUB is a ZIP, and `zlib.inflateRawSync` is the
+  only hard part of reading one, so `src/lib/epub/zip.ts` parses the central
+  directory itself and `xhtml.ts` handles the four constructs that matter
+  (ruby, breaks, block ends, entities). Fixtures are built in `fixture.ts`,
+  never committed — the real files are copyrighted books.
 - No CSS framework. One `src/app/globals.css`, custom properties, one light
   palette taken from the design mock. **No dark mode** — the warm paper ground
   is the design, and `color-scheme: light` keeps a dark-set OS from painting

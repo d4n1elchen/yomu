@@ -135,6 +135,13 @@ these stay worth doing. None is urgent: together they are 13 words in 1,207.
 
 ### Flattened ruby corrupts an import
 
+**EPUB import removes this at the source, for EPUBs.** `xhtmlToText` drops
+`<rt>` and keeps the base text, so 頷 arrives as 頷 and the analyzer supplies the
+reading it always did. The note below still stands for pasted text, which is
+where the 15 flattened tokens in the corpus came from — and the cheap detection
+rule is still unbuilt, because the cheaper fix turned out to be reading the file
+instead of the rendered page.
+
 Worth its own note because it is invisible and it is **not only a matching
 problem**. `頷うなずいた` tokenizes as 頷 (unknown, no reading) + うなず + いた, so:
 
@@ -391,6 +398,95 @@ Still deferred: what to ask and when. `familiarity`, `lastReviewedAt` and
 `srsDue` are created and unused, because a word on this list is precisely a word
 a schedule would apply to — see Deferred below.
 
+## EPUB import — built
+
+A book is a `work` with many `section`s, which the schema always said. Nothing
+in the schema, the analysis passes or the reader changed to accept one: the
+importer parses an EPUB into the `IngestSection[]` that `ingestWork` already
+took, and the note in `importPastedText` about splitting a novel happening at
+the call site is now that call site.
+
+**Chapters come from the table of contents, not from the files.** A spine
+document is not a chapter — Kadokawa puts each chapter's 扉 image in its own
+file and the prose in the next one, so splitting per file gave fourteen sections
+for seven chapters, half of them empty. The walk goes down the spine in order,
+starts a section at every document the contents links to, and accumulates the
+ones it does not.
+
+**Anything before the first chapter is dropped**, and the `cover` and `toc`
+landmarks the book declares are dropped with it. Both of those pages carry text
+once the markup is gone — the shop's boilerplate about thumbnails and vertical
+layout, and the chapter titles over again — so emptiness caught neither, and
+keeping them made a freshly imported book open on its cover. A file with no
+contents at all keeps everything as one untitled section, because there is then
+nothing to say where the body begins. 奥付 survives, because the contents lists
+it after the body.
+
+**No zip or XML dependency.** `zlib.inflateRawSync` does the only hard part and
+the rest is a header format, so `zip.ts` reads the central directory itself and
+`xhtml.ts` handles four constructs — ruby, breaks, block ends, entities. The
+same trade the Markdown renderer made, for the same reason. Fixtures are built
+in `fixture.ts` rather than committed, because the files this reads in anger are
+copyrighted books.
+
+**Ruby is dropped, and that is the point.** `<rt>` is thrown away and the base
+text kept, so flattened furigana — the largest class of unmatched word in the
+corpus, and a corruption of the Dictionary rather than only of matching — cannot
+happen for a book. The reading goes because the analyzer owns readings; a second
+source could only disagree.
+
+Measured on the two sample books:
+
+| | chapters | characters | tokens | sentences |
+|---|---:|---:|---:|---:|
+| 神椿市建設中。NOVELIZED | 8 | 136,779 | — | — |
+| カミュの歌鳥 花譜小説集 | 16 | 116,554 | 71,188 | 4,429 |
+
+Parsing is 23 ms, tokenizing a whole book 0.5 s, and the ingest transaction 6.4 s.
+None of that is the cost. **The drain is**: one book added 353 resolutions and
+several thousand entries to translate, against a host that serves one request at
+a time.
+
+### A book made the Library's readability gate wrong
+
+The Library used to grey a work until **every** section resolved, on the
+reasoning that a book becomes readable when all its chapters have settled. With
+a real sixteen-chapter book that meant hundreds of model requests between
+importing a novel and reading any of it, while chapter one had been ready for
+minutes.
+
+So `ArticleSummary` now carries `readable` separately from `analysis`: the row
+links as soon as the chapter it would open can be opened, and keeps printing
+progress while the rest of the book resolves. The invariant is untouched and was
+never the work-level one — a *section* is readable when its own `resolvedAt` is
+stamped, which is what `isReadable` enforces and what the reader turns a URL away
+on. Gating the whole work was a display choice, and it only looked right while a
+work was one section.
+
+The entry section is now the first **readable** chapter rather than the first
+chapter, or a click would land on a page the reader bounces.
+
+### Chapter navigation
+
+The Library links to one section per work, so without a list carried into the
+reader chapter seven is unreachable. `getArticle` returns every section of the
+work; the reader draws a collapsed 目次 above the prose and the neighbours below
+it, and draws neither when there is only one section. A chapter still resolving
+is printed but not linked — the same reason the Library greys a row.
+
+### Not built
+
+- **A chapter picker.** Importing is all-or-nothing, and a sixteen-chapter book
+  is a large commitment to a serial drain. The parser already reports each
+  chapter's length for exactly this, and nothing uses it yet.
+- **Appending to an existing work.** Every import creates a new work, so a novel
+  pasted chapter by chapter is still six unrelated Library rows.
+- **`section.parentId`.** Written as null, never read. A nested contents is
+  flattened: entries pointing into a file already claimed are ignored, so
+  subsections do not split their chapter.
+- **The reading in `<rt>`.** Thrown away. If the analyzer's furigana is ever
+  checked against the book's own, that is where the book's answer was.
+
 ## Deferred
 
 **Grammar.** The earlier design — entries created during Q&A, with the agent
@@ -411,7 +507,8 @@ Grammar needs a natural key first. Two candidates:
 
 Undecided deliberately, until there is real reading to ground the choice in.
 
-**Also deferred:** JMnedict, URL and file import, transcription.
+**Also deferred:** JMnedict, URL import, transcription. File import is built for
+EPUB — see above — and for nothing else.
 
 ## Open questions
 
