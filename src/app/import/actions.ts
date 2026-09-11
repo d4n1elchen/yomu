@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation';
 import { after } from 'next/server';
 import { ensureDraining } from '../../lib/analysis/drain.ts';
+import { parseEpub } from '../../lib/epub/epub.ts';
 import { ingestWork } from '../../lib/import/ingest.ts';
 
 export interface ImportState {
@@ -37,5 +38,50 @@ export async function importPastedText(
   //
   // redirect throws, so it must sit outside any try/catch -- and after `after`,
   // which never gets called otherwise.
+  redirect('/library');
+}
+
+/**
+ * An EPUB arrives as one work with its chapters already separated, which is the
+ * whole reason the format is worth reading: pasting gives one wall of text with
+ * no boundaries in it, while a book carries its own table of contents.
+ *
+ * Everything past parsing is the pasted-text path unchanged. `ingestWork` has
+ * always taken a list of sections and said in its own comment that splitting a
+ * novel into chapters happens at the call site -- this is that call site, and no
+ * part of the schema, the analysis passes or the reader needed a change to
+ * accept a book.
+ */
+export async function importEpubFile(
+  _prev: ImportState,
+  formData: FormData,
+): Promise<ImportState> {
+  const file = formData.get('file');
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: '請先選擇一個 EPUB 檔案。' };
+  }
+
+  let book;
+  try {
+    book = parseEpub(Buffer.from(await file.arrayBuffer()));
+  } catch (error) {
+    // Every message `parseEpub` throws is already written for a reader. Anything
+    // else is a surprise, and saying so beats printing a stack trace's first line.
+    return {
+      error: error instanceof Error ? error.message : '無法讀取這個 EPUB 檔案。',
+    };
+  }
+
+  await ingestWork({
+    title: book.title,
+    author: book.author,
+    sourceType: book.sourceType,
+    sections: book.sections.map((section) => ({
+      title: section.title,
+      body: section.body,
+    })),
+  });
+
+  after(ensureDraining);
   redirect('/library');
 }

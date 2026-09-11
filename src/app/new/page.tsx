@@ -1,3 +1,4 @@
+import { EpubForm } from '../../components/EpubForm.tsx';
 import { ImportForm } from '../../components/ImportForm.tsx';
 
 export const dynamic = 'force-dynamic';
@@ -14,6 +15,11 @@ export default function NewArticlePage() {
       <p className="subtitle">貼上日文。新詞會加入辭典。</p>
 
       <ImportForm />
+
+      <h2 className="divider">或匯入整本書</h2>
+      <p className="subtitle">EPUB 會依照書本自己的目次分章。</p>
+
+      <EpubForm />
     </main>
   );
 }

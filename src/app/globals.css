@@ -1319,3 +1319,50 @@ rt {
 .edrdg a {
   color: var(--muted);
 }
+
+/* --- EPUB import --- */
+
+.field.file .hint {
+  margin-top: 0.45rem;
+  margin-bottom: 0;
+  font-size: 0.78rem;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--muted);
+}
+
+input[type='file'] {
+  width: 100%;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+input[type='file']::file-selector-button {
+  font: inherit;
+  margin-right: 0.75rem;
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+input[type='file']::file-selector-button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* The second half of a page that offers two ways in, not a heading in a document. */
+h2.divider {
+  margin: 2.75rem 0 0;
+  padding-top: 1.6rem;
+  border-top: 1px solid var(--border);
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+h2.divider + .subtitle {
+  margin-top: 0.35rem;
+}
