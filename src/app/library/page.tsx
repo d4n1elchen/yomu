@@ -1,5 +1,6 @@
 import { after } from 'next/server';
 import { AnalysisPoller } from '../../components/AnalysisPoller.tsx';
+import { OfflineShelfLink } from '../../components/OfflineShelfLink.tsx';
 import { ensureDraining } from '../../lib/analysis/drain.ts';
 import { listArticles } from '../../lib/article.ts';
 import { relativeTime } from '../../lib/time.ts';
@@ -132,6 +133,7 @@ export default function LibraryPage() {
           <p className="note">
             文法一律顯示 0 — 在找到自然鍵之前暫緩實作。
           </p>
+          <OfflineShelfLink />
         </div>
       )}
     </main>

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toggleLearning } from '../app/read/actions.ts';
 import type { Article, ArticleSentence, ArticleToken } from '../lib/article.ts';
+import { DownloadChapter } from './DownloadChapter.tsx';
 import { DEFAULT_LEVEL, MAX_BAND, isHardWord } from '../lib/marking.ts';
 import { selectionSpans, type TouchedToken } from '../lib/qa/selection.ts';
 import { AskDialog, type ReaderSelection } from './AskDialog.tsx';
@@ -99,7 +100,12 @@ export function Reader({ article }: { article: Article }) {
       else next.delete(key);
       // Optimistic: the list is a note to yourself, and waiting for a round trip
       // to see a star fill in would be the only slow thing on the page.
-      void toggleLearning(token.lexemeId, on);
+      //
+      // Swallowed because this same reader runs offline, where the action cannot
+      // reach the server at all. The mark holds for the session and is lost on
+      // reload, which is the honest outcome and better than an unhandled
+      // rejection in the console of a page that is working as designed.
+      void toggleLearning(token.lexemeId, on).catch(() => {});
       return next;
     });
   }, []);
@@ -250,6 +256,7 @@ export function Reader({ article }: { article: Article }) {
       <ReadStamp sectionId={article.sectionId} />
 
       <div className="reader-controls">
+        <DownloadChapter article={article} />
         <label className={`switch ${explain ? 'on' : ''}`}>
           <input
             type="checkbox"

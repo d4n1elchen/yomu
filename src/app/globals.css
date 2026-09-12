@@ -1522,3 +1522,79 @@ h2.divider + .subtitle {
 .chapter-ends a:hover .name {
   color: var(--accent);
 }
+
+/* --- offline --- */
+
+/*
+ * A button that reads as a link. Used where the action is a quiet one beside
+ * the text it acts on -- downloading a chapter, forgetting one -- and a filled
+ * accent button would claim more of the page than the action deserves.
+ */
+button.link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.82rem;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+button.link:hover:not(:disabled) {
+  color: var(--accent-strong);
+  opacity: 1;
+}
+
+button.link:disabled {
+  color: var(--faint);
+  text-decoration: none;
+  cursor: default;
+}
+
+/* Left of the 詞彙解說 switch, which the controls row already pushes right. */
+.offline-state {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin-right: auto;
+  font-size: 0.82rem;
+}
+
+.offline-ready {
+  color: var(--muted);
+}
+
+.offline-failed {
+  color: var(--review);
+}
+
+/*
+ * The shelf reuses the Library's rows, with the grammar column gone and a
+ * remove button beside each row -- so the row itself becomes a flex item rather
+ * than the whole of the li.
+ */
+.offline-shelf li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.offline-shelf li a {
+  flex: 1;
+  grid-template-columns: 1fr 7rem 4rem;
+}
+
+.offline-shelf li button.link {
+  flex: none;
+  color: var(--muted);
+}
+
+.offline-shelf li button.link:hover {
+  color: var(--accent-strong);
+}
+
+.note a {
+  color: var(--accent);
+}
