@@ -487,27 +487,59 @@ is printed but not linked — the same reason the Library greys a row.
 - **The reading in `<rt>`.** Thrown away. If the analyzer's furigana is ever
   checked against the book's own, that is where the book's answer was.
 
-## Installable on a phone — built, without a service worker
+## Installable on a phone — built
 
 A manifest, three icons and the Apple meta tags. The icon is 読 in mincho on the
 accent brown, drawn at half the canvas so it survives a circular mask as well as
 a square one; the same 512 file is declared for both purposes rather than
 resized twice.
 
-**Rejected: a service worker.** It is what Chrome's install prompt wants, and it
-would still be wrong here. Every page is `force-dynamic` and rendered from the
-SQLite file on the server, and the cards, the Q&A and the drain all need it — so
-a worker could cache the shell and nothing behind it, and an offline launch would
-show an empty app that looks like a working one. That is worse than the browser's
-own failure page, which at least says what happened.
-
-The secure-context requirement makes it moot anyway: the app is served over plain
-HTTP on a LAN address, where a worker will not register at all. Revisit only if
-the app ever gets HTTPS **and** something worth caching — which means rendering
-something from the client rather than from the server's database.
+**A service worker was rejected here and then built — see below.** The reasoning
+that rejected it was right about the danger and wrong about the remedy: caching
+pages rendered from the database would indeed have produced a reader that looks
+live and is not. Storing *data* rather than *pages* avoids that, which is what
+shipped.
 
 `start_url` is `/library` rather than `/`, because `/` only redirects there and a
 launch should not pay for the round trip.
+
+## Offline reading — built
+
+Downloaded chapters, held in IndexedDB, rendered by the reader that already
+exists. The whole feature rests on one property the app happened to have: the
+reader is a client component handed a self-contained `Article` — sentences,
+tokens, readings, every sense for every word, the 生詞 keys — so a download is a
+copy from memory to disk and needs no request at all.
+
+**Data in IndexedDB, shell in the Cache API, and never the two mixed.** The
+service worker caches only `/offline` and the hashed build assets. It caches no
+page rendered from the database, because such a copy is a snapshot that drifts
+from the server without ever saying so. When a navigation fails it redirects to
+`/offline`, which is honest about being a shelf of what you saved rather than a
+stale version of what you asked for. A redeploy replaces the shell wholesale and
+leaves the downloads untouched, which is exactly why they are stored apart.
+
+`/offline` is the only statically rendered page in the app, which is what makes
+it cacheable. It reads `?s=` from `location` rather than `useSearchParams`,
+because the latter would opt the route into dynamic rendering and leave nothing
+to cache.
+
+**The bug worth remembering: `fetch` decodes a body but keeps the headers that
+described the encoded one.** Stored verbatim, the cached `/offline` carried
+`Content-Encoding: gzip` over plain HTML, and every offline navigation failed
+with a decoding error that looks exactly like having nothing cached. `storable()`
+strips that, `Content-Length`, and the hop-by-hop `Transfer-Encoding`. Verified
+by stopping the server process outright: the shelf loads, a chapter opens, and a
+word card shows its Chinese gloss with nothing listening on the port.
+
+**Still online-only, by nature.** Grammar questions need the model. Marking a
+word offline holds for the session and is lost on reload — the action is
+swallowed rather than queued, because a replay queue has not been missed yet.
+Measure before building one.
+
+**Requires a secure context**, so it does nothing over plain HTTP on a LAN
+address. Development registers no worker either, and actively unregisters one
+left behind by a production build on the same origin.
 
 ## Deferred
 

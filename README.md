@@ -129,13 +129,21 @@ The app is installable to a home screen: it ships a manifest and icons, opens
 in a standalone window with no browser chrome, and takes the paper ground as its
 theme colour so the status bar and the page are one surface.
 
-There is **no service worker**, deliberately. Offline would be a lie — every page
-is `force-dynamic` and rendered from the SQLite file on the server, so a cached
-shell would show you an empty app that looks like a working one. That also means
-Chrome's install prompt does not appear, since it wants a worker and a secure
-context and the app is served over plain HTTP on a LAN address. Add to home
-screen still works on both platforms, and iOS gets the standalone window either
-way.
+**Chapters can be downloaded to read offline.** The button is in the reader, and
+what it saves goes to IndexedDB — sentences, readings, every sense for every
+word, so the word cards and the difficulty slider work with no network at all.
+Downloaded chapters appear under 離線書櫃, and a service worker serves that page
+when the server cannot be reached.
+
+Two things stay online-only, by nature rather than by omission. Grammar questions
+need the model. And nothing else is cached: every other page is `force-dynamic`
+and rendered from the database, so a cached copy would be a snapshot that drifts
+without saying so. Going offline anywhere in the app lands you on the shelf of
+what you actually saved.
+
+All of this needs a secure context. Over plain HTTP on a LAN address the worker
+will not register and downloads are unavailable; serve the app over HTTPS, or
+reach it on `localhost`, and it works.
 
 ## Scripts
 
