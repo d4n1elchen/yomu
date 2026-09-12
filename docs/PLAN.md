@@ -487,6 +487,28 @@ is printed but not linked — the same reason the Library greys a row.
 - **The reading in `<rt>`.** Thrown away. If the analyzer's furigana is ever
   checked against the book's own, that is where the book's answer was.
 
+## Installable on a phone — built, without a service worker
+
+A manifest, three icons and the Apple meta tags. The icon is 読 in mincho on the
+accent brown, drawn at half the canvas so it survives a circular mask as well as
+a square one; the same 512 file is declared for both purposes rather than
+resized twice.
+
+**Rejected: a service worker.** It is what Chrome's install prompt wants, and it
+would still be wrong here. Every page is `force-dynamic` and rendered from the
+SQLite file on the server, and the cards, the Q&A and the drain all need it — so
+a worker could cache the shell and nothing behind it, and an offline launch would
+show an empty app that looks like a working one. That is worse than the browser's
+own failure page, which at least says what happened.
+
+The secure-context requirement makes it moot anyway: the app is served over plain
+HTTP on a LAN address, where a worker will not register at all. Revisit only if
+the app ever gets HTTPS **and** something worth caching — which means rendering
+something from the client rather than from the server's database.
+
+`start_url` is `/library` rather than `/`, because `/` only redirects there and a
+launch should not pay for the round trip.
+
 ## Deferred
 
 **Grammar.** The earlier design — entries created during Q&A, with the agent

@@ -123,6 +123,20 @@ when the unit is generated. Setting them on the command line works for a one-off
 and is deliberately not persistent: the unit is rewritten from scratch on every
 deploy, so a port passed that way reverts on the next plain `npm run deploy`.
 
+## On a phone
+
+The app is installable to a home screen: it ships a manifest and icons, opens
+in a standalone window with no browser chrome, and takes the paper ground as its
+theme colour so the status bar and the page are one surface.
+
+There is **no service worker**, deliberately. Offline would be a lie — every page
+is `force-dynamic` and rendered from the SQLite file on the server, so a cached
+shell would show you an empty app that looks like a working one. That also means
+Chrome's install prompt does not appear, since it wants a worker and a secure
+context and the app is served over plain HTTP on a LAN address. Add to home
+screen still works on both platforms, and iOS gets the standalone window either
+way.
+
 ## Scripts
 
 | | |
