@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { ServiceWorker } from '../components/ServiceWorker.tsx';
 import { SiteHeader } from '../components/SiteHeader.tsx';
 import './globals.css';
 
@@ -53,6 +54,7 @@ export default function RootLayout({
     // Japanese, and that carries its own lang where it is rendered.
     <html lang="zh-Hant-TW">
       <body>
+        <ServiceWorker />
         <SiteHeader />
         {children}
       </body>
