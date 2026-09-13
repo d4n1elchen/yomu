@@ -541,6 +541,32 @@ Measure before building one.
 address. Development registers no worker either, and actively unregisters one
 left behind by a production build on the same origin.
 
+## Deleting an article — built
+
+A work goes, and its sections, sentences and tokens go with it by the cascades
+already on those tables. **Lexemes do not**, which is the whole of the design:
+the schema is explicit that orphans are never collected, because a lexeme is a
+word you have met and possibly marked as 生詞, and deleting an article must not
+quietly unlearn it.
+
+The visible consequence, and it is worth knowing rather than hiding: a word met
+only in the deleted article keeps its row and its 生詞 mark but drops out of the
+Dictionary's listings, which count occurrences by joining tokens. It comes back
+whole the moment the word appears in something else.
+
+**Confirmed in place, not in a dialog.** Two taps, because nothing here is
+undoable and there is no trash. A dialog would be conventional and would also be
+the only one in the app, which would make deletion its most ceremonious action.
+The primed state disarms after five seconds so a stray tap on a phone does not
+leave a live delete button under your thumb. A book's confirmation names the
+chapter count, since one row stands for sixteen chapters.
+
+**Known gap: a downloaded chapter outlives its article.** Deletion is a server
+action and the offline copy is in the browser's IndexedDB, which the server
+cannot reach. The shelf keeps listing it and it still reads. Removing it needs
+the client to reconcile against the Library on some later online visit; not
+built, because it has not been annoying yet.
+
 ## Deferred
 
 **Grammar.** The earlier design — entries created during Q&A, with the agent

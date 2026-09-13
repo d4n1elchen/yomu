@@ -91,6 +91,11 @@ tokenizes into three junk pieces, prints the reading as running text, and adds a
 single-kanji entry to the Dictionary. Reading the markup keeps the base text and
 drops `<rt>`, so it never happens.
 
+Deleting is on the Library row, confirmed in place rather than in a dialog, and
+takes a whole book when the row stands for one. Vocabulary survives it: a word
+met only in what you deleted keeps its row and its 生詞 mark, and simply stops
+being listed in the Dictionary until it turns up in something else.
+
 Tokenizing a whole novel takes about half a second; the import transaction takes
 seconds. What takes hours is the model drain behind it, which is why reading is
 gated per chapter rather than per book.
