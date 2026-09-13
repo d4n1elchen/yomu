@@ -561,11 +561,17 @@ The primed state disarms after five seconds so a stray tap on a phone does not
 leave a live delete button under your thumb. A book's confirmation names the
 chapter count, since one row stands for sixteen chapters.
 
-**Known gap: a downloaded chapter outlives its article.** Deletion is a server
-action and the offline copy is in the browser's IndexedDB, which the server
-cannot reach. The shelf keeps listing it and it still reads. Removing it needs
-the client to reconcile against the Library on some later online visit; not
-built, because it has not been annoying yet.
+**The device that deletes also forgets its downloads.** The server cannot reach
+IndexedDB, so the click that confirms the deletion is the one moment anything
+knows both that the work is gone and which downloads belonged to it --
+`deleteWorkChapters` runs there, right after the action returns. Failure is
+swallowed: the article is already deleted and a leftover download still reads.
+
+**Still open: another device keeps its copy.** Making a phone notice that a
+laptop deleted something needs an endpoint listing live section ids and a
+reconcile pass on the shelf. Not built, because it only bites if you download and
+delete on different devices, and a stale download is untidy rather than broken.
+Revisit when that actually happens.
 
 ## Deferred
 

@@ -142,6 +142,33 @@ export async function storedIds(): Promise<Set<string>> {
   return new Set(keys.map(String));
 }
 
+/**
+ * Forgets every downloaded chapter belonging to a work.
+ *
+ * Called when that work is deleted, by the browser doing the deleting. The
+ * server cannot reach IndexedDB, so this is the one moment a device knows both
+ * that the article is gone and which of its downloads went with it. Other
+ * devices keep their copies until someone builds the reconciliation the plan
+ * describes; a stale download is untidy rather than broken, and still reads.
+ *
+ * The read runs in its own transaction and the deletes in another. Awaiting a
+ * request inside a live transaction is the standard way to have IndexedDB
+ * auto-commit it out from under you.
+ */
+export async function deleteWorkChapters(workId: string): Promise<number> {
+  const mine = (await listChapters()).filter((c) => c.workId === workId);
+  if (mine.length === 0) return 0;
+
+  const db = await open();
+  const tx = db.transaction([CHAPTERS, SUMMARIES], 'readwrite');
+  for (const chapter of mine) {
+    tx.objectStore(CHAPTERS).delete(chapter.sectionId);
+    tx.objectStore(SUMMARIES).delete(chapter.sectionId);
+  }
+  await commit(db, tx);
+  return mine.length;
+}
+
 export async function deleteChapter(sectionId: string): Promise<void> {
   const db = await open();
   const tx = db.transaction([CHAPTERS, SUMMARIES], 'readwrite');

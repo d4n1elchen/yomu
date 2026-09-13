@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { deleteArticle } from '../app/library/actions.ts';
+import { deleteWorkChapters, isSupported } from '../lib/offline/store.ts';
 
 /** How long a primed delete stays primed before going back to sleep. */
 const ARM_MS = 5000;
@@ -69,7 +70,15 @@ export function DeleteArticle({
         onClick={() => {
           setState('deleting');
           void deleteArticle(workId)
-            .then(() => router.refresh())
+            .then(async () => {
+              // The offline copies go too, on this device. The server cannot
+              // reach IndexedDB, so this click is the only moment anything
+              // knows both that the work is gone and which downloads belonged
+              // to it. Failure here is swallowed: the article is already
+              // deleted, and a leftover download still reads.
+              if (isSupported()) await deleteWorkChapters(workId).catch(() => 0);
+              router.refresh();
+            })
             .catch(() => setState('idle'));
         }}
       >
