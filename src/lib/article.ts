@@ -267,6 +267,28 @@ export function getArticle(sectionId: string): Article | null {
   };
 }
 
+/**
+ * Removes a work and everything written from its text.
+ *
+ * Sections, sentences and tokens go with it, by the cascades already declared on
+ * those tables. **Lexemes deliberately do not**, even when this deletes the last
+ * token that referenced one. A lexeme is a word you have met, possibly one you
+ * have marked as 生詞, and the schema is explicit that orphans are never
+ * collected -- deleting an article must not quietly unlearn a word.
+ *
+ * The visible consequence: a word that appeared only in this article keeps its
+ * row and its 生詞 mark, but drops out of the Dictionary's listings, which count
+ * occurrences by joining tokens. It reappears whole the moment the word turns up
+ * in something else you read.
+ *
+ * Returns false when the work is already gone, so a double submission is not an
+ * error.
+ */
+export function deleteWork(workId: string): boolean {
+  const result = db.delete(works).where(eq(works.id, workId)).run();
+  return result.changes > 0;
+}
+
 export interface ArticleSummary {
   workId: string;
   title: string;

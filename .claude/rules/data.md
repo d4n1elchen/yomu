@@ -22,6 +22,8 @@ Breaking these fails silently, and each one is load-bearing for the Dictionary.
   anchors into a sentence later must carry `sentenceRevision`, so an edit marks
   it stale rather than silently mis-positioning it.
 - Never garbage-collect orphaned lexemes — the user may have learned the word.
+  Deleting an article (`deleteWork`) is the main producer of them: it cascades
+  through sections, sentences and tokens and stops there, on purpose.
 - `needsReview` gates the Dictionary. Transcription errors tokenize as cleanly
   as real Japanese; new Dictionary queries must keep the filter.
 - **Underlining is statistical only.** `isHardWord` reads JMdict, never user
