@@ -1,5 +1,6 @@
 import { after } from 'next/server';
 import { AnalysisPoller } from '../../components/AnalysisPoller.tsx';
+import { DeleteArticle } from '../../components/DeleteArticle.tsx';
 import { OfflineShelfLink } from '../../components/OfflineShelfLink.tsx';
 import { ensureDraining } from '../../lib/analysis/drain.ts';
 import { listArticles } from '../../lib/article.ts';
@@ -37,6 +38,9 @@ export default function LibraryPage() {
             <span>最近閱讀</span>
             <span className="num">詞彙</span>
             <span className="num">文法</span>
+            {/* Reserves the column the delete control sits in, so the headings
+                stay over the numbers they name. */}
+            <span className="row-action" />
           </div>
 
           <ul>
@@ -125,6 +129,11 @@ export default function LibraryPage() {
                       {counts}
                     </span>
                   )}
+                  <DeleteArticle
+                    workId={article.workId}
+                    title={article.title}
+                    sectionCount={article.sectionCount}
+                  />
                 </li>
               );
             })}
