@@ -14,6 +14,12 @@ test('without a bar the base is the run of kanji before the bracket', () => {
   assert.deepEqual(spans, [{ start: 2, end: 3, reading: 'うなず' }]);
 });
 
+test('an explicit ruby may gloss rather than read', () => {
+  const { text, spans } = extractRuby('｜ＩＣＵ《集中治療室》のような部屋');
+  assert.equal(text, 'ＩＣＵのような部屋');
+  assert.deepEqual(spans, [{ start: 0, end: 3, reading: '集中治療室' }]);
+});
+
 test('a bracket that holds no reading is text, as in a title', () => {
   const marked = '《源氏物語》を読んだ。｜本《》';
   assert.deepEqual(extractRuby(marked), { text: marked, spans: [] });

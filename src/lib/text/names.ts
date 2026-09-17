@@ -1,6 +1,6 @@
 import type { AnalyzedToken } from '../analyzer/types.ts';
 import { toKatakana } from './kana.ts';
-import type { RubySpan } from './ruby.ts';
+import { isKanaReading, type RubySpan } from './ruby.ts';
 
 /** A name you confirmed in a work, and the reading its ruby gave, if any. */
 export interface WorkName {
@@ -104,8 +104,9 @@ export function applyNames(
 export function rubyReadingOf(text: string, spans: RubySpan[], surface: string): string | null {
   for (let at = text.indexOf(surface); at !== -1; at = text.indexOf(surface, at + 1)) {
     const end = at + surface.length;
+    // A gloss is not a reading: ＩＣＵ《集中治療室》 says what it means.
     const inside = spans
-      .filter((span) => span.start >= at && span.end <= end)
+      .filter((span) => span.start >= at && span.end <= end && isKanaReading(span.reading))
       .sort((a, b) => a.start - b.start);
     let cursor = at;
     for (const span of inside) {

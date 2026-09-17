@@ -28,8 +28,9 @@ export interface RubySpan {
  *
  * Two forms, as Aozora defines them: `｜base《reading》` with the base marked
  * explicitly, and `漢字《かんじ》`, where the base is the run of kanji just before
- * the bracket. The reading must be kana, so 《》 used as title brackets --
- * 《源氏物語》 -- is left as text.
+ * the bracket. The explicit form takes any reading, since a book's ruby is not
+ * always kana -- カミュの歌鳥 glosses ＩＣＵ with 集中治療室. The implicit form
+ * must be kana, so 《》 used as title brackets -- 《源氏物語》 -- is left as text.
  */
 export function extractRuby(marked: string): { text: string; spans: RubySpan[] } {
   let text = '';
@@ -44,7 +45,7 @@ export function extractRuby(marked: string): { text: string; spans: RubySpan[] }
       const close = open === -1 ? -1 : marked.indexOf('》', open + 1);
       const base = open === -1 ? '' : marked.slice(index + 1, open);
       const reading = close === -1 ? '' : marked.slice(open + 1, close);
-      if (base !== '' && !/[｜《》\n]/u.test(base) && isReading(reading)) {
+      if (base !== '' && !/[｜《》\n]/u.test(base) && reading !== '' && !/[｜《\n]/u.test(reading)) {
         spans.push({ start: text.length, end: text.length + base.length, reading });
         text += base;
         index = close + 1;
@@ -56,7 +57,7 @@ export function extractRuby(marked: string): { text: string; spans: RubySpan[] }
       const close = marked.indexOf('》', index + 1);
       const reading = close === -1 ? '' : marked.slice(index + 1, close);
       const baseStart = kanjiRunStart(text);
-      if (baseStart < text.length && isReading(reading)) {
+      if (baseStart < text.length && isKanaReading(reading)) {
         spans.push({ start: baseStart, end: text.length, reading });
         index = close + 1;
         continue;
@@ -74,7 +75,7 @@ export function rubyMarkup(base: string, reading: string): string {
   return `｜${base}《${reading}》`;
 }
 
-function isReading(reading: string): boolean {
+export function isKanaReading(reading: string): boolean {
   return reading !== '' && [...reading].every((char) => isKana(char));
 }
 
