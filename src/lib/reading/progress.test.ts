@@ -2,13 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { currentSentence } from './progress.ts';
 
-test('above the text there is no position, so the bookmark is left alone', () => {
-  // Scrolled up to the title and the 目次 to switch chapters.
-  assert.equal(currentSentence([100, 130, 160], 72), -1);
-});
-
-test('the first sentence counts once it reaches the reading line', () => {
-  assert.equal(currentSentence([72, 130, 160], 72), 0);
+test('above the text the first sentence is where you are', () => {
+  assert.equal(currentSentence([100, 130, 160], 72), 0);
 });
 
 test('at the bottom of the page the last sentence is where you are', () => {
