@@ -120,19 +120,32 @@ tokens) → 野 "field"; しれる in かもしれない (72) → 痴れる "to 
   the auxiliary そう; and when nothing agreed the fallback took every entry, so
   a verb (〜てく's く) could land on 句. Fixed in `pos.ts`: 非自立 admits `prt`,
   接尾 admits `aux`, function words admit `exp`, and the fallback stays within
-  the word's family — a verb never falls back to a noun. The model can now also
-  answer **none**, which unlinks the lexeme and stamps it so ordinary linking
-  leaves it alone.
+  the word's family — a verb never falls back to a noun, and 助動詞, 助詞,
+  接頭詞 and 感動詞 have the same floor, so the classical り and つ (absent from
+  JMdict) stay unmatched rather than taking 離 and 箇.
 - **It chose on too little.** One leading gloss per entry (目 shows "eye", not
   its suffix sense "-th") and one sentence per lexeme. It is now shown the
   senses whose POS fits, up to three, marked 常用/少用, and three distinct
   sentences from across the library.
 
-**Not yet measured: whether the new prompt fixes those picks.** The model host
-was unreachable where this was built. `npm run db:relink` re-matches everything
-and re-asks the model about every ambiguous lexeme, printing each link it moves
-— run it where the model is, and read that output. Until then the local
-database carries the old picks, restored where they are still candidates.
+**Measured on the served library: it fixes them.** `npm run db:relink`
+re-matches everything and re-asks the model about every ambiguous lexeme,
+printing each link it moves — which is how this was read. の → の (particle),
+そう → そう, こと → 事, もの → 物, よう → 様, わけ → 訳, せい → 所為, なる → 成る,
+め → 目, ゆく → 行く, たび → 度, いくら → 幾ら, あたり → 辺り, いつか → 何時か.
+**Still wrong: 〜かける takes 欠ける** where it means 掛ける. About 200 requests,
+roughly 20 s each against a host that also serves the app.
+
+**Rejected after trying it: letting the model answer “none”.** It was added for
+the case the candidate list does not hold the word at all. Given the option, the
+model used it to second-guess segmentation instead: on the first full run it
+unlinked しれる (66 occurrences), いう (47), はず (40), もつ, あげる and きれる —
+every one a word used as a helper, where it judged the entry was not what the
+sentence meant. An unlinked word loses its glosses and is marked hard, so that
+trade is bad even where the judgement is defensible. Telling it in the prompt
+that a helper use still takes its own entry did **not** stop it: a second run
+rejected 30 again. The option is gone, and what it was for is handled before the
+model sees anything, by the family floor above.
 
 ### What actually fails to match
 
@@ -633,7 +646,11 @@ serves the app, after `npm run update`:
 4. `npm run db:relink` — re-matches and re-resolves library-wide (model needed).
 5. `npm run db:translate -- --recheck` — strips labels, requeues failed glosses.
 
-Delete this section once it has run there.
+**Done on daniel-nucbox-k12 on 2026-09-17**, with the database copied to
+`~/backups/yomu/` first: ruby backfilled into 41 of 42 sections, every section
+retokenized, unmatched content words 133 → 116, all 187 ambiguous lexemes
+re-resolved, 709 gloss labels stripped and 49 senses requeued. Delete this
+section once the same has run anywhere else it needs to.
 
 ## Installable on a phone — built
 
