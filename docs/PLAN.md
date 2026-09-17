@@ -605,7 +605,7 @@ the background, where there are no frames to animate in. Saving waits until
 the glide has stopped moving, not for a fixed delay, because a jump deep into a
 long chapter takes longer than any fixed delay.
 
-**Only scrolling saves.** Scrolls in the first 800 ms are ignored: the resume
+**After opening, only scrolling saves.** Scrolls in the first 800 ms are ignored: the resume
 itself, a jump to a `#sentence-` anchor, the browser restoring a reload's
 offset. A Dictionary occurrence link wins over the saved position and does not
 overwrite it. Saves happen after a second of stillness and again with
@@ -613,14 +613,17 @@ overwrite it. Saves happen after a second of stillness and again with
 waits ten visible seconds so background tabs cannot reorder the Library. A
 background tab cannot scroll, so this needs no such wait.
 
-**Switching chapters raised three problems, and all three are fixed.**
+**Switching chapters raised three problems.**
 
-- **Scrolling up to the 目次 reset the chapter to its start.** The contents
-  list sits above the text, and at the top of the page the first sentence
-  counted as "where you are". Above the text there is now no position, so
-  nothing is saved. Moving the 目次 so it can be reached without scrolling
-  was considered and not done, because it changes the layout. A pause of more
-  than a second partway up still saves where you paused.
+- **Reaching the 目次 reset the chapter you were leaving.** The contents list
+  sat above the text, and scrolling up to it counted as reading back to the
+  first sentence. The list now **sticks under the header** once scrolled past,
+  so it can be reached from anywhere in the chapter. Two other fixes were
+  tried and dropped. Treating the space above the text as "no position" meant
+  a chapter never started at its first sentence. Moving the list into the
+  floating settings menu hid it. The top of the page counts as the first
+  sentence again. The reading line sits below the stuck bar, so a resumed
+  sentence lands clear of it rather than underneath.
 - **A finished chapter never saved its end.** The last screenful can never
   reach the reading line: on a phone-sized screen, 371 of a chapter's 373
   sentences did. At the bottom of the page the last sentence now counts.
@@ -630,6 +633,11 @@ background tab cannot scroll, so this needs no such wait.
   background tabs are still covered by the ten-second wait. This is the one
   part not seen working in a browser: the test pane was hidden, which takes
   the ten-second path, as it should.
+
+**A chapter with nothing saved records its first sentence on open**, so moving
+into a new chapter marks it started without waiting for a scroll. A chapter
+that already has a position keeps it until you scroll, and a `#sentence-` link
+records nothing on open.
 
 **Offline copies keep their own position**, in the small summary record rather
 than in the megabyte article, and every save writes both places when the chapter
