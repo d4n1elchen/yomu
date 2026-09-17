@@ -3,6 +3,8 @@ import { AnalysisPoller } from '../../components/AnalysisPoller.tsx';
 import { EdrdgNotice } from '../../components/EdrdgNotice.tsx';
 import { ensureDraining } from '../../lib/analysis/drain.ts';
 import { listDictionary } from '../../lib/dictionary.ts';
+import { listNames } from '../../lib/names.ts';
+import { unconfirmName } from './actions.ts';
 import { learningCount } from '../../lib/vocab.ts';
 import { translationProgress } from '../../lib/translate/translate.ts';
 import { toHiragana } from '../../lib/text/kana.ts';
@@ -13,10 +15,14 @@ export const dynamic = 'force-dynamic';
 export default async function DictionaryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ pos?: string; q?: string; learning?: string }>;
+  searchParams: Promise<{ pos?: string; q?: string; learning?: string; names?: string }>;
 }) {
-  const { pos, q, learning: learningParam } = await searchParams;
+  const { pos, q, learning: learningParam, names: namesParam } = await searchParams;
   const learning = learningParam === '1';
+  // Names are few and never mixed with vocabulary, so the list is all of them
+  // rather than another filter over the word query.
+  const names = listNames();
+  const showNames = namesParam === '1' && names.length > 0;
   const { entries, total, facets } = listDictionary({ pos, q, learning });
   const learningTotal = learningCount();
 
@@ -90,21 +96,26 @@ export default async function DictionaryPage({
       </form>
 
       <nav className="facets">
-        <a className={pos || learning ? '' : 'active'} href={href({ q })}>
+        <a className={pos || learning || showNames ? '' : 'active'} href={href({ q })}>
           實詞
         </a>
         {learningTotal > 0 ? (
           <a
-            className={learning ? 'active' : ''}
+            className={learning && !showNames ? 'active' : ''}
             href={href({ q, learning: true })}
           >
             生詞 <span className="count">{learningTotal}</span>
           </a>
         ) : null}
+        {names.length > 0 ? (
+          <a className={showNames ? 'active' : ''} href="/dictionary?names=1">
+            人名 <span className="count">{names.length}</span>
+          </a>
+        ) : null}
         {facets.map((facet) => (
           <a
             key={facet.pos}
-            className={pos === facet.pos && !learning ? 'active' : ''}
+            className={pos === facet.pos && !learning && !showNames ? 'active' : ''}
             href={href({ pos: facet.pos, q, learning })}
           >
             {posLabel(facet.pos)} <span className="count">{facet.count}</span>
@@ -112,7 +123,32 @@ export default async function DictionaryPage({
         ))}
       </nav>
 
-      {entries.length === 0 ? (
+      {showNames ? (
+        <ul className="entries names">
+          {names.map((name) => (
+            <li key={name.lexemeId}>
+              <a href={`/dictionary/${name.lexemeId}`}>
+                <span className="lemma" lang="ja">
+                  {name.surface}
+                  {name.reading ? (
+                    <span className="reading">{toHiragana(name.reading)}</span>
+                  ) : null}
+                </span>
+                <span className="entry-meta" lang="ja">
+                  {name.workTitles.join('・')}
+                </span>
+                <span className="tally">{name.occurrences}</span>
+              </a>
+              <form action={unconfirmName}>
+                <input type="hidden" name="lexemeId" value={name.lexemeId} />
+                <button type="submit" className="link">
+                  取消人名
+                </button>
+              </form>
+            </li>
+          ))}
+        </ul>
+      ) : entries.length === 0 ? (
         <p className="empty">
           {learning
             ? '還沒有標記生詞。閱讀時點選標記的詞，卡片上可以把它加進來。'

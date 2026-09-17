@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
 import { db } from '../../db/client.ts';
 import {
   dictEntries,
@@ -10,6 +10,7 @@ import {
 } from '../../db/schema.ts';
 import { contentWord } from '../dictionary.ts';
 import { toHiragana } from '../text/kana.ts';
+import { NAME_DICTIONARY } from '../text/names.ts';
 import { derivedForms } from './derive.ts';
 import { familyAgrees, posAgrees, type AnalyzerPos } from './pos.ts';
 
@@ -253,9 +254,13 @@ export function linkLexemes(
     // A null link stamped by a resolver is the model rejecting every candidate,
     // not a word still waiting to be matched; only a relink reopens it.
     .where(
-      options.relink
-        ? undefined
-        : and(isNull(lexemes.dictEntryId), isNull(lexemes.dictResolver)),
+      and(
+        // A confirmed name is not a JMdict word, whatever its kanji spell.
+        ne(lexemes.dictionary, NAME_DICTIONARY),
+        options.relink
+          ? undefined
+          : and(isNull(lexemes.dictEntryId), isNull(lexemes.dictResolver)),
+      ),
     )
     .all();
 

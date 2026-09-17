@@ -5,6 +5,7 @@ import { db } from '../db/client.ts';
 // sides only call across it inside functions, never while the modules load.
 import { sectionLabel } from './article.ts';
 import { matchCandidates } from './dict/match.ts';
+import { NAME_DICTIONARY } from './text/names.ts';
 import { learningGroupKeys } from './vocab.ts';
 import {
   dictEntries,
@@ -34,14 +35,15 @@ const EXCLUDED_POS = ['記号'];
 const FUNCTION_POS = ['助詞', '助動詞'];
 
 /**
- * The Dictionary's default view, as one reusable condition: content words only.
+ * The Dictionary's default view, as one reusable condition: content words only,
+ * which excludes the names you confirmed -- they are not vocabulary.
  * The Library's per-article vocabulary tally counts the same set, so that the
  * two pages cannot print numbers that disagree.
  */
 export const contentWord = sql`${lexemes.pos} not in ${[
   ...EXCLUDED_POS,
   ...FUNCTION_POS,
-]}`;
+]} and ${lexemes.dictionary} <> ${NAME_DICTIONARY}`;
 
 /**
  * What counts as one word in the Dictionary listing.
@@ -119,6 +121,8 @@ export interface DictionaryPage {
 function filters(query: DictionaryQuery, opts: { ignorePos?: boolean } = {}) {
   const clauses = [
     sql`${lexemes.pos} not in ${EXCLUDED_POS}`,
+    // Names you confirmed are listed apart, under 人名 -- see `listNames`.
+    sql`${lexemes.dictionary} <> ${NAME_DICTIONARY}`,
     query.includeUnreviewed ? undefined : reviewed,
     opts.ignorePos
       ? undefined

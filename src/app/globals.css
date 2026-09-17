@@ -1912,3 +1912,105 @@ button.link.danger {
 .confirm-delete .confirm-label {
   color: var(--muted);
 }
+
+/* --- 人名 --- */
+
+/*
+ * Choosing a name on the word card. It replaces the card's action row rather
+ * than opening anything new, so the card stays the one place the word is
+ * handled, and cancelling puts the row straight back.
+ */
+.name-chooser {
+  margin-top: 0.7rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.8rem;
+}
+
+.name-hint,
+.name-note {
+  margin: 0 0 0.5rem;
+  color: var(--muted);
+}
+
+.name-note {
+  font-size: 0.72rem;
+}
+
+.name-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.5rem;
+}
+
+/* A chip is a piece of the sentence: set in the prose face, not as a control. */
+.name-chips .name-chip {
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1rem;
+}
+
+.name-chips .name-chip.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* The tapped piece is always in the name, so it cannot be toggled -- but it is
+   not unavailable, and must not look greyed out. */
+.name-chips .name-chip.on:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.name-preview {
+  margin: 0 0 0.4rem;
+  color: var(--muted);
+}
+
+.name-preview span {
+  margin-left: 0.5rem;
+  font-family: var(--serif);
+  font-size: 1.15rem;
+  color: var(--ink);
+}
+
+.name-error {
+  margin: 0 0 0.5rem;
+  color: var(--review);
+}
+
+.name-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.name-buttons button {
+  padding: 0.3rem 0.9rem;
+  font-size: 0.8rem;
+}
+
+.name-buttons button:not(.primary) {
+  background: transparent;
+  color: var(--accent);
+}
+
+/* The 人名 list: each row is a name with its works, and a way to take it back. */
+.names li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.names li a {
+  flex: 1;
+}
+
+.names li form {
+  flex: none;
+}

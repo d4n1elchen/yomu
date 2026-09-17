@@ -76,7 +76,7 @@ export default function OfflinePage() {
         <p className="subtitle">
           {article.sentences.length} 個句子 · {article.vocabCount} 個詞 · 離線版本
         </p>
-        <Reader article={article} />
+        <Reader article={article} offline />
       </main>
     );
   }

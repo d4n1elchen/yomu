@@ -105,7 +105,7 @@ export function writeSentenceTokens(
     sentenceId,
     lexemeId: resolver.resolve(
       {
-        dictionary,
+        dictionary: token.dictionary ?? dictionary,
         lemma: token.lemma,
         reading: token.lemmaReading,
         pos: token.pos,

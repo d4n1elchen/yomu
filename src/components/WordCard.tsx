@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
-import type { ArticleSense, ArticleToken } from '../lib/article.ts';
+import { useEffect, useState } from 'react';
+import type { ArticleSense, ArticleSentence, ArticleToken } from '../lib/article.ts';
+import { NameChooser } from './NameChooser.tsx';
 import { toHiragana } from '../lib/text/kana.ts';
 import { posLabel } from '../lib/text/pos.ts';
 import { anchorStyle, useCardAnchor, type AnchorRect } from './useCardAnchor.ts';
@@ -20,19 +21,28 @@ import { anchorStyle, useCardAnchor, type AnchorRect } from './useCardAnchor.ts'
  */
 export function WordCard({
   token,
+  sentence,
   senses,
   learning,
   onToggleLearning,
+  onConfirmName,
   rect,
   onClose,
   onPointerEnter,
   onPointerLeave,
 }: {
   token: ArticleToken;
+  /** The sentence the word is in -- its neighbours are what a name extends to. */
+  sentence?: ArticleSentence;
   senses: ArticleSense[];
   /** Whether this word is already on the 生詞 list. */
   learning: boolean;
   onToggleLearning: () => void;
+  /**
+   * Confirms a name, resolving to an error to show or null. Absent where names
+   * cannot be confirmed -- a downloaded chapter has no server to re-analyse it.
+   */
+  onConfirmName?: (surface: string) => Promise<string | null>;
   rect: AnchorRect;
   onClose: () => void;
   /** Hovering the card itself keeps it open on the way over from the word. */
@@ -42,6 +52,7 @@ export function WordCard({
   const cardRef = useCardAnchor<HTMLDivElement>(rect);
   const reading = token.lemmaReading ? toHiragana(token.lemmaReading) : null;
   const inflected = token.lemma !== token.surface;
+  const [naming, setNaming] = useState(false);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -105,25 +116,43 @@ export function WordCard({
         <p className="word-empty">辭典中沒有這個詞。</p>
       )}
 
-      <div className="word-actions">
-        {/*
-          The word stays underlined either way -- marking is statistical and this
-          list is not -- so this toggle is reversible right here, on the same
-          word, rather than needing somewhere else to undo it.
-        */}
-        <button
-          type="button"
-          className={learning ? 'learn on' : 'learn'}
-          onClick={onToggleLearning}
-          aria-pressed={learning}
-        >
-          <span aria-hidden="true">{learning ? '★' : '☆'}</span>
-          {learning ? '已標為生詞' : '標為生詞'}
-        </button>
-        <a className="word-more" href={`/dictionary/${token.lexemeId}`}>
-          辭典
-        </a>
-      </div>
+      {naming && sentence && onConfirmName ? (
+        <NameChooser
+          sentence={sentence}
+          token={token}
+          onConfirm={onConfirmName}
+          onCancel={() => setNaming(false)}
+        />
+      ) : (
+        <div className="word-actions">
+          {/*
+            The word stays underlined either way -- marking is statistical and this
+            list is not -- so this toggle is reversible right here, on the same
+            word, rather than needing somewhere else to undo it.
+          */}
+          <button
+            type="button"
+            className={learning ? 'learn on' : 'learn'}
+            onClick={onToggleLearning}
+            aria-pressed={learning}
+          >
+            <span aria-hidden="true">{learning ? '★' : '☆'}</span>
+            {learning ? '已標為生詞' : '標為生詞'}
+          </button>
+          {/*
+            A split name is marked because its pieces match nothing, so the card
+            on one of those pieces is where the split is noticed.
+          */}
+          {sentence && onConfirmName ? (
+            <button type="button" className="learn" onClick={() => setNaming(true)}>
+              標為人名
+            </button>
+          ) : null}
+          <a className="word-more" href={`/dictionary/${token.lexemeId}`}>
+            辭典
+          </a>
+        </div>
+      )}
     </div>
   );
 }

@@ -3,6 +3,8 @@ import { db } from '../../db/client.ts';
 import { lexemes, sections, sentences, tokens } from '../../db/schema.ts';
 import { getAnalyzer } from '../analyzer/index.ts';
 import { linkLexemes } from '../dict/match.ts';
+import { namesOf } from '../names.ts';
+import { applyNames } from '../text/names.ts';
 import { extractRuby } from '../text/ruby.ts';
 import { segmentSentences } from '../text/sentences.ts';
 import { writeSentences } from './ingest.ts';
@@ -77,7 +79,8 @@ function ambiguousIn(sectionId: string): Set<string> {
 
 /**
  * Throws a section's sentences and tokens away and derives them again from its
- * `sourceText`, which import stores untouched for exactly this.
+ * `sourceText`, which import stores untouched for exactly this, with the work's
+ * confirmed names applied.
  *
  * The section row stays, so its place in the book, its read stamp and its
  * resolution state stay with it. Sentence ids do not survive -- boundaries may
@@ -91,6 +94,7 @@ function ambiguousIn(sectionId: string): Set<string> {
 export async function retokenizeSection(sectionId: string): Promise<void> {
   const section = db
     .select({
+      workId: sections.workId,
       sourceText: sections.sourceText,
       progressSentenceId: sections.progressSentenceId,
       resolveTotal: sections.resolveTotal,
@@ -104,7 +108,8 @@ export async function retokenizeSection(sectionId: string): Promise<void> {
 
   const analyzer = getAnalyzer();
   const { text, spans } = extractRuby(body);
-  const segmented = segmentSentences(text, await analyzer.analyze(text));
+  const analyzed = applyNames(text, await analyzer.analyze(text), namesOf(section.workId));
+  const segmented = segmentSentences(text, analyzed);
 
   const old = db
     .select({ id: sentences.id, text: sentences.text, needsReview: sentences.needsReview })

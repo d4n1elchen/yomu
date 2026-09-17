@@ -393,6 +393,35 @@ export const dictSenses = sqliteTable(
 
 
 /**
+ * Names you confirmed while reading a work -- 人名 -- which the analyzer then
+ * treats as one word throughout that work.
+ *
+ * Per work, because a name is a fact about a book: 千遥 is a character in one
+ * novel and 千 plus 遥 anywhere else. The tokens are what change -- a section is
+ * re-analysed with its work's names applied (`src/lib/text/names.ts`) -- so this
+ * row is the whole of the state, and removing it and re-analysing undoes it.
+ *
+ * `reading` is copied from the book's ruby when the name is confirmed, since
+ * the ruby that annotates a name is usually on its first appearance, in a
+ * different chapter from the one being re-analysed. Null when the book never
+ * gave one. Never from the model, which invents readings.
+ */
+export const workNames = sqliteTable(
+  'work_name',
+  {
+    workId: text('work_id')
+      .notNull()
+      .references(() => works.id, { onDelete: 'cascade' }),
+    surface: text('surface').notNull(),
+    reading: text('reading'),
+    createdAt: integer('created_at')
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (t) => [primaryKey({ columns: [t.workId, t.surface] })],
+);
+
+/**
  * The words you have picked out to learn -- 生詞.
  *
  * Presence is the state: a row means the word is on the list, and removing it

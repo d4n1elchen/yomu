@@ -22,6 +22,12 @@ export interface AnalyzedToken {
   /** Offsets into the text passed to `analyze`. */
   charStart: number;
   charEnd: number;
+  /**
+   * Files this token's lexeme under another namespace than the analyzer's. Set
+   * only for a name the reader confirmed (`src/lib/text/names.ts`), which is not
+   * the analyzer's word and must not merge with one.
+   */
+  dictionary?: string;
 }
 
 /**

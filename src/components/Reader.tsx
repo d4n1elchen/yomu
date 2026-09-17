@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { toggleLearning } from '../app/read/actions.ts';
+import { useRouter } from 'next/navigation';
+import { confirmName, toggleLearning } from '../app/read/actions.ts';
 import type { Article, ArticleSentence, ArticleToken } from '../lib/article.ts';
 import { DownloadChapter } from './DownloadChapter.tsx';
 import { DEFAULT_LEVEL, isHardWord } from '../lib/marking.ts';
@@ -47,7 +48,15 @@ interface Tap {
   sentenceId: string;
 }
 
-export function Reader({ article }: { article: Article }) {
+export function Reader({
+  article,
+  offline = false,
+}: {
+  article: Article;
+  /** A downloaded copy: nothing that needs the server is offered. */
+  offline?: boolean;
+}) {
+  const router = useRouter();
   const [explain, setExplain] = useState(true);
   const [level, setLevel] = useState(DEFAULT_LEVEL);
   const [word, setWord] = useState<OpenWord | null>(null);
@@ -84,6 +93,18 @@ export function Reader({ article }: { article: Article }) {
       return next;
     });
   }, []);
+
+  /**
+   * Re-analysing the work changes this chapter's tokens, so the page is fetched
+   * again rather than patched: the card closes with the words it was open on.
+   */
+  const onConfirmName = async (surface: string): Promise<string | null> => {
+    const { error } = await confirmName(article.sectionId, surface);
+    if (error) return error;
+    setWord(null);
+    router.refresh();
+    return null;
+  };
 
   const marked = useCallback(
     (token: ArticleToken) => explain && isHardWord(token, level),
@@ -312,6 +333,8 @@ export function Reader({ article }: { article: Article }) {
       ) : word ? (
         <WordCard
           token={word.token}
+          sentence={article.sentences.find((s) => s.id === word.token.sentenceId)}
+          onConfirmName={offline ? undefined : onConfirmName}
           senses={
             word.token.entryId ? (article.senses[word.token.entryId] ?? []) : []
           }
