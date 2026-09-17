@@ -14,7 +14,7 @@
  */
 
 import { readFile } from 'node:fs/promises';
-import { eq, like, not, sql as raw } from 'drizzle-orm';
+import { eq, isNotNull, like, not, sql as raw } from 'drizzle-orm';
 import { db, sqlite } from '../src/db/client.ts';
 import {
   grammarConnections,
@@ -23,6 +23,7 @@ import {
 } from '../src/db/schema.ts';
 import { openZip } from '../src/lib/epub/zip.ts';
 import { parseTsutsuji } from '../src/lib/grammar/tsutsuji.ts';
+import reviewed from '../src/lib/grammar/reviewed-glosses.json' with { type: 'json' };
 
 const ARCHIVE = 'data/tsutsuji-1.1u.zip';
 const ROOT = 'tsutsuji-1.1u/';
@@ -141,14 +142,34 @@ async function main(): Promise<void> {
     };
   });
 
+  // The review, applied last so it wins over both the model's draft and
+  // whatever was carried across from the previous import. Each of these is a
+  // point whose generated Chinese contradicted its own meaning class -- ために
+  // had its two senses the wrong way round -- and the corrections are committed
+  // so the review is not something to redo per machine.
+  let corrected = 0;
+  db.transaction(() => {
+    for (const [id, fix] of Object.entries(reviewed)) {
+      if (id.startsWith('_')) continue;
+      const { name, gloss } = fix as { name: string; gloss: string };
+      const result = db
+        .update(grammarPoints)
+        .set({ nameZh: name, glossZh: gloss, glossModel: 'reviewed' })
+        .where(eq(grammarPoints.id, id))
+        .run();
+      corrected += result.changes;
+    }
+  });
+
   const glossed = db
     .select({ n: raw<number>`count(*)` })
     .from(grammarPoints)
-    .where(not(eq(grammarPoints.nameZh, '')))
+    .where(isNotNull(grammarPoints.nameZh))
     .get()!.n;
 
   process.stdout.write(
-    `已匯入：${written.points} 個句型、${written.forms} 種寫法。\n` +
+    `已匯入：${written.points} 個句型、${written.forms} 種寫法，` +
+      `套用 ${corrected} 筆人工校訂。\n` +
       `中文名稱已有 ${glossed} 個；其餘請執行 npm run db:grammar-gloss。\n`,
   );
 
