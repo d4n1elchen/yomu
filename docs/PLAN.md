@@ -563,6 +563,12 @@ one line. Checking where sentences start gives back the sentence you resumed at.
 Checked in the browser: a 454-sentence chapter resumed at the saved sentence,
 and a small scroll there sent no save.
 
+**Resuming glides back** rather than jumping, so you can see where the page
+took you. It jumps instead when reduced motion is on, or when the tab opened in
+the background, where there are no frames to animate in. Saving waits until
+the glide has stopped moving, not for a fixed delay, because a jump deep into a
+long chapter takes longer than any fixed delay.
+
 **Only scrolling saves.** Scrolls in the first 800 ms are ignored: the resume
 itself, a jump to a `#sentence-` anchor, the browser restoring a reload's
 offset. A Dictionary occurrence link wins over the saved position and does not

@@ -8,11 +8,18 @@ import { currentSentence } from '../lib/reading/progress.ts';
 const SETTLE_MS = 1_000;
 
 /**
- * Scrolls in the first moment after opening are not yours: the resume below,
- * the browser jumping to a `#sentence-` anchor or restoring a reload's offset,
+ * Scrolls in the first moment after opening are not yours: the resume below
+ * (for as long as it is still moving -- see `RESUME_QUIET_MS`), the browser jumping to a `#sentence-` anchor or restoring a reload's offset,
  * scroll anchoring as the fonts land. None of them is reading.
  */
 const ARM_AFTER_MS = 800;
+
+/**
+ * During a smooth resume, how long scroll events must stop before the glide
+ * counts as over. Long enough to span the gap between animation frames on a
+ * busy phone, short enough that scrolling straight after arriving still counts.
+ */
+const RESUME_QUIET_MS = 200;
 
 /** Room above the resumed sentence, so it does not sit flush under the header. */
 const RESUME_GAP_PX = 16;
@@ -68,26 +75,47 @@ export function ReadingProgress({
     const sentences = () =>
       Array.from(container.querySelectorAll<HTMLElement>('[data-sentence-id]'));
 
-    // Resume. Not to the first sentence: that is the top of the page, and
-    // scrolling there would only hide the title and the chapter list.
-    if (sentenceId && !window.location.hash) {
-      const target = sentences().find((el) => el.dataset.sentenceId === sentenceId);
-      if (target && target !== sentences()[0]) {
-        window.scrollTo({
-          top: window.scrollY + firstLineTop(target) - readingLine(),
-          behavior: 'instant',
-        });
-      }
-    }
-
     let saved = sentenceId;
     let armed = false;
     let pending = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
-    const arming = setTimeout(() => {
-      armed = true;
-    }, ARM_AFTER_MS);
+    let arming: ReturnType<typeof setTimeout> | null = null;
 
+    // Arms once scroll events have stopped for `quietMs`. Each scroll restarts
+    // the wait, so a smooth resume is ignored for as long as it is still moving,
+    // however long a jump deep into a chapter takes.
+    const armAfter = (quietMs: number) => {
+      if (arming) clearTimeout(arming);
+      arming = setTimeout(() => {
+        armed = true;
+        arming = null;
+      }, quietMs);
+    };
+
+    // Resume. Not to the first sentence: that is the top of the page, and
+    // scrolling there would only hide the title and the chapter list.
+    let resuming = false;
+    if (sentenceId && !window.location.hash) {
+      const target = sentences().find((el) => el.dataset.sentenceId === sentenceId);
+      if (target && target !== sentences()[0]) {
+        // A tab opened in the background has no frames to animate in, and a
+        // smooth scroll there may simply never happen -- nothing to watch
+        // anyway, so it jumps.
+        const reduce =
+          document.hidden ||
+          window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        // Glides rather than jumps, so you see the page carry you back to your
+        // place instead of opening somewhere unexplained. Otherwise a plain
+        // `scrollTo(0, y)`: `behavior: 'instant'` is not accepted by every
+        // Safari, and a rejected option would throw before any listener below
+        // was attached -- no resume and no saving either.
+        const top = window.scrollY + firstLineTop(target) - readingLine();
+        if (reduce) window.scrollTo(0, top);
+        else window.scrollTo({ top, behavior: 'smooth' });
+        resuming = true;
+      }
+    }
+    armAfter(ARM_AFTER_MS);
     const save = (keepalive: boolean) => {
       if (timer) clearTimeout(timer);
       timer = null;
@@ -110,7 +138,13 @@ export function ReadingProgress({
     };
 
     const onScroll = () => {
-      if (!armed) return;
+      if (!armed) {
+        // Still gliding back: wait for the motion to stop rather than for a
+        // fixed time. Touching the screen mid-glide stops it too, and the
+        // scrolling you do after that counts as usual.
+        if (resuming) armAfter(RESUME_QUIET_MS);
+        return;
+      }
       pending = true;
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => save(false), SETTLE_MS);
@@ -125,7 +159,7 @@ export function ReadingProgress({
     window.addEventListener('pagehide', onPageHide);
 
     return () => {
-      clearTimeout(arming);
+      if (arming) clearTimeout(arming);
       save(true);
       window.removeEventListener('scroll', onScroll);
       document.removeEventListener('visibilitychange', onVisibility);
