@@ -34,6 +34,15 @@ function readingLine(): number {
   return (header?.getBoundingClientRect().bottom ?? 0) + RESUME_GAP_PX;
 }
 
+/**
+ * Whether the page cannot scroll any further. A couple of pixels short still
+ * counts: phones report fractional offsets, and the bottom is rarely hit exactly.
+ */
+function atPageEnd(): boolean {
+  const page = document.documentElement;
+  return window.scrollY + window.innerHeight >= page.scrollHeight - 2;
+}
+
 /** The top of a sentence's first line -- not its bounding box, which starts at the column edge once it wraps. */
 function firstLineTop(element: HTMLElement): number {
   return (element.getClientRects()[0] ?? element.getBoundingClientRect()).top;
@@ -51,7 +60,9 @@ function firstLineTop(element: HTMLElement): number {
  * Nothing is saved until you scroll. Opening a chapter to glance at it must not
  * move the bookmark, and neither must arriving from a Dictionary occurrence
  * link -- a URL with a `#sentence-` anchor, which wins over the saved position
- * because you asked for that sentence specifically.
+ * because you asked for that sentence specifically. Scrolling back up to the
+ * title or the 目次 saves nothing either, so switching chapters from the
+ * contents leaves this chapter's place where it was.
  *
  * Every save also goes to the downloaded copy when there is one, so reading
  * offline resumes too. Both writes are best effort and swallowed, as
@@ -123,7 +134,11 @@ export function ReadingProgress({
       pending = false;
 
       const all = sentences();
-      const index = currentSentence(all.map(firstLineTop), readingLine() + 1);
+      const index = currentSentence(
+        all.map(firstLineTop),
+        readingLine() + 1,
+        atPageEnd(),
+      );
       const current = index < 0 ? null : (all[index]!.dataset.sentenceId ?? null);
       if (current === null || current === saved) return;
       saved = current;

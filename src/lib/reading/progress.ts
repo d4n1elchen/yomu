@@ -15,15 +15,29 @@
  * would walk the bookmark back a line. Judged by where sentences start, resuming
  * at a sentence reports that sentence again: a fixed point.
  *
- * A sentence already partly scrolled past still counts as where you are, since
- * it started above the line and nothing later has. Returns -1 for no
- * sentences, and 0 when none has reached the line yet -- the top of the page.
+ * Two edges are answered differently, and both came from switching chapters:
+ *
+ * - **Above the text there is no position** (-1). The title and the 目次 sit
+ *   there, so scrolling up to pick another chapter used to report the first
+ *   sentence and overwrite the bookmark with the start of the chapter.
+ * - **At the bottom of the page you are at the last sentence.** The final
+ *   screenful can never scroll up to the reading line, so finishing a chapter
+ *   left its bookmark a screen short of the end, and its progress short of
+ *   100%. `atEnd` means the page cannot scroll any further.
+ *
+ * Returns -1 for no sentences too.
  */
-export function currentSentence(tops: readonly number[], line: number): number {
+export function currentSentence(
+  tops: readonly number[],
+  line: number,
+  atEnd = false,
+): number {
   if (tops.length === 0) return -1;
+  if (atEnd) return tops.length - 1;
+  if (tops[0]! > line) return -1;
   let low = 0;
   let high = tops.length - 1;
-  // The last index whose top is <= line, or 0 when there is none.
+  // The last index whose top is <= line; index 0 is known to qualify.
   while (low < high) {
     const mid = (low + high + 1) >> 1;
     if (tops[mid]! <= line) low = mid;

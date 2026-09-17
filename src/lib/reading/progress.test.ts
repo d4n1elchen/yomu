@@ -2,8 +2,22 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { currentSentence } from './progress.ts';
 
-test('at the top of the page the first sentence is where you are', () => {
-  assert.equal(currentSentence([100, 130, 160], 72), 0);
+test('above the text there is no position, so the bookmark is left alone', () => {
+  // Scrolled up to the title and the 目次 to switch chapters.
+  assert.equal(currentSentence([100, 130, 160], 72), -1);
+});
+
+test('the first sentence counts once it reaches the reading line', () => {
+  assert.equal(currentSentence([72, 130, 160], 72), 0);
+});
+
+test('at the bottom of the page the last sentence is where you are', () => {
+  // The last screenful never reaches the reading line.
+  assert.equal(currentSentence([-900, -300, 200, 500, 700], 72, true), 4);
+});
+
+test('at the bottom of a page shorter than a screen, still the last sentence', () => {
+  assert.equal(currentSentence([100, 130, 160], 72, true), 2);
 });
 
 test('the last sentence to have started above the line is where you are', () => {
