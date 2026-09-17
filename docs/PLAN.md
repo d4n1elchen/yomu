@@ -613,6 +613,24 @@ overwrite it. Saves happen after a second of stillness and again with
 waits ten visible seconds so background tabs cannot reorder the Library. A
 background tab cannot scroll, so this needs no such wait.
 
+**Switching chapters raised three problems, and all three are fixed.**
+
+- **Scrolling up to the 目次 reset the chapter to its start.** The contents
+  list sits above the text, and at the top of the page the first sentence
+  counted as "where you are". Above the text there is now no position, so
+  nothing is saved. Moving the 目次 so it can be reached without scrolling
+  was considered and not done, because it changes the layout. A pause of more
+  than a second partway up still saves where you paused.
+- **A finished chapter never saved its end.** The last screenful can never
+  reach the reading line: on a phone-sized screen, 371 of a chapter's 373
+  sentences did. At the bottom of the page the last sentence now counts.
+- **The Library followed you into a new chapter only after ten seconds.**
+  Arriving from another reader page (`document.referrer` under `/read/`) now
+  stamps `lastReadAt` straight away, but only while the page is visible, so
+  background tabs are still covered by the ten-second wait. This is the one
+  part not seen working in a browser: the test pane was hidden, which takes
+  the ten-second path, as it should.
+
 **Offline copies keep their own position**, in the small summary record rather
 than in the megabyte article, and every save writes both places when the chapter
 is downloaded. The two can drift apart: a position recorded offline never reaches
