@@ -255,9 +255,12 @@ export function Reader({ article }: { article: Article }) {
         root={rootRef}
       />
 
-      <div className="reader-controls">
-        <DownloadChapter article={article} />
-      </div>
+      {/* A book downloads from its contents list, a row per chapter. */}
+      {article.chapters.length > 1 ? null : (
+        <div className="reader-controls">
+          <DownloadChapter sectionId={article.sectionId} article={article} />
+        </div>
+      )}
 
       <ReaderSettings
         explain={explain}

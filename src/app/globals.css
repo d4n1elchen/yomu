@@ -1636,11 +1636,28 @@ h2.divider + .subtitle {
 
 .chapters li {
   counter-increment: chapter;
+  display: flex;
+  align-items: baseline;
+  border-radius: 6px;
+}
+
+/* The row's download control sits after the name, outside the link. */
+.chapters li > a,
+.chapters li > .pending,
+.chapters li > .here {
+  flex: 1;
+  min-width: 0;
+}
+
+.chapters li > .offline-state {
+  flex: none;
+  margin: 0;
+  padding: 0 0.5rem 0 0.75rem;
 }
 
 .chapters li a,
 .chapters li .pending,
-.chapters li.current {
+.chapters li.current > .here {
   display: flex;
   align-items: baseline;
   gap: 0.7rem;
@@ -1652,7 +1669,7 @@ h2.divider + .subtitle {
 
 .chapters li a::before,
 .chapters li .pending::before,
-.chapters li.current::before {
+.chapters li.current > .here::before {
   content: counter(chapter);
   min-width: 1.4rem;
   font-size: 0.75rem;
@@ -1771,6 +1788,16 @@ button.link:disabled {
 
 .offline-failed {
   color: var(--review);
+}
+
+.offline-state.compact {
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.offline-state.compact button.link {
+  font-size: inherit;
 }
 
 /*

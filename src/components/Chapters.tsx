@@ -1,4 +1,5 @@
 import type { ArticleChapter } from '../lib/article.ts';
+import { DownloadChapter } from './DownloadChapter.tsx';
 
 /**
  * Chapter navigation for a work with more than one section.
@@ -13,6 +14,9 @@ import type { ArticleChapter } from '../lib/article.ts';
  * `lexeme.dictEntryId`, and reading across that would file a word under one
  * entry and then another. The reader would turn the URL away anyway, so
  * offering the link would only be a door that shuts in your face.
+ *
+ * Each readable chapter carries its own download control, so a book can be
+ * taken offline chapter by chapter without opening every one of them first.
  */
 export function Chapters({
   chapters,
@@ -78,14 +82,18 @@ export function Chapters({
           if (chapter.sectionId === current) {
             return (
               <li key={chapter.sectionId} className="current" aria-current="true">
-                {name}
+                <span className="here">{name}</span>
+                <DownloadChapter sectionId={chapter.sectionId} compact />
               </li>
             );
           }
           return (
             <li key={chapter.sectionId}>
               {chapter.readable ? (
-                <a href={`/read/${chapter.sectionId}`}>{name}</a>
+                <>
+                  <a href={`/read/${chapter.sectionId}`}>{name}</a>
+                  <DownloadChapter sectionId={chapter.sectionId} compact />
+                </>
               ) : (
                 <span className="pending" aria-disabled="true">
                   {name}

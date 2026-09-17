@@ -511,6 +511,13 @@ reader is a client component handed a self-contained `Article` — sentences,
 tokens, readings, every sense for every word, the 生詞 keys — so a download is a
 copy from memory to disk and needs no request at all.
 
+**A book downloads from its contents list, one control per chapter.** The
+chapters you have not opened are only titles on the page, so those rows fetch
+the chapter from `GET /api/read/[sectionId]` — the same `Article`, refused with
+409 while the chapter is still resolving — and write it once the whole payload
+has arrived. A single article keeps its control above the text and still copies
+from memory.
+
 **Data in IndexedDB, shell in the Cache API, and never the two mixed.** The
 service worker caches only `/offline` and the hashed build assets. It caches no
 page rendered from the database, because such a copy is a snapshot that drifts
