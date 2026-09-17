@@ -1647,11 +1647,9 @@ h2.divider + .subtitle {
   margin: 0;
   padding: 0 0.35rem 0.4rem;
   list-style: none;
-  counter-reset: chapter;
 }
 
 .chapters li {
-  counter-increment: chapter;
   display: flex;
   align-items: baseline;
   border-radius: 6px;
@@ -1683,17 +1681,6 @@ h2.divider + .subtitle {
   color: var(--ink);
 }
 
-.chapters li a::before,
-.chapters li .pending::before,
-.chapters li.current > .here::before {
-  content: counter(chapter);
-  min-width: 1.4rem;
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--faint);
-  text-align: right;
-}
-
 .chapters li .name {
   font-family: var(--serif);
 }
@@ -1712,10 +1699,9 @@ h2.divider + .subtitle {
 }
 
 /*
- * A chapter split into parts: its name as a plain heading, numbered like any
- * other chapter, and the parts indented past the chapter name. Each part is
- * named `章名（１）`, which already carries its number -- the counter would say
- * it twice.
+ * A chapter split into parts: its name as a plain heading, and the parts
+ * indented under it. No row carries a counter -- the titles already hold the
+ * book's own numbers, and a second column of ours only disagreed with them.
  */
 .chapters li.group {
   display: block;
@@ -1729,23 +1715,8 @@ h2.divider + .subtitle {
   color: var(--muted);
 }
 
-.chapters li.group > .heading::before {
-  content: counter(chapter);
-  min-width: 1.4rem;
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--faint);
-  text-align: right;
-}
-
 .chapters ol ol {
-  padding: 0 0 0.2rem 3.4rem;
-}
-
-.chapters ol ol li a::before,
-.chapters ol ol li .pending::before,
-.chapters ol ol li.current > .here::before {
-  content: none;
+  padding: 0 0 0.2rem 1.5rem;
 }
 
 /* Same wording the Library uses for a section whose links are still moving. */
