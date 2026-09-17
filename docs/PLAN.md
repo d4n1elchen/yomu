@@ -56,10 +56,12 @@ either of these starts to matter:
 **Rejected, and still rejected.** BCCWJ: a balanced corpus and better data than
 newspaper frequency, but UniDic lemmas would reintroduce the matching problem
 lemma+reading measured away — revisit only if marking feels wrong for fiction.
-**JMnedict: measured, and now rejected rather than deferred.** It was deferred
-until we could count how many unmatched words in real reading are names. Counted:
-**none of the 36 are.** Three carry IPADIC's 固有名詞 tag and not one is a name
-(磨, `ToDo`, `ＫａｍｉＵ`). 13.4 MB to fix nothing.
+**JMnedict: still rejected, for a different reason.** On the first article none of
+the 36 unmatched words was a name. On a novel, names are the largest class by
+far — 遥 275 times, チハル 40, 三枝 30 — but they are the book's own characters,
+and 千遥 is split by the analyzer before any lookup could see it. JMnedict knows
+neither. Names are confirmed per work from the reader instead — see “Book ruby
+and names” below.
 
 ### Homograph ambiguity — what is left of it
 
@@ -100,44 +102,69 @@ ambiguity, because it is what makes a resolver's mistakes visible too.
 The LLM resolver now settles this (`src/lib/dict/resolve.ts`), as background
 work rather than at import — see “Analysis runs in the background” below, and note
 that it is the pass which gates reading. It fires only on `lemma_reading_multi`
-where the survivors' leading glosses actually differ, hands the model one occurrence sentence and the surviving entries, and
+where the survivors' leading glosses actually differ, hands the model up to three occurrence sentences and the surviving entries, and
 takes its pick only if the reply is one of the offered ids. The chosen link is
 stamped with the model in `lexeme.dictResolver`, so it reads as resolved rather
 than computed, is never asked twice, and a full JMdict relink clears the stamp
 with the link it annotated. It selects, never names — the same grounding the
-glosses follow. Whether it actually improves picks is unmeasured: なる is the one
-wrong case on the current corpus, and one article is no way to know.
+glosses follow.
+
+**Measured by reading its 214 picks on the local library: clearly wrong on at
+least a dozen, and the worst on the commonest words.** の (名詞・非自立, 570
+tokens) → 野 "field"; しれる in かもしれない (72) → 痴れる "to become foolish";
+様態 そう (41) → 壮 "bravery"; ゆく → 逝く "to die"; 〜かける → 欠ける; the ordinal
+め → 奴 "bastard"; よろしく → 夜露死苦. Two causes, fixed separately:
+
+- **The right entry was not a candidate.** The POS map offered 非自立 nouns only
+  noun entries, so the nominalizer の never met JMdict's particle の; 接尾 missed
+  the auxiliary そう; and when nothing agreed the fallback took every entry, so
+  a verb (〜てく's く) could land on 句. Fixed in `pos.ts`: 非自立 admits `prt`,
+  接尾 admits `aux`, function words admit `exp`, and the fallback stays within
+  the word's family — a verb never falls back to a noun. The model can now also
+  answer **none**, which unlinks the lexeme and stamps it so ordinary linking
+  leaves it alone.
+- **It chose on too little.** One leading gloss per entry (目 shows "eye", not
+  its suffix sense "-th") and one sentence per lexeme. It is now shown the
+  senses whose POS fits, up to three, marked 常用/少用, and three distinct
+  sentences from across the library.
+
+**Not yet measured: whether the new prompt fixes those picks.** The model host
+was unreachable where this was built. `npm run db:relink` re-matches everything
+and re-asks the model about every ambiguous lexeme, printing each link it moves
+— run it where the model is, and read that output. Until then the local
+database carries the old picks, restored where they are still candidates.
 
 ### What actually fails to match
 
-The 36 unmatched content words, read one by one. Not one is a name, which is the
-finding that retires JMnedict above.
+Re-measured on the whole local library (5,356 content words, seven works, one of
+them a novel). Before this round **215 content lexemes (830 tokens) matched
+nothing; now 130 (565).** What closed the gap:
 
-- **15 are flattened ruby** — 濡 喚 忙 抜 溢 吐 摸 頷 芻 煌 摑 嘩 憐 擢 痺, every one a
-  lone kanji the analyzer gave no reading. The source is text pasted from a page
-  that renders furigana as `<ruby>`: copying flattens it, so `頷うなずいた` arrives
-  with the reading sitting inline as ordinary characters. There is no `《》` or
-  `｜` left to strip — the markup is gone by the time we see it. This is an
-  **import problem, not a dictionary one**, and it is the single largest class.
-- **4 are Latin or symbols** — `ＭＶ`, `Ⅴ`, `ToDo`, `ＫａｍｉＵ`. Not Japanese
-  vocabulary and nothing should match them.
-- **4 are verb forms JMdict spells differently** — 出せる, こなせる, 巻ける
-  (potentials, which JMdict lists only in the plain form) and 差しかかる (which
-  JMdict has as 差し掛かる).
-- **3 are と-adverbs** — 黙々と, 整然と, 漠然と. JMdict carries 黙々 tagged
-  `adv-to`; the と is ours to strip.
-- **2 are ない-adjective stems** — ぴこち, 味気, where JMdict lists ぴこちない.
-- **8 miscellaneous**, including real mis-analyses (羨い/トモイ).
+- **2004 print forms, folded before tokenizing** (`src/lib/text/variants.ts`).
+  Kadokawa prints 繫 摑 吞 搔 啞 剝 嚙 瘦 顚 鹼, IPADIC knows 繋 掴 呑…, and every word
+  written with one fell apart into a junk kanji and a stray suffix. Surfaces keep
+  the book's glyph; lemmas are folded.
+- **Derived forms** (`src/lib/dict/derive.ts`), tried only when the lemma matched
+  nothing and each gated on the JMdict tags its result must carry: potential
+  verbs to their godan plain form (会える → 会う, 58 lexemes), と-adverbs to the
+  stem, ない-adjective stems to the adjective, classical サ行 verbs to する. A
+  lemma opening on づ/ぢ is a rendaku suffix and is not rewritten. Stored as
+  `dictMatch = 'derived'`; the entry page says the form is not in JMdict.
+- **Runs of unknown marks are symbols.** `!!」`, 〝, 〟 were 名詞 and counted as
+  vocabulary; they are now split and filed as 記号 — which also fixed a
+  segmentation bug, since `!!」` as one token hid the closing quote.
 
-Each of the last four groups is a small, mechanical rule against a known class,
-not a fuzzy lookup fallback — which is why the fallback stays rejected while
-these stay worth doing. None is urgent: together they are 13 words in 1,207.
+What remains, largest first: **names** (遥, チハル, 三枝, ハル, 一ノ瀬 — now fixable
+from the reader), **Latin and numbers** (ＭＶ, ＫａｍｉＵ, 2026), **flattened ruby in
+pasted text** (溜, 憐, 摑 in `摑づかみ`), and a tail of real mis-analyses
+(羨い/トモイ, 差しかかる, こんなにも, 本当は as a conjunction).
 
 ### Flattened ruby corrupts an import
 
-**EPUB import removes this at the source, for EPUBs.** `xhtmlToText` drops
-`<rt>` and keeps the base text, so 頷 arrives as 頷 and the analyzer supplies the
-reading it always did. The note below still stands for pasted text, which is
+**EPUB import removes this at the source, for EPUBs.** `xhtmlToText` keeps
+`<rt>` as ruby markup rather than prose, so 頷 arrives as 頷 with its reading on
+the side (see “Book ruby and names”). Pasted text in Aozora notation
+(`頷《うなず》`) is read the same way. The note below still stands for pasted text, which is
 where the 15 flattened tokens in the corpus came from — and the cheap detection
 rule is still unbuilt, because the cheaper fix turned out to be reading the file
 instead of the rendered page.
@@ -231,6 +258,17 @@ that outlived the build:
   plan first sketched: the per-entry count validation the plan also asks for is
   unambiguous only when the request is one entry, and correctness won over the
   round-trips. **Batching is now the one throughput lever left — see below.**
+
+**Glosses are checked before they are written** (`src/lib/translate/check.ts`).
+The count was the only check, and on 11,429 translated senses 19 carried
+Simplified characters (各种各样), 52 left English behind (過早； premature), a
+few used mainland words (視頻, 用戶, 自行車), and 743 opened on a part-of-speech
+label the English never had — （助詞）, sometimes wrong. Labels are stripped; the
+rest is refused and sent back with the reason on the retry. The reject lists
+leave out characters Taiwan also writes (拮据, 温, 况, 鎮), and scientific
+names and brands the English carries (Felis catus, Post-it) pass. `npm run
+db:translate -- --recheck` applies the checks to stored glosses: locally it
+stripped 739 labels and requeued 51 senses.
 
 The card showing all senses with nothing auto-picked, and the deferred
 per-occurrence `token.senseIndex`, both still hold — the analyzer's POS already
@@ -429,11 +467,12 @@ same trade the Markdown renderer made, for the same reason. Fixtures are built
 in `fixture.ts` rather than committed, because the files this reads in anger are
 copyrighted books.
 
-**Ruby is dropped, and that is the point.** `<rt>` is thrown away and the base
-text kept, so flattened furigana — the largest class of unmatched word in the
-corpus, and a corruption of the Dictionary rather than only of matching — cannot
-happen for a book. The reading goes because the analyzer owns readings; a second
-source could only disagree.
+**Ruby is kept apart from the prose, and that is the point.** Flattened
+furigana — the largest class of unmatched word in the first corpus, and a
+corruption of the Dictionary rather than only of matching — cannot happen for a
+book. It used to be thrown away, on the grounds that the analyzer owns
+readings; it is now kept as markup, because the book's reading is right exactly
+where the analyzer's is a guess. See “Book ruby and names”.
 
 Measured on the two sample books:
 
@@ -535,8 +574,66 @@ its first part.
   is what the sample books actually have.
 - **Re-splitting a book already imported.** Nesting applies to new imports; an
   existing book stays flat until it is deleted and imported again.
-- **The reading in `<rt>`.** Thrown away. If the analyzer's furigana is ever
-  checked against the book's own, that is where the book's answer was.
+
+## Book ruby and names — built
+
+**The book's ruby is kept and shown.** EPUB import writes `<ruby>` into the
+chapter text as Aozora markup, `｜base《reading》`, so `section.sourceText` —
+what every rebuild starts from — carries it with no second store to keep in
+step. Import and retokenize strip it before analysis and record each sentence's
+spans in `sentence.ruby`. The reader draws the book's reading over the
+analyzer's wherever the book gave one; a ruby over several tokens (a split
+name) is one `<ruby>` around them. The explicit form takes any reading, since
+books gloss as well as read (ＩＣＵ《集中治療室》); the implicit `漢字《かな》`
+must be kana, or 《》 title brackets would be eaten.
+
+This bends “the analyzer owns readings”, deliberately and only for display: the
+author's reading is not a second guess to reconcile but the answer. Lexeme
+identity, matching and the Q&A token table still use the analyzer's. **Not
+built:** preferring the book's reading in the word card, or using it to catch
+analyzer misreadings (逸らせる as ハヤラセル).
+
+Books imported before this get their ruby from the file with `npm run
+db:backfill-ruby -- book.epub`, matched section by section on the prose, keeping
+section rows and bookmarks. On カミュの歌鳥 all 42 sections matched.
+
+**Names are confirmed from the reader, per work.** IPADIC splits a name it does
+not know into whatever its kanji spell (千遥 → 千 "thousand" + 遥), and kuromoji
+takes no user dictionary. The word card on a marked piece offers 標為人名: the
+neighbouring tokens are chips to extend the name to, and confirming writes a
+`work_name` row and re-analyses every section of that work containing it (16
+sections, 4.4 s). The merged token is filed under the `name` lexeme namespace,
+so it is never marked, not vocabulary, and never linked to JMdict. Its reading
+is copied from the book's ruby on any occurrence in the work — a name is
+annotated where it first appears, rarely in the chapter being read — and a
+gloss is not taken as a reading. The Dictionary lists names under 人名, where
+取消人名 deletes the row and re-analyses again.
+
+Per work, not library-wide, because 千遥 is a character in one book and 千 plus
+遥 anywhere else. An automatic rule (a number kanji followed by a given name)
+was considered and not built: it covers one pattern and can misfire.
+
+**Not built:**
+
+- **A name whose pieces are all common words** cannot be reached: only marked
+  words open a card. None seen yet.
+- **Pasted articles** are each their own work, so a name confirmed in one does
+  not carry to the next chapter pasted.
+- **Offline.** A downloaded chapter offers no 標為人名, having no server to
+  re-analyse it, and keeps its old tokens until downloaded again.
+
+## Before this reaches the served database
+
+Everything above changed stored data as well as code. On the machine that
+serves the app, after `npm run update`:
+
+1. `npm run db:migrate` — `sentence.ruby` and `work_name`.
+2. `npm run db:backfill-ruby -- <epub>` for each book already imported.
+3. `npm run db:retokenize` — every section, since the analyzer version changed.
+4. `npm run db:relink` — re-matches and re-resolves library-wide (model needed).
+5. `npm run db:translate -- --recheck` — strips labels, requeues failed glosses.
+
+Delete this section once it has run there.
 
 ## Installable on a phone — built
 

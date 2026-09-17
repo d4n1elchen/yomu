@@ -12,7 +12,9 @@ headwords, readings, and inflected forms.
 
 The analyzer owns segmentation, readings, and dictionary forms. The LLM owns
 grammar and nuance, and is **never asked for a reading** — every model tested
-invents them.
+invents them. The one other source of readings is the text's own ruby, kept as
+`｜base《reading》` markup in `section.sourceText`: the reader shows it over the
+analyzer's furigana, and a confirmed name takes its reading from it.
 
 ## Code style
 
