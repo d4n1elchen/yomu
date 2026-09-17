@@ -175,7 +175,12 @@ export async function ingestWork(input: IngestWork): Promise<IngestResult> {
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-function writeSentences(
+/**
+ * Writes a section's sentences and their tokens, returning the sentence ids in
+ * order. Shared with `retokenizeSection`, so a repaired section is written by
+ * exactly the code that imported it.
+ */
+export function writeSentences(
   tx: Tx,
   resolver: LexemeResolver,
   options: {
@@ -184,10 +189,10 @@ function writeSentences(
     dictionary: string;
     needsReview: boolean;
   },
-): void {
+): string[] {
   const { sectionId, segmented, dictionary, needsReview } = options;
 
-  segmented.forEach((sentence, index) => {
+  return segmented.map((sentence, index) => {
     const sentenceId = randomUUID();
     tx.insert(sentences)
       .values({
@@ -206,5 +211,6 @@ function writeSentences(
       dictionary,
       analyzed: sentence.tokens,
     });
+    return sentenceId;
   });
 }

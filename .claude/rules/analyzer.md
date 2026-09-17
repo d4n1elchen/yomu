@@ -7,12 +7,15 @@ paths:
 
 # Analyzer pitfalls
 
-**kuromoji reports `word_position` in code points, not UTF-16 units.** One rare
-kanji (𠮷, 𩸽) or emoji slides every later offset by one, corrupting sentence
-text and word selection for the rest of the document. Handled in
-`src/lib/analyzer/kuromoji.ts`. The surrogate guard there deliberately omits the
-`/u` flag: in Unicode mode a well-formed pair matches as its combined code
-point, so the surrogate range never hits and the check silently does nothing.
+**Never trust kuromoji's `word_position`.** It counts code points, not UTF-16
+units, so one rare kanji (𠮷, 𩸽) or emoji slid every later offset. Worse, the
+tokenizer splits its input after each 、 and 。 and places the next piece at the
+*start* of the previous piece's last token: when an unknown symbol groups with
+the mark (〝補佐〟。 ends in the token 〟。) every later offset in the chapter
+comes out a character early. `src/lib/analyzer/kuromoji.ts` places each token
+where the previous surface ended, and cuts 、/。 out of grouped unknown tokens
+so segmentation still sees the sentence end. Sections imported before that are
+found and rebuilt by `npm run db:retokenize`.
 
 **IPADIC has no reading for many proper nouns**, and splits names (綾辻 becomes
 綾 + 辻). Carry `reading: null` through honestly rather than faking one; the UI

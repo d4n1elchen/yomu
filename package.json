@@ -13,6 +13,7 @@
     "db:jmdict": "node scripts/import-jmdict.ts",
     "test": "node --test \"src/**/*.test.ts\"",
     "db:translate": "node scripts/translate.ts",
+    "db:retokenize": "node scripts/retokenize.ts",
     "deploy": "bash scripts/deploy.sh",
     "update": "bash scripts/update.sh"
   },
