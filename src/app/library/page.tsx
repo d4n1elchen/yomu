@@ -47,7 +47,7 @@ export default function LibraryPage() {
             {articles.map((article) => {
               const title = (
                 <span className="title" lang="ja">
-                  {article.title}
+                  <span className="title-text">{article.title}</span>
                   {/* A book's row speaks for all of its chapters, and says so.
                       One section is an article and needs no count. */}
                   {article.sectionCount > 1 ? (
@@ -60,7 +60,12 @@ export default function LibraryPage() {
               );
               const counts = (
                 <>
-                  <span className="num">{article.vocabCount}</span>
+                  <span className="num">
+                    {article.vocabCount}
+                    {/* The column header names it on a wide screen; a phone
+                        hides the header, so the number carries its own. */}
+                    <span className="unit"> 詞</span>
+                  </span>
                   {/* Grammar reads zero until grammar has a natural key. */}
                   <span className="num zero">0</span>
                 </>

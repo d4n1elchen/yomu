@@ -479,18 +479,118 @@ button:disabled {
   color: var(--faint);
 }
 
+.library .unit {
+  display: none;
+}
+
+/*
+ * A phone gets a list rather than a table. The title takes the full width, and
+ * everything else is small print under it: who wrote it and how long it is,
+ * then where you are with it and how many words it holds. Columns of bare
+ * numbers with no header over them read as noise at this width.
+ */
 @media (max-width: 34rem) {
   .library-head {
     display: none;
   }
 
-  .library li a {
+  .library li {
+    display: grid;
     grid-template-columns: 1fr auto;
+    gap: 0;
   }
 
-  .library .last {
-    grid-column: 1;
-    grid-row: 2;
+  .library li + li {
+    border-top: 1px solid var(--border);
+  }
+
+  .library li > a,
+  .library li > .pending {
+    grid-area: 1 / 1 / 2 / 3;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 0;
+    /* No inset: there is no hover on a phone to draw a box around, and flush
+       titles line up with the page heading. */
+    padding: 0.85rem 0;
+    border: none;
+    border-radius: 0;
+  }
+
+  /* A tap leaves :hover stuck on a phone, which boxed the row that was tapped. */
+  .library li a:hover {
+    background: none;
+  }
+
+  /* Laid over the corner of the row rather than beside it, so the title keeps
+     the full width. Later in the source, so it sits above the link. */
+  .library li > button.link {
+    grid-area: 1 / 2;
+    align-self: end;
+    position: relative;
+    min-width: 0;
+    padding: 0.85rem 0 0.85rem 1rem;
+  }
+
+  /* Primed, it needs the whole width, so it drops to a line of its own. */
+  .library li > .confirm-delete {
+    grid-area: 2 / 1 / 3 / 3;
+    min-width: 0;
+    padding: 0 0 0.85rem;
+  }
+
+  .library .title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 0.4rem;
+    flex-basis: 100%;
+    font-size: 1.05rem;
+  }
+
+  .library .title-text {
+    flex-basis: 100%;
+  }
+
+  .library .author {
+    order: 1;
+  }
+
+  .library .title:has(.chapter-count) .author::after {
+    content: '·';
+    margin-left: 0.4rem;
+  }
+
+  /* Qualified by .title to outrank the base rule further down the file. */
+  .library .title .chapter-count {
+    order: 2;
+    margin-left: 0;
+    font-size: 0.75rem;
+  }
+
+  .library .last,
+  .library .num {
+    font-size: 0.78rem;
+  }
+
+  .library .read-progress {
+    display: inline;
+    font-size: inherit;
+  }
+
+  .library .read-progress::before,
+  .library .num::before {
+    content: '·';
+    margin: 0 0.4rem;
+  }
+
+  .library .analysing {
+    width: 7rem;
+  }
+
+  .library .unit {
+    display: inline;
   }
 
   .library .num.zero {
