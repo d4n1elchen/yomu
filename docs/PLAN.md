@@ -884,6 +884,33 @@ Chinese, not a bare id.
 writes the entry (keyed on the L2 id, so ちゃう and てしまう land on one row) and
 the occurrence it came from: sentence, `sentenceRevision`, token range. Meeting
 the same point again offers 已在文法庫 — 加入這個例句 rather than a second entry.
+The card's footer note has to change with it: 不會儲存 — 關閉後即消失 is true of
+the whole card today and stops being true the moment a point can be added.
+
+**The cards arrive as their own bubble in the thread**, not as a strip pinned
+above the composer. Both were mocked; the panel is compact — a bottom sheet at
+76vh on a phone — and a permanent strip spends that height on every sentence,
+including the sixth that has nothing to offer. A bubble costs height only when
+there is something to show, and it reads as what it is: the panel saying what it
+found in this sentence.
+
+That settles the timing. **Identification starts when the card opens**, not when
+you ask, so the ~8.5 s runs while the templated greeting is on screen and the
+bubble lands before the first question — a strip could have filled in quietly
+either way, but a bubble arriving mid-conversation would interrupt one. It also
+lets the points be handed to the explaining prompt, so the prose covers the same
+points the cards offer.
+
+**A bubble scrolls away, which is its one real cost.** Adding is exactly what
+you want after three follow-ups, so the chips row keeps a ↑ 文法 2 chip that
+scrolls back to it. A row expands in place inside the bubble to show the span
+marked in its sentence (…悪目立ちし【ないようにし】ている), the difficulty, and
+the 意味的等価クラス peers — enough to judge the card, since the matched span is
+often a fragment and a fragment alone is unjudgeable. The reject is 這不是這個
+句型, and off-list proposals sit under a 未收錄 line with no add control.
+
+**Nothing in the reader is underlined for grammar.** The dashed line means
+"JMdict does not call this common" and must keep meaning only that.
 
 ### Measured: finding the points in one sentence
 
@@ -998,9 +1025,9 @@ hand-written supplement.
 
 **Open, not measured:**
 
-- **Whether identification should gate the answer or run beside it.** 8.5 s
-  before the first token is a long time to look at a spinner; the alternative is
-  cards that arrive after the prose and may disagree with it.
+- **What a rejected card does.** 這不是這個句型 can dismiss the row for now, or
+  be remembered so that span stops being offered on that sentence — which is a
+  stored judgement, and the first thing Q&A would keep besides an add.
 - **Whether a card can be added from a wrong sentence.** The span is what is
   stored; a user who adds ～ては from 嫌な感じ**では** stores a bad example, and
   nothing yet notices.
