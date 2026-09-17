@@ -41,6 +41,9 @@ test('tells the model to select from the list, never to name a word', () => {
 test('lets the model reject a list that holds no right entry', () => {
   const system = buildResolverMessages(context)[0]!.content;
   assert.match(system, new RegExp(`"${NONE}"`));
+  // ...but not for a word merely being used as a helper, which cost 言う, 持つ
+  // and 筈 their glosses on the first run.
+  assert.match(system, /補助用法仍要選詞條/);
 });
 
 test('gives every occurrence as context and names the surface in each', () => {

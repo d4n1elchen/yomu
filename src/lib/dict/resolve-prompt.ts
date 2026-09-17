@@ -46,6 +46,13 @@ export const NONE = 'none';
  * right entry still got a confident pick: 〜てく's く has no entry, and the model
  * chose 句 "passage of text" because it had to choose something. A rejection
  * unlinks the word, which marks it for the reader rather than misinforming them.
+ *
+ * Rejection is fenced in, because the first run over-used it: told only to reject
+ * when nothing fits, the model rejected 言う, 持つ, 上げる, 通り, 筈 and 知れる --
+ * every one a word being used as a helper, where it reasoned that the dictionary
+ * entry was not what the sentence meant. That is arguable and it is not what the
+ * reader needs: an unlinked word loses its glosses and is marked hard. So the
+ * prompt says outright that a helper use still takes its own entry.
  */
 const SYSTEM = `你是一位日語辭典編輯。一個詞在文章裡出現，對應到好幾個同形同音、詞性也相同的辭書詞條，你要判斷它是哪一條。
 
@@ -53,7 +60,8 @@ const SYSTEM = `你是一位日語辭典編輯。一個詞在文章裡出現，�
 - 你是在**從清單裡挑選**，不是命名或創造。只能回傳清單中出現過的其中一個 id，或 "${NONE}"。
 - 依例句的意思判斷，選最貼切的那一條。每個詞條列出了與這個詞詞性相符的語義。
 - 標為「常用」的詞條遠比「少用」的常見。沒有明確理由時，選常用的那一條。
-- 只有當清單中**沒有任何一條**符合例句裡的用法時（例如這是文法成分，而清單全是無關的實詞），才回傳 "${NONE}"。
+- 只有當清單中**沒有任何一條**是這個詞時，才回傳 "${NONE}"，例如這是清單裡完全沒收錄的文法成分。
+- 補助用法仍要選詞條：像「〜ていく」的 いく、「〜ておく」的 おく、形式名詞的 こと、はず、とおり，都選它本來的那一條，不要因為句中是文法用法就回傳 "${NONE}"。
 - 以 JSON 物件回覆，格式為 {"entryId": "清單中的其中一個 id 或 ${NONE}"}。`;
 
 /** The reply schema: exactly one entry id, or `none`, validated against the
