@@ -102,51 +102,28 @@ function readLemma(tk: Tk, lemma: string): string {
 }
 
 /**
- * kuromoji counts `word_position` in CODE POINTS, while JavaScript string
- * indexes are UTF-16 code units. They agree until the text contains an astral
- * character -- a rare kanji like 𠮷 or 𩸽, or an emoji -- and from there every
- * offset silently slides by one per surrogate pair, corrupting sentence text
- * and word selection for the rest of the document.
+ * kuromoji's own `word_position` is not trusted, for two reasons.
  *
- * Returns a code-point index -> UTF-16 index table, or null when the text is
- * entirely in the BMP and the two are identical.
+ * It counts CODE POINTS, while JavaScript string indexes are UTF-16 code units,
+ * so an astral character -- a rare kanji like 𠮷 or 𩸽, or an emoji -- slid
+ * every later offset by one per surrogate pair.
+ *
+ * And it is wrong on its own terms. The tokenizer splits its input after every
+ * 、 and 。 and places each piece at the START of the previous piece's last
+ * token, which is only the end of that piece while the token is the lone mark.
+ * An unknown symbol groups with the mark after it -- 〝補佐〟。 ends in the one
+ * token 〟。 -- and from there every offset in the chapter came out a character
+ * early per grouping: sentences opened with the previous 。 and lost their own.
+ *
+ * The surfaces, though, are exact substrings and cover the input end to end.
+ * So each token is placed where the previous one ended, in UTF-16 units, and a
+ * surface that is not found there throws rather than writing a wrong offset.
  */
-function codePointOffsets(text: string): number[] | null {
-  // Deliberately not /u: in Unicode mode a well-formed surrogate pair is
-  // matched as its combined code point, so the surrogate range never hits.
-  if (!/[\uD800-\uDBFF]/.test(text)) return null;
-  const map: number[] = [];
-  for (let i = 0; i < text.length; ) {
-    map.push(i);
-    i += text.codePointAt(i)! > 0xffff ? 2 : 1;
-  }
-  map.push(text.length);
-  return map;
-}
-
-function convert(
-  tk: Tk,
-  token: IpadicFeatures,
-  offsets: number[] | null,
-  textLength: number,
-): AnalyzedToken {
+function convert(tk: Tk, token: IpadicFeatures, charStart: number): AnalyzedToken {
   const surface = token.surface_form;
   // Unknown words (names, rare kanji, neologisms) have no dictionary form.
   const lemma = value(token.basic_form) ?? surface;
   const reading = value(token.reading);
-
-  // word_position is 1-based.
-  const cpStart = token.word_position - 1;
-  let charStart: number;
-  let charEnd: number;
-  if (offsets) {
-    const cpLength = [...surface].length;
-    charStart = offsets[cpStart] ?? textLength;
-    charEnd = offsets[cpStart + cpLength] ?? textLength;
-  } else {
-    charStart = cpStart;
-    charEnd = cpStart + surface.length;
-  }
 
   return {
     surface,
@@ -164,8 +141,29 @@ function convert(
       wordType: token.word_type,
     },
     charStart,
-    charEnd,
+    charEnd: charStart + surface.length,
   };
+}
+
+/** The marks kuromoji splits its input at, and the ones sentences end on. */
+const PUNCTUATION = /([、。])/u;
+
+/**
+ * 〟。 as one token hides the 。 from sentence segmentation, which looks for a
+ * terminator token, so the sentence ran on into the next one. An unknown token
+ * holding a mark is cut around it and each piece tokenized alone, so the mark
+ * gets IPADIC's own 句点 or 読点 entry rather than one invented here. Known words
+ * never contain one; only unknown grouping produces this.
+ */
+function separatePunctuation(tk: Tk, token: IpadicFeatures): IpadicFeatures[] {
+  const surface = token.surface_form;
+  if (token.word_type !== 'UNKNOWN' || surface.length < 2 || !PUNCTUATION.test(surface)) {
+    return [token];
+  }
+  return surface
+    .split(PUNCTUATION)
+    .filter((piece) => piece !== '')
+    .flatMap((piece) => tk.tokenize(piece));
 }
 
 export const kuromojiAnalyzer: Analyzer = {
@@ -176,9 +174,18 @@ export const kuromojiAnalyzer: Analyzer = {
   async analyze(text: string): Promise<AnalyzedToken[]> {
     if (text.length === 0) return [];
     const tk = await tokenizer();
-    const offsets = codePointOffsets(text);
-    return tk
-      .tokenize(text)
-      .map((token) => convert(tk, token, offsets, text.length));
+    const analyzed: AnalyzedToken[] = [];
+    let cursor = 0;
+    for (const token of tk.tokenize(text).flatMap((t) => separatePunctuation(tk, t))) {
+      if (!text.startsWith(token.surface_form, cursor)) {
+        throw new Error(
+          `kuromoji returned ${JSON.stringify(token.surface_form)} where the text ` +
+            `has ${JSON.stringify(text.slice(cursor, cursor + 10))} (offset ${cursor}).`,
+        );
+      }
+      analyzed.push(convert(tk, token, cursor));
+      cursor += token.surface_form.length;
+    }
+    return analyzed;
   },
 };

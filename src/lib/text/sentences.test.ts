@@ -101,6 +101,25 @@ test('token offsets are absolute and select their own surface', async () => {
   }
 });
 
+test('a mark grouped into an unknown token still ends the sentence', async () => {
+  // 〟 is unknown to IPADIC and groups with the 。 after it. Left as one token,
+  // the 。 is invisible to segmentation, and kuromoji's own positions for every
+  // later token come out one character early.
+  const text = 'あくまでも〝補佐〟。基本は同じ。〝指導員〟、良い奴だ。';
+  const tokens = await analyzer.analyze(text);
+
+  for (const token of tokens) {
+    assert.equal(text.slice(token.charStart, token.charEnd), token.surface);
+  }
+  const period = tokens.find((t) => t.surface === '。')!;
+  assert.equal(period.features.posDetail1, '句点');
+
+  assert.deepEqual(
+    segmentSentences(text, tokens).map((s) => s.text),
+    ['あくまでも〝補佐〟。', '基本は同じ。', '〝指導員〟、良い奴だ。'],
+  );
+});
+
 test('offsets survive astral characters', async () => {
   // kuromoji reports positions in code points, not UTF-16 units. A single
   // rare kanji or emoji used to slide every later offset by one.

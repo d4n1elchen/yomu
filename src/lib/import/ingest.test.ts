@@ -15,6 +15,8 @@ const { lexemes, sections, sentences, tokens, works } = await import(
 );
 const { isReadable } = await import('../analysis/drain.ts');
 const { ingestWork } = await import('./ingest.ts');
+const { parseEpub } = await import('../epub/epub.ts');
+const { buildEpub } = await import('../epub/fixture.ts');
 const { migrate } = await import('drizzle-orm/better-sqlite3/migrator');
 const { and, eq, sql } = await import('drizzle-orm');
 
@@ -205,5 +207,54 @@ test('ingest performs no model work of its own', async () => {
   } finally {
     if (previous === undefined) delete process.env.YOMU_OLLAMA_URL;
     else process.env.YOMU_OLLAMA_URL = previous;
+  }
+});
+
+test('a grouped 〟。 does not slide the offsets of everything after it', async () => {
+  // kuromoji splits its input at 、 and 。 and places each piece after the
+  // START of the previous piece's last token -- right only while that token is
+  // the lone punctuation mark. 〝…〟 is an unknown symbol that groups with the
+  // mark after it, so 〟。 is one two-character token, and every sentence after
+  // it came out one character early: its text opened with the previous 。 and
+  // lost its own. Both shapes are from a real book.
+  const book = parseEpub(
+    buildEpub({
+      documents: [
+        {
+          name: 'p-001.xhtml',
+          body: [
+            '<p>あくまでも〝補佐〟。基本は何も変わらない。</p>',
+            '<p>「相談できる〝指導員〟、けっこう良い奴だよ」</p>',
+            '<p>「ホント？」</p>',
+          ].join(''),
+        },
+      ],
+    }),
+  );
+
+  const { sectionIds } = await ingestWork(book);
+  const texts = db
+    .select({ text: sentences.text })
+    .from(sentences)
+    .where(eq(sentences.sectionId, sectionIds[0]!))
+    .orderBy(sentences.orderIndex)
+    .all()
+    .map((r) => r.text);
+
+  assert.deepEqual(texts, [
+    'あくまでも〝補佐〟。',
+    '基本は何も変わらない。',
+    '「相談できる〝指導員〟、けっこう良い奴だよ」',
+    '「ホント？」',
+  ]);
+
+  const rows = db
+    .select({ text: sentences.text, surface: tokens.surface, charStart: tokens.charStart, charEnd: tokens.charEnd })
+    .from(tokens)
+    .innerJoin(sentences, eq(sentences.id, tokens.sentenceId))
+    .where(eq(sentences.sectionId, sectionIds[0]!))
+    .all();
+  for (const row of rows) {
+    assert.equal(row.text.slice(row.charStart, row.charEnd), row.surface);
   }
 });
