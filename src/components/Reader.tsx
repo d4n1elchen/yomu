@@ -4,8 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toggleLearning } from '../app/read/actions.ts';
 import type { Article, ArticleSentence, ArticleToken } from '../lib/article.ts';
 import { DownloadChapter } from './DownloadChapter.tsx';
-import { DEFAULT_LEVEL, MAX_BAND, isHardWord } from '../lib/marking.ts';
+import { DEFAULT_LEVEL, isHardWord } from '../lib/marking.ts';
+import { loadLevel, saveLevel } from '../lib/reading/level.ts';
 import { AskDialog, type AskTarget } from './AskDialog.tsx';
+import { ReaderSettings } from './ReaderSettings.tsx';
 import { ReadStamp } from './ReadStamp.tsx';
 import { ReadingProgress } from './ReadingProgress.tsx';
 import { TokenSpan } from './TokenSpan.tsx';
@@ -112,6 +114,17 @@ export function Reader({ article }: { article: Article }) {
     }
     return found.size;
   }, [article.sentences, level]);
+
+  // Read after mount rather than in the initial state: the server renders at the
+  // default, and starting from storage would disagree with it on hydration.
+  useEffect(() => {
+    setLevel(loadLevel());
+  }, []);
+
+  const onLevelChange = (next: number) => {
+    setLevel(next);
+    saveLevel(next);
+  };
 
   useEffect(
     () => () => {
@@ -244,39 +257,19 @@ export function Reader({ article }: { article: Article }) {
 
       <div className="reader-controls">
         <DownloadChapter article={article} />
-        <label className={`switch ${explain ? 'on' : ''}`}>
-          <input
-            type="checkbox"
-            checked={explain}
-            onChange={(event) => {
-              setExplain(event.target.checked);
-              setWord(null);
-            }}
-          />
-          <span className="switch-label">詞彙解說</span>
-          <span className="switch-track" aria-hidden="true">
-            <span className="switch-knob" />
-          </span>
-        </label>
       </div>
 
-      {article.dictionaryReady && explain ? (
-        <div className="level-control">
-          <span className="level-label">難易度</span>
-          <span className="level-end">初級</span>
-          <input
-            type="range"
-            min={1}
-            max={MAX_BAND}
-            step={1}
-            value={level}
-            onChange={(event) => setLevel(Number(event.target.value))}
-            aria-label="難易度：往右代表已知的詞越多，標記越少"
-          />
-          <span className="level-end">進階</span>
-          <span className="level-count">已標記 {markedCount} 個詞</span>
-        </div>
-      ) : null}
+      <ReaderSettings
+        explain={explain}
+        onExplainChange={(on) => {
+          setExplain(on);
+          setWord(null);
+        }}
+        level={level}
+        onLevelChange={onLevelChange}
+        dictionaryReady={article.dictionaryReady}
+        markedCount={markedCount}
+      />
 
       <div
         className="reader"
