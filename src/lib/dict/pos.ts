@@ -52,24 +52,37 @@ const CONJUGATION: Array<[string, string[]]> = [
 const NOUN_DETAIL: Record<string, string[]> = {
   数: ['num', 'ctr'],
   代名詞: ['pn'],
-  接尾: ['suf', 'n-suf', 'ctr'],
+  // 様態 そう is 名詞・接尾 to IPADIC and `aux` to JMdict. Without the auxiliary
+  // tags every そう in 嬉しそう was offered only 双, 層, 壮 and their kin, and the
+  // resolver dutifully chose 壮 "bravery" among them.
+  接尾: ['suf', 'n-suf', 'ctr', 'aux', 'aux-adj'],
   形容動詞語幹: ['adj-na', 'adj-no'],
   サ変接続: ['n', 'vs', 'adj-no'],
   副詞可能: ['n', 'adv', 'n-adv', 'n-t'],
+  // Grammatical nouns: こと, もの, ため, and the nominalizing の and ん, which JMdict
+  // files under its particle entries. Offered nouns alone, the の in
+  // 走るのが好き was linked to 野 "field" 570 times.
+  非自立: ['n', 'n-adv', 'n-t', 'n-suf', 'adj-no', 'pn', 'prt'],
 };
 
 const NOUN = ['n', 'n-adv', 'n-t', 'n-pref', 'n-suf', 'adj-no', 'pn'];
 
+/**
+ * `exp` throughout the function words: IPADIC keeps という, によって and 実は as
+ * single particles, conjunctions and adverbs, and JMdict lists each as an
+ * expression.
+ */
 const COARSE: Record<string, string[]> = {
   名詞: NOUN,
   形容詞: ['adj-i', 'adj-ix'],
-  副詞: ['adv', 'adv-to', 'n-adv'],
-  連体詞: ['adj-pn'],
-  接続詞: ['conj'],
-  感動詞: ['int'],
+  副詞: ['adv', 'adv-to', 'n-adv', 'exp'],
+  連体詞: ['adj-pn', 'adj-f'],
+  接続詞: ['conj', 'exp'],
+  感動詞: ['int', 'exp'],
+  フィラー: ['int'],
   接頭詞: ['pref', 'n-pref'],
-  助詞: ['prt'],
-  助動詞: ['aux-v', 'aux', 'aux-adj', 'cop'],
+  助詞: ['prt', 'exp'],
+  助動詞: ['aux-v', 'aux', 'aux-adj', 'cop', 'exp'],
 };
 
 /**
@@ -113,3 +126,27 @@ export function posAgrees(analyzer: AnalyzerPos, entryTags: Iterable<string>): b
   }
   return false;
 }
+
+/**
+ * Whether an entry is at least the same *kind* of word, for when nothing agrees
+ * exactly. Null means the analyzer's part of speech sets no such floor.
+ *
+ * Exact agreement is often too strict to insist on -- IPADIC calls 居る (おる)
+ * 一段 where JMdict says `v5r`, and the link is still right. But a verb is never
+ * a noun: falling back past the family is how the く of 〜てく became 句 "passage
+ * of text" and the filler ま became 魔 "demon".
+ */
+export function familyAgrees(pos: string, entryTags: Iterable<string>): boolean | null {
+  const family = FAMILY[pos];
+  if (!family) return null;
+  for (const tag of entryTags) {
+    if (family(tag)) return true;
+  }
+  return false;
+}
+
+const FAMILY: Record<string, (tag: string) => boolean> = {
+  動詞: (tag) => tag.startsWith('v') || tag === 'aux-v',
+  形容詞: (tag) => tag.startsWith('adj-i') || tag === 'aux-adj',
+  フィラー: (tag) => tag === 'int' || tag === 'adv',
+};

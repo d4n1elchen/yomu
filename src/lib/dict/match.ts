@@ -10,7 +10,8 @@ import {
 } from '../../db/schema.ts';
 import { contentWord } from '../dictionary.ts';
 import { toHiragana } from '../text/kana.ts';
-import { posAgrees, type AnalyzerPos } from './pos.ts';
+import { derivedForms } from './derive.ts';
+import { familyAgrees, posAgrees, type AnalyzerPos } from './pos.ts';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -23,8 +24,11 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
  *   available distinguishes them, so the senses shown may belong to the other.
  * - `lemma` -- the reading matched nothing, so the lemma went alone and may
  *   have picked the wrong homograph, along with the wrong word's band.
+ * - `derived` -- the lemma matched nothing at all, and a mechanical rewrite of
+ *   it did: a potential verb to its plain form (会える -> 会う), a と-adverb to
+ *   its stem. See `derivedForms`.
  */
-export type MatchKind = 'lemma_reading' | 'lemma_reading_multi' | 'lemma';
+export type MatchKind = 'lemma_reading' | 'lemma_reading_multi' | 'lemma' | 'derived';
 
 export interface Match {
   entryId: string;
@@ -37,6 +41,7 @@ export interface LinkStats {
   lemmaReading: number;
   /** Of those, the ones where more than one entry survived. A subset. */
   ambiguous: number;
+  /** Matched without the reading: on the lemma alone, or a derived form of it. */
   lemmaOnly: number;
   unmatched: number;
 }
@@ -118,11 +123,13 @@ function tagsFor(
  * Narrows a candidate list to the entries that could grammatically be this
  * token, keeping preference order.
  *
- * Falling back to the unnarrowed list when nothing agrees is deliberate. The
- * POS map is partial by design, and an entry whose senses are all tagged in a
- * way it does not cover must not be dropped -- matching coverage was 100% of
- * content words before grammar entered the picture, and must not regress in
- * exchange for sharper disambiguation.
+ * When nothing agrees exactly, the entries of the same kind of word stand in --
+ * the POS map is partial by design, and IPADIC and JMdict disagree about some
+ * conjugation classes (居る is 一段 to one and `v5r` to the other). Only where the
+ * analyzer's part of speech sets no floor does the whole list stand in, because
+ * an entry whose senses are all tagged in a way the map does not cover must not
+ * be dropped. A verb with no verb entry is left unmatched: linking it to a noun
+ * is never right, and unmatched at least marks it for the reader.
  */
 function narrow(
   ranked: string[],
@@ -130,7 +137,9 @@ function narrow(
   analyzer: AnalyzerPos,
 ): string[] {
   const agreeing = ranked.filter((id) => posAgrees(analyzer, tags.get(id) ?? []));
-  return agreeing.length > 0 ? agreeing : ranked;
+  if (agreeing.length > 0) return agreeing;
+  const family = ranked.filter((id) => familyAgrees(analyzer.pos, tags.get(id) ?? []) !== false);
+  return family;
 }
 
 /**
@@ -184,16 +193,35 @@ export function matchCandidates(
     const ranked = candidates(tx, lemma, toHiragana(reading));
     if (ranked.length > 0) {
       const survivors = narrow(ranked, tagsFor(tx, ranked), analyzer);
-      return {
-        survivors,
-        kind: survivors.length > 1 ? 'lemma_reading_multi' : 'lemma_reading',
-      };
+      if (survivors.length > 0) {
+        return {
+          survivors,
+          kind: survivors.length > 1 ? 'lemma_reading_multi' : 'lemma_reading',
+        };
+      }
     }
   }
 
   const ranked = candidates(tx, lemma, null);
-  if (ranked.length === 0) return null;
-  return { survivors: narrow(ranked, tagsFor(tx, ranked), analyzer), kind: 'lemma' };
+  if (ranked.length > 0) {
+    const survivors = narrow(ranked, tagsFor(tx, ranked), analyzer);
+    if (survivors.length > 0) return { survivors, kind: 'lemma' };
+  }
+
+  // Only once the word as analyzed has matched nothing. Each rewrite names the
+  // exact tags its result must carry, so 会える can reach 会う (v5u) and never an
+  // unrelated 会う-shaped noun.
+  for (const form of derivedForms(lemma, reading, analyzer)) {
+    for (const formReading of form.reading === '' ? [null] : [toHiragana(form.reading), null]) {
+      const found = candidates(tx, form.lemma, formReading);
+      const tags = tagsFor(tx, found);
+      const survivors = found.filter((id) =>
+        [...(tags.get(id) ?? [])].some((tag) => form.tags.includes(tag)),
+      );
+      if (survivors.length > 0) return { survivors, kind: 'derived' };
+    }
+  }
+  return null;
 }
 
 /**
@@ -248,7 +276,7 @@ export function linkLexemes(
       }
       continue;
     }
-    if (match.kind === 'lemma') {
+    if (match.kind === 'lemma' || match.kind === 'derived') {
       stats.lemmaOnly++;
     } else {
       stats.lemmaReading++;
@@ -302,7 +330,7 @@ export function dictionaryMatchReport(tx: Tx | typeof db = db): LinkStats {
     considered: rows.reduce((total, row) => total + row.count, 0),
     lemmaReading: of('lemma_reading') + of('lemma_reading_multi'),
     ambiguous: of('lemma_reading_multi'),
-    lemmaOnly: of('lemma'),
+    lemmaOnly: of('lemma') + of('derived'),
     unmatched: of(null),
   };
 }

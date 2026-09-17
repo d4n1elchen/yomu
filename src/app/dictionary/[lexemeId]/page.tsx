@@ -74,6 +74,10 @@ export default async function DictionaryEntryPage({
             <p className="caveat">
               這個詞只以辭書形對到 JMdict，沒有比對讀音，可能對到同形異音的另一個詞。
             </p>
+          ) : meaning.match === 'derived' ? (
+            <p className="caveat">
+              JMdict 沒有收錄這個形式（例如可能形），這裡對到的是它的原形。
+            </p>
           ) : null}
 
           {/*

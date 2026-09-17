@@ -124,6 +124,12 @@ before(() => {
     pos: 'num',
   });
   entry({ id: '10', headword: 'さん', reading: 'さん', forms: [['さん', 'さん']], pos: 'suf' });
+  // Plain forms the derived rules reach.
+  entry({ id: '11', headword: '会う', reading: 'あう', forms: [['会う', 'あう']], pos: 'v5u,vi' });
+  entry({ id: '12', headword: '出す', reading: 'だす', forms: [['出す', 'だす']], pos: 'v5s,vt' });
+  entry({ id: '13', headword: '出す', reading: 'だす', forms: [['出す', 'だす']], pos: 'n' });
+  entry({ id: '14', headword: '黙々', reading: 'もくもく', forms: [['黙々', 'もくもく']], pos: 'adv-to,adj-t' });
+  entry({ id: '15', headword: '味気ない', reading: 'あじけない', forms: [['味気ない', 'あじけない']], pos: 'adj-i' });
 });
 
 after(() => {
@@ -178,16 +184,55 @@ test('a noun subtype beats a commoner entry of the wrong kind', () => {
   });
 });
 
-test('grammar that rules out everything is ignored rather than obeyed', () => {
-  // No entry for いろ is an adjective. Dropping them all would lose a match
-  // that lemma and reading had already earned, so the filter stands down.
-  const match = matchLexeme('いろ', 'イロ', {
-    pos: '形容詞',
-    posDetail: '自立',
-    conjugationType: '形容詞・アウオ段',
+test('grammar that rules out everything falls back within the same kind of word', () => {
+  // No いろ entry is an adjective, and a noun is not an adjective under any
+  // disagreement between the tagsets -- so there is no match, not 色.
+  assert.equal(
+    matchLexeme('いろ', 'イロ', {
+      pos: '形容詞',
+      posDetail: '自立',
+      conjugationType: '形容詞・アウオ段',
+    }),
+    null,
+  );
+  // A verb whose class disagrees still reaches a verb: IPADIC calls 射る 五段
+  // here, JMdict says v1, and a verb entry is the best there is.
+  assert.equal(matchLexeme('いろ', 'イロ', godanRa)?.entryId, '7');
+  // A part of speech with no floor keeps the old behaviour: everything stands in.
+  assert.equal(
+    matchLexeme('いろ', 'イロ', { pos: '連体詞', posDetail: null, conjugationType: null })
+      ?.entryId,
+    '8',
+  );
+});
+
+test('a potential verb JMdict does not list reaches its plain form', () => {
+  const potential = { pos: '動詞', posDetail: '自立', conjugationType: '一段' };
+  assert.deepEqual(matchLexeme('会える', 'アエル', potential), {
+    entryId: '11',
+    kind: 'derived',
   });
-  assert.equal(match?.kind, 'lemma_reading_multi');
-  assert.equal(match?.entryId, '8');
+  // Only a godan verb of the same row: 出せる must be v5s, and the noun 出す-shaped
+  // entry does not qualify.
+  assert.deepEqual(matchLexeme('出せる', 'ダセル', potential), {
+    entryId: '12',
+    kind: 'derived',
+  });
+});
+
+test('a と-adverb reaches its stem, and a ない-adjective stem its adjective', () => {
+  assert.deepEqual(
+    matchLexeme('黙々と', 'モクモクト', { pos: '副詞', posDetail: '一般', conjugationType: null }),
+    { entryId: '14', kind: 'derived' },
+  );
+  assert.deepEqual(
+    matchLexeme('味気', 'アジケ', {
+      pos: '名詞',
+      posDetail: 'ナイ形容詞語幹',
+      conjugationType: null,
+    }),
+    { entryId: '15', kind: 'derived' },
+  );
 });
 
 test('an unranked common word beats a ranked obscure one', () => {
