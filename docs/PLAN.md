@@ -709,25 +709,162 @@ reconcile pass on the shelf. Not built, because it only bites if you download an
 delete on different devices, and a stale download is untidy rather than broken.
 Revisit when that actually happens.
 
+## Grammar — measured, not built
+
+The earlier design — entries created during Q&A, with the agent deciding
+novelty — was wrong and has been removed. Vocabulary dedups on a natural key the
+analyzer derives mechanically; a model inventing names for grammar points
+produces near-duplicates that only become visible once the collection is large
+enough to matter. The two candidates for a key were token-stream patterns and a
+fixed inventory the model selects from. **Measured against real reading, the
+answer is both, in sequence: an inventory that already carries its patterns,
+matched as you read, with the model only choosing among the matches.**
+
+**The key is the L2 id of 「つつじ」**, 松吉・佐藤's dictionary of Japanese
+functional expressions (v1.1u, CC BY-SA 4.0, a 1.2 MB zip from the
+[TEU language media lab](https://sites.google.com/edu.teu.ac.jp/cl-lab/%E7%A0%94%E7%A9%B6/%E8%A8%80%E8%AA%9E%E8%B3%87%E6%BA%90/%E6%97%A5%E6%9C%AC%E8%AA%9E%E6%A9%9F%E8%83%BD%E8%A1%A8%E7%8F%BE%E8%BE%9E%E6%9B%B8%E3%81%A4%E3%81%A4%E3%81%98)).
+It has 341 headwords, 435 L2 meanings and 16,801 surface forms. Its nine levels
+are exactly the variation a dedup has to collapse:
+
+| Level | Separates | Example |
+|---|---|---|
+| L1 | Composition (headword) | にとって |
+| **L2** | **Meaning** | ながら "while" / ながら "although" |
+| L3 | Function | に対して / に対する |
+| L4 | Function-word alternation | |
+| L5 | Phonetic change | てしまう / ちゃう |
+| L6 | Inserted とりたて詞 | に対して**は** |
+| L7 | Conjugation | |
+| L8 | With or without です/ます | にとりまして |
+| L9 | Spelling | に対して / にたいして |
+
+L2 is the learning item: everything below it is form, and above it meanings
+merge. Ids are prefixes (`0011P.1xx.01n01` → `0011`), so any matched form
+reduces to its key by truncation. 199 意味的等価クラス group paraphrasable
+L2s (から / ので / ものだから) — "similar grammar" and quiz distractors, **never a
+merge**. Each L2 carries a difficulty (A1, A2, B, C, F; F is undocumented and
+formal or archaic in practice), and 162 carry an id in the pre-2010 JLPT
+出題基準.
+
+**It speaks IPADIC.** Its connection constraints are full IPADIC feature
+strings — `動詞,*,*,*,*,連用タ接続,*` — which is what kuromoji already stores in
+`token.features`, so candidates come off the existing token stream with no
+patterns to author. LEFT constrains the token before the expression, RIGHT the
+expression's own last token, and the trailing `90` on every code is unused.
+This makes the analyzer harder to swap: `src/lib/analyzer/types.ts` calls UniDic
+a one-file change, which stops being true once grammar matching exists.
+
+**Not in it**, found by probing and by the measurements below: てみる, causative
+させる, the passive, suffixes (がち, っぽい, だらけ), 様態 そう, ～かける,
+～に見える, "wondering" だろうか (its only だろうか is rhetorical), and
+directional てくる / ていく (its entries are aspect only, so 近づいてくる is
+arguably not them). These need a small supplement in the same record shape
+under a `yomu:` id prefix, written by hand and never by the model.
+
+**JMdict is a cross-reference, not a key.** 324 of the 435 L2s have a surface in
+JMdict (178 tagged `exp`), but one JMdict entry spans several meanings and knows
+nothing of variants. Nothing collides with vocabulary: kuromoji never emits
+these expressions as a single token.
+
+### Measured: detection while reading
+
+On the local library (4,664 sentences, 7 works), matching exact surface
+sequences under LEFT/RIGHT and keeping maximal spans:
+
+- **20,402 spans, in 95% of sentences** — mostly single A1 particles. 3,227
+  multi-morpheme spans over 123 L2s, and 3,703 single-morpheme spans above A1.
+- **200 spans labelled by hand**: 150 multi-morpheme, stratified at most four
+  per candidate set, and 50 single-morpheme above A1. The labels are Claude's,
+  not a native annotator's. Of the 150, 99 had the right candidate offered, 32
+  were not grammar at all (学生**では**なかった, 目**にして**いた,
+  送信された**もの**だった), and 19 were grammar with the wrong candidates
+  offered (帰ら**なければ**いけない got only ないと).
+
+Precision is the share of what would be stored that is right — the number that
+matters, because a wrong occurrence teaches the wrong thing while a missed one
+only costs a review sentence. Over all 200:
+
+| | precision | recall |
+|---|---|---|
+| Matcher, first candidate | 60% | 83% |
+| Matcher, only when unambiguous | 72% | 70% |
+| `qwen3.8:27b` picks or rejects, Tsutsuji labels shown | 87% | 68% |
+| Same, Chinese glosses shown | 86% | 79% |
+| Both prompts agree | 94% | 64% |
+
+The model got the candidates plus "none", constrained by a JSON-schema enum, at
+temperature 0 — the resolver's shape. **2.3 s median per span**, one span per
+request, so roughly four hours for this library if every multi-morpheme and
+above-A1 span goes through it.
+
+**The matcher is the weak part, not the model.** 10 of the 18 wrong accepts in
+the gloss run were spans offered the wrong family; where the matcher offered
+the right one, precision was 93%. Prefer the longest match across overlapping
+patterns (なければ|いけない, わけ|にはいかない, よう|になる), and add the
+supplement.
+
+**What the model is shown decides its recall.** Tsutsuji's own labels — てしまう
+is 過去-完了-タ類 — made it reject obvious cases. Traditional Chinese glosses
+for the L2s, generated in one pass (55 requests of eight, ~14 s each, one id
+dropped),
+raised recall from 68% to 79%. They need review before anyone sees them: two
+まで meanings came back with the same gloss, and the "even" まで was wrong. They
+are display text, never a key, so a bad gloss costs clarity rather than
+creating duplicates.
+
+### Measured: linking what Q&A answers name
+
+30 grammar-rich sentences through the app's own Q&A prompt and the 說明文法
+chip, then extract the points named, retrieve candidates (matcher spans in the
+sentence, then surface lookup, then `bge-m3` over L2 descriptions), and have the
+model pick or reject:
+
+- **249 mentions, 8.3 per answer**: 38% grammar patterns, 31% particles and the
+  copula, 16% conjugation forms, 14% vocabulary (ほとんど, 敬遠).
+- 79% of the grammar patterns have a Tsutsuji entry. **Link precision 93%**,
+  recall of the linkable 64%.
+- **137 of the 167 linkable mentions were retrieved through a matcher span in
+  the same sentence**, and for 122 of those the span already offered the right
+  entry. Q&A mostly re-finds what detection already found. What
+  remains is generic (連體修飾節, て形) or a few real gaps (に見える, 様態 そう,
+  かける), which the supplement covers. Extraction adds ~16 s to a ~43 s answer.
+
+**So Q&A extraction and a queue of proposed new points are not built first.**
+The Q&A card can show the sentence's detected points instead, and "Q&A stores
+nothing" stands. Revisit only if the supplement stops keeping up.
+
+### Direction
+
+1. **Import Tsutsuji** the way JMdict is imported: a fetch and an import script,
+   the source in the gitignored `data/`, an attribution notice like
+   `EdrdgNotice`. ShareAlike applies to anything derived from it and distributed
+   — the reviewed glosses included.
+2. **Match at import** into a grammar-occurrence table: sentence, revision
+   (`sentenceRevision`, like every other anchor), token range, candidate L2s,
+   status. Deterministic, like tokens.
+3. **Confirm in the background**, like homograph resolution: announced through
+   `priority.ts`, abortable, never gating reading.
+4. **Review keyed on L2**, so ちゃう and てしまう are one card. Cards come from
+   your own occurrences, a different sentence each time; 意味的等価クラス peers
+   are the distractors and are not scheduled on the same day. Meeting a point
+   while reading is exposure, not a review. A level threshold on difficulty
+   hides the A1 particles, the way the band slider hides common words.
+
+**Open, not measured:**
+
+- **Which spans reach the model at all.** The level threshold is the main cost
+  lever.
+- **One span per request, or a sentence's spans in one request.** Only per-span
+  has been measured.
+- **Whether to require two agreeing prompts** — 94% at twice the cost.
+- **Whether A1 particles are grammar items at all.** Tsutsuji has them, eight
+  meanings of に among them.
+
+The labels and scripts are not committed: the labelled sentences are
+copyrighted book text, the same reason EPUB fixtures are built rather than
+checked in.
+
 ## Deferred
-
-**Grammar.** The earlier design — entries created during Q&A, with the agent
-deciding novelty — was wrong and has been removed. Vocabulary dedups on a
-natural key the analyzer derives mechanically; a model inventing names for
-grammar points produces near-duplicates that only become visible once the
-collection is large enough to matter.
-
-Grammar needs a natural key first. Two candidates:
-
-- **Token-stream patterns**, matched deterministically as you read. This is the
-  genuinely vocab-like answer and would make grammar points appear while
-  reading rather than requiring you to ask. Costs authoring the patterns, and
-  nuance-based points do not reduce to patterns.
-- **A fixed inventory the model may only select from**, never name. Cheaper,
-  keeps the key stable, but ties grammar to asking and cannot record anything
-  outside the list.
-
-Undecided deliberately, until there is real reading to ground the choice in.
 
 **Also deferred:** JMnedict, URL import, transcription. File import is built for
 EPUB — see above — and for nothing else.

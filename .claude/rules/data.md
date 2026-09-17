@@ -45,12 +45,15 @@ designing any of them. The dictionary tables are built; `dict_form` exists so
 that matching a lexeme is an indexed query rather than a pass over the 118 MB
 source file, which an article import must not need on disk.
 
-**Grammar is the exception: deliberately undecided.** An earlier design had
+**Grammar is the exception: measured, not built.** An earlier design had
 entries created during Q&A with the model judging novelty, which does not work
 — vocabulary dedups on a natural key the analyzer derives mechanically, while a
-model inventing names produces near-duplicates. Grammar needs its own natural
-key first. The schema comment explains the two candidates; do not design around
-either without deciding.
+model inventing names produces near-duplicates. The key is now chosen: the L2
+id of the 「つつじ」 functional-expression dictionary, matched over the token
+stream and confirmed by the model choosing among matches, never naming. The
+schema comment still describes the question as open; `docs/PLAN.md` ("Grammar —
+measured, not built") has the measurements and the direction. Read it before
+designing any grammar table.
 
 # Naming
 
