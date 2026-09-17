@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull } from 'drizzle-orm';
+import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '../../db/client.ts';
 import {
   dictEntries,
@@ -12,15 +12,18 @@ import { runAbortable, yieldToInteractive } from '../analysis/priority.ts';
 import { sameMeaning } from '../dictionary.ts';
 import { collect, getLlmProvider, type LlmProvider } from '../llm/index.ts';
 import { matchCandidates } from './match.ts';
+import type { AnalyzerPos } from './pos.ts';
+import { posAgrees } from './pos.ts';
 import {
   buildResolverMessages,
+  NONE,
   parseResolution,
   RESOLVER_FORMAT,
   type ResolverCandidate,
 } from './resolve-prompt.ts';
 
 /** A lexeme whose match left several entries standing, awaiting resolution. */
-interface AmbiguousLexeme {
+export interface AmbiguousLexeme {
   id: string;
   lemma: string;
   reading: string;
@@ -58,53 +61,85 @@ export function ambiguousLexemes(sectionId: string): AmbiguousLexeme[] {
     .all();
 }
 
-/** The entry's leading gloss, headword and reading -- what tells one survivor
- *  from another. */
-function candidateOf(entryId: string): ResolverCandidate | null {
+/** How many senses of one candidate the model is shown. */
+const MAX_GLOSSES = 3;
+
+/** How many sentences stand for the word. */
+const MAX_OCCURRENCES = 3;
+
+/**
+ * What tells one survivor from another: headword, reading, whether JMdict calls
+ * it common, and the senses that fit this word's grammar -- the entry's leading
+ * sense when none of them does.
+ */
+function candidateOf(entryId: string, analyzer: AnalyzerPos): ResolverCandidate | null {
   const entry = db
-    .select({ headword: dictEntries.headword, reading: dictEntries.reading })
+    .select({
+      headword: dictEntries.headword,
+      reading: dictEntries.reading,
+      band: dictEntries.freqBand,
+      common: dictEntries.common,
+    })
     .from(dictEntries)
     .where(eq(dictEntries.id, entryId))
     .get();
   if (!entry) return null;
 
-  const gloss = db
-    .select({ en: dictSenses.glossEn })
+  const senses = db
+    .select({ en: dictSenses.glossEn, pos: dictSenses.pos })
     .from(dictSenses)
     .where(eq(dictSenses.entryId, entryId))
     .orderBy(asc(dictSenses.orderIndex))
-    .limit(1)
-    .get();
-  if (!gloss) return null;
+    .all();
+  if (senses.length === 0) return null;
+
+  const fitting = senses.filter((sense) => posAgrees(analyzer, sense.pos.split(',')));
+  const shown = (fitting.length > 0 ? fitting : senses).slice(0, MAX_GLOSSES);
 
   return {
     entryId,
     headword: entry.headword,
     reading: entry.reading,
-    glossEn: gloss.en,
+    glosses: shown.map((sense) => sense.en),
+    common: entry.common || entry.band !== null,
   };
 }
 
-/** A sentence this lexeme occurs in, with the surface as written -- the context
- *  the model reads the choice out of. One occurrence stands for the lexeme: the
- *  link is per-lexeme, so a single representative sentence is all there is to
- *  pick from. */
-function occurrenceOf(
+/**
+ * Sentences this lexeme occurs in, with the surface as written -- the context
+ * the model reads the choice out of. The section being resolved goes first, then
+ * the rest of the library, distinct sentences only. The link is per lexeme, so
+ * the pick should fit how the word is used across the reading, not whichever
+ * single sentence happened to come first: a lone かもしれない read without its
+ * neighbours was enough to choose 痴れる "to become foolish".
+ */
+function occurrencesOf(
   lexemeId: string,
   sectionId: string,
-): { sentence: string; surface: string } | null {
-  return (
-    db
-      .select({ sentence: sentences.text, surface: tokens.surface })
-      .from(tokens)
-      .innerJoin(sentences, eq(sentences.id, tokens.sentenceId))
-      .where(
-        and(eq(tokens.lexemeId, lexemeId), eq(sentences.sectionId, sectionId)),
-      )
-      .orderBy(asc(sentences.orderIndex), asc(tokens.orderIndex))
-      .limit(1)
-      .get() ?? null
-  );
+): Array<{ sentence: string; surface: string }> {
+  const rows = db
+    .select({ sentence: sentences.text, surface: tokens.surface })
+    .from(tokens)
+    .innerJoin(sentences, eq(sentences.id, tokens.sentenceId))
+    .where(and(eq(tokens.lexemeId, lexemeId), eq(sentences.needsReview, false)))
+    .orderBy(
+      sql`${sentences.sectionId} = ${sectionId} desc`,
+      asc(sentences.sectionId),
+      asc(sentences.orderIndex),
+      asc(tokens.orderIndex),
+    )
+    .limit(MAX_OCCURRENCES * 4)
+    .all();
+
+  const seen = new Set<string>();
+  const picked: Array<{ sentence: string; surface: string }> = [];
+  for (const row of rows) {
+    if (seen.has(row.sentence)) continue;
+    seen.add(row.sentence);
+    picked.push(row);
+    if (picked.length === MAX_OCCURRENCES) break;
+  }
+  return picked;
 }
 
 /**
@@ -113,7 +148,7 @@ function occurrenceOf(
  * pick. A network failure propagates so the caller can stop the pass rather than
  * ask an unreachable host once per lexeme.
  */
-async function resolveOne(
+export async function resolveOne(
   provider: LlmProvider,
   context: Parameters<typeof buildResolverMessages>[0],
 ): Promise<{ entryId: string | null } | 'abandoned'> {
@@ -188,24 +223,8 @@ export async function resolveSectionAmbiguity(
   };
 
   for (const lexeme of pending) {
-    const found = matchCandidates(lexeme.lemma, lexeme.reading, lexeme);
-    const candidates =
-      found === null || found.survivors.length < 2
-        ? []
-        : found.survivors
-            .map(candidateOf)
-            .filter((c): c is ResolverCandidate => c !== null);
-
-    // Only ask when the survivors genuinely differ. If every candidate reduces
-    // to the same leading meaning, the deterministic pick is as good as any --
-    // and the lexeme is finished without a request ever being made.
-    const meanings = new Set(candidates.map((c) => sameMeaning(c.glossEn)));
-    const occurrence =
-      candidates.length < 2 || meanings.size < 2
-        ? null
-        : occurrenceOf(lexeme.id, sectionId);
-
-    if (!occurrence) {
+    const context = resolverContext(lexeme, sectionId);
+    if (!context) {
       advance();
       continue;
     }
@@ -214,11 +233,7 @@ export async function resolveSectionAmbiguity(
     llm ??= provider ?? getLlmProvider();
     let outcome: Awaited<ReturnType<typeof resolveOne>>;
     try {
-      outcome = await resolveOne(llm, {
-        sentence: occurrence.sentence,
-        surface: occurrence.surface,
-        candidates,
-      });
+      outcome = await resolveOne(llm, context);
     } catch {
       // Host unreachable: leave this section pending for a later drain.
       return 'unreachable';
@@ -229,12 +244,7 @@ export async function resolveSectionAmbiguity(
     // is not reported as a host failure.
     if (outcome === 'abandoned') return 'abandoned';
 
-    if (outcome.entryId) {
-      db.update(lexemes)
-        .set({ dictEntryId: outcome.entryId, dictResolver: llm.model })
-        .where(eq(lexemes.id, lexeme.id))
-        .run();
-    }
+    writeResolution(lexeme.id, outcome.entryId, llm.model);
     advance();
   }
 
@@ -244,4 +254,51 @@ export async function resolveSectionAmbiguity(
     .run();
 
   return 'done';
+}
+
+/**
+ * What the model is asked about one lexeme, or null when there is nothing to
+ * ask: fewer than two survivors, survivors that all mean the same thing, or no
+ * reviewed sentence to read the choice out of.
+ */
+export function resolverContext(
+  lexeme: AmbiguousLexeme,
+  sectionId: string,
+): Parameters<typeof buildResolverMessages>[0] | null {
+  const found = matchCandidates(lexeme.lemma, lexeme.reading, lexeme);
+  if (found === null || found.survivors.length < 2) return null;
+  const candidates = found.survivors
+    .map((entryId) => candidateOf(entryId, lexeme))
+    .filter((c): c is ResolverCandidate => c !== null);
+
+  // Only ask when the survivors genuinely differ. If every candidate reduces
+  // to the same leading meaning, the deterministic pick is as good as any --
+  // and the lexeme is finished without a request ever being made.
+  const meanings = new Set(candidates.map((c) => sameMeaning(c.glosses[0] ?? '')));
+  if (candidates.length < 2 || meanings.size < 2) return null;
+
+  const occurrences = occurrencesOf(lexeme.id, sectionId);
+  return occurrences.length === 0 ? null : { occurrences, candidates };
+}
+
+/**
+ * Records the model's answer. A pick moves the link; a rejection removes it, and
+ * both are stamped with the model so the lexeme is never asked again and a
+ * non-relink `linkLexemes` leaves the rejection standing. No answer at all keeps
+ * the deterministic pick, unstamped.
+ */
+export function writeResolution(
+  lexemeId: string,
+  entryId: string | null,
+  model: string,
+): void {
+  if (entryId === null) return;
+  db.update(lexemes)
+    .set(
+      entryId === NONE
+        ? { dictEntryId: null, dictMatch: null, dictResolver: model }
+        : { dictEntryId: entryId, dictResolver: model },
+    )
+    .where(eq(lexemes.id, lexemeId))
+    .run();
 }

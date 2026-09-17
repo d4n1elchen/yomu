@@ -14,6 +14,7 @@
     "test": "node --test \"src/**/*.test.ts\"",
     "db:translate": "node scripts/translate.ts",
     "db:retokenize": "node scripts/retokenize.ts",
+    "db:relink": "node scripts/relink.ts",
     "deploy": "bash scripts/deploy.sh",
     "update": "bash scripts/update.sh"
   },

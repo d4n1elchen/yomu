@@ -250,7 +250,13 @@ export function linkLexemes(
       conjugationType: lexemes.conjugationType,
     })
     .from(lexemes)
-    .where(options.relink ? undefined : isNull(lexemes.dictEntryId))
+    // A null link stamped by a resolver is the model rejecting every candidate,
+    // not a word still waiting to be matched; only a relink reopens it.
+    .where(
+      options.relink
+        ? undefined
+        : and(isNull(lexemes.dictEntryId), isNull(lexemes.dictResolver)),
+    )
     .all();
 
   const stats: LinkStats = {

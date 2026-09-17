@@ -222,6 +222,10 @@ export const lexemes = sqliteTable(
      * keep a model-chosen link distinguishable from a computed one, and
      * re-runnable later. A full relink clears it along with the link it
      * annotates, so it never outlives the pick it described.
+     *
+     * Set with a null `dictEntryId`, it records the model rejecting every
+     * candidate -- the list did not hold the word, as for 〜てく's く. Ordinary
+     * linking leaves that row alone; only a relink reopens it.
      */
     dictResolver: text('dict_resolver'),
     createdAt: integer('created_at')

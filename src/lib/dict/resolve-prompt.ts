@@ -6,18 +6,34 @@ export interface ResolverCandidate {
   entryId: string;
   headword: string;
   reading: string;
-  /** JMdict's leading English gloss, enough to tell the entries apart. */
-  glossEn: string;
+  /**
+   * The entry's senses that fit the word's grammar, first few only -- or its
+   * leading sense when none does.
+   *
+   * One leading gloss was not enough to choose on. JMdict orders an entry's
+   * senses by commonness across every use, so the sense a grammatical word takes
+   * is often not the first: 目 leads with "eye" and carries the ordinal "-th" as
+   * a suffix sense further down, and shown only "eye" the model preferred 奴
+   * "bastard" for the め of 二つ目.
+   */
+  glosses: string[];
+  /** JMdict ranks or flags the entry as common. */
+  common: boolean;
 }
 
 export interface ResolverContext {
-  /** A sentence the word occurs in, as the disambiguating context. */
-  sentence: string;
-  /** The surface form as written in that sentence. */
-  surface: string;
+  /**
+   * Sentences the word occurs in, with the surface as written in each. Several,
+   * because the link is per word rather than per occurrence: the pick has to fit
+   * how the word is used, not one sentence that may be the odd one out.
+   */
+  occurrences: Array<{ sentence: string; surface: string }>;
   /** The surviving entries, best-deterministic-guess first. */
   candidates: ResolverCandidate[];
 }
+
+/** The reply that rejects every candidate. */
+export const NONE = 'none';
 
 /**
  * It selects, it does not name. Given a real list of JMdict entries that all
@@ -25,16 +41,22 @@ export interface ResolverContext {
  * sentence means -- 成る "to become" over 生る "to bear fruit". That is a choice
  * a model can make in context and cannot invent its way out of, the same
  * grounding the glosses rely on. It is never asked for a reading.
+ *
+ * It may also reject the whole list. Without that, a list that does not hold the
+ * right entry still got a confident pick: 〜てく's く has no entry, and the model
+ * chose 句 "passage of text" because it had to choose something. A rejection
+ * unlinks the word, which marks it for the reader rather than misinforming them.
  */
-const SYSTEM = `你是一位日語辭典編輯。句子裡有一個詞，對應到好幾個同形同音、詞性也相同的辭書詞條，你要判斷在這個句子裡它是哪一條。
+const SYSTEM = `你是一位日語辭典編輯。一個詞在文章裡出現，對應到好幾個同形同音、詞性也相同的辭書詞條，你要判斷它是哪一條。
 
 規則：
-- 你是在**從清單裡挑選**，不是命名或創造。只能回傳清單中出現過的其中一個 id。
-- 依句子的意思判斷，選最貼切的那一條。
-- 不確定時，選語感上最自然、最常見的一條。
-- 以 JSON 物件回覆，格式為 {"entryId": "清單中的其中一個 id"}。`;
+- 你是在**從清單裡挑選**，不是命名或創造。只能回傳清單中出現過的其中一個 id，或 "${NONE}"。
+- 依例句的意思判斷，選最貼切的那一條。每個詞條列出了與這個詞詞性相符的語義。
+- 標為「常用」的詞條遠比「少用」的常見。沒有明確理由時，選常用的那一條。
+- 只有當清單中**沒有任何一條**符合例句裡的用法時（例如這是文法成分，而清單全是無關的實詞），才回傳 "${NONE}"。
+- 以 JSON 物件回覆，格式為 {"entryId": "清單中的其中一個 id 或 ${NONE}"}。`;
 
-/** The reply schema: exactly one entry id, which must be validated against the
+/** The reply schema: exactly one entry id, or `none`, validated against the
  *  candidate set before it is trusted. */
 export const RESOLVER_FORMAT = {
   type: 'object',
@@ -48,12 +70,20 @@ export function buildResolverMessages(context: ResolverContext): LlmMessage[] {
   if (context.candidates.length < 2) {
     throw new Error('At least two candidates are required to resolve.');
   }
+  if (context.occurrences.length === 0) {
+    throw new Error('At least one occurrence is required to resolve.');
+  }
 
   const list = context.candidates
     .map(
       (candidate) =>
-        `- ${candidate.entryId}：${candidate.headword}（${candidate.reading}） ${candidate.glossEn}`,
+        `- ${candidate.entryId}：${candidate.headword}（${candidate.reading}）` +
+        `〔${candidate.common ? '常用' : '少用'}〕 ${candidate.glosses.join(' / ')}`,
     )
+    .join('\n');
+
+  const examples = context.occurrences
+    .map((occurrence, index) => `${index + 1}. ${occurrence.sentence}（「${occurrence.surface}」）`)
     .join('\n');
 
   return [
@@ -61,17 +91,18 @@ export function buildResolverMessages(context: ResolverContext): LlmMessage[] {
     {
       role: 'user',
       content:
-        `句子：${context.sentence}\n\n` +
-        `句中的「${context.surface}」對應下列哪一個詞條？\n${list}`,
+        `例句（括號裡是這個詞在句中的寫法）：\n${examples}\n\n` +
+        `這個詞對應下列哪一個詞條？\n${list}`,
     },
   ];
 }
 
 /**
- * Reads the reply and returns the chosen id only when it is one of the ids that
- * were offered. Anything else -- a hallucinated id, malformed JSON, an entry the
- * model wished existed -- is rejected, and the caller keeps the deterministic
- * pick. Same shape as validating the translation's sense count.
+ * Reads the reply: the chosen id when it is one of the ids offered, `NONE` when
+ * the model rejected every one, and null for anything else -- a hallucinated
+ * id, malformed JSON, an entry the model wished existed -- which the caller
+ * treats as no opinion and keeps the deterministic pick. Same shape as
+ * validating the translation's sense count.
  */
 export function parseResolution(
   raw: string,
@@ -87,6 +118,7 @@ export function parseResolution(
 
   const entryId = (data as { entryId?: unknown }).entryId;
   if (typeof entryId !== 'string') return null;
+  if (entryId === NONE) return NONE;
 
   return new Set(candidateIds).has(entryId) ? entryId : null;
 }

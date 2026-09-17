@@ -2,17 +2,32 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   buildResolverMessages,
+  NONE,
   parseResolution,
   RESOLVER_FORMAT,
   type ResolverContext,
 } from './resolve-prompt.ts';
 
 const context: ResolverContext = {
-  sentence: '夕方になっても、まだ仕事が終わらない。',
-  surface: 'なっ',
+  occurrences: [
+    { sentence: '夕方になっても、まだ仕事が終わらない。', surface: 'なっ' },
+    { sentence: '先生になりたい。', surface: 'なり' },
+  ],
   candidates: [
-    { entryId: '1', headword: '生る', reading: 'なる', glossEn: 'to bear fruit' },
-    { entryId: '2', headword: '成る', reading: 'なる', glossEn: 'to become; to get' },
+    {
+      entryId: '1',
+      headword: '生る',
+      reading: 'なる',
+      glosses: ['to bear fruit'],
+      common: false,
+    },
+    {
+      entryId: '2',
+      headword: '成る',
+      reading: 'なる',
+      glosses: ['to become; to get', 'to consist of'],
+      common: true,
+    },
   ],
 };
 
@@ -23,22 +38,31 @@ test('tells the model to select from the list, never to name a word', () => {
   assert.match(system.content, /不是命名或創造/);
 });
 
-test('gives the sentence as context and names the surface in it', () => {
-  const user = buildResolverMessages(context)[1]!.content;
-  assert.match(user, /句子：夕方になっても/);
-  assert.match(user, /句中的「なっ」/);
+test('lets the model reject a list that holds no right entry', () => {
+  const system = buildResolverMessages(context)[0]!.content;
+  assert.match(system, new RegExp(`"${NONE}"`));
 });
 
-test('lists every candidate id with its headword and gloss', () => {
+test('gives every occurrence as context and names the surface in each', () => {
   const user = buildResolverMessages(context)[1]!.content;
-  assert.match(user, /- 1：生る（なる） to bear fruit/);
-  assert.match(user, /- 2：成る（なる） to become; to get/);
+  assert.match(user, /1\. 夕方になっても.*（「なっ」）/);
+  assert.match(user, /2\. 先生になりたい。（「なり」）/);
 });
 
-test('refuses to build a prompt with fewer than two candidates', () => {
+test('lists every candidate id with its headword, commonness and senses', () => {
+  const user = buildResolverMessages(context)[1]!.content;
+  assert.match(user, /- 1：生る（なる）〔少用〕 to bear fruit/);
+  assert.match(user, /- 2：成る（なる）〔常用〕 to become; to get \/ to consist of/);
+});
+
+test('refuses to build a prompt with fewer than two candidates or no sentence', () => {
   assert.throws(
     () => buildResolverMessages({ ...context, candidates: [context.candidates[0]!] }),
     /At least two candidates/,
+  );
+  assert.throws(
+    () => buildResolverMessages({ ...context, occurrences: [] }),
+    /At least one occurrence/,
   );
 });
 
@@ -48,8 +72,9 @@ test('the reply schema is a single entry id', () => {
   assert.equal(RESOLVER_FORMAT.properties.entryId.type, 'string');
 });
 
-test('accepts a choice that is one of the offered ids', () => {
+test('accepts a choice that is one of the offered ids, or none', () => {
   assert.equal(parseResolution(JSON.stringify({ entryId: '2' }), ['1', '2']), '2');
+  assert.equal(parseResolution(JSON.stringify({ entryId: NONE }), ['1', '2']), NONE);
 });
 
 test('rejects an id the model invented that was never offered', () => {
