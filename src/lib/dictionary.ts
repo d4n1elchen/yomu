@@ -1,5 +1,9 @@
 import { and, asc, desc, eq, like, or, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/sqlite-core';
 import { db } from '../db/client.ts';
+// A cycle -- article.ts counts words with `contentWord` from here -- but both
+// sides only call across it inside functions, never while the modules load.
+import { sectionLabel } from './article.ts';
 import { matchCandidates } from './dict/match.ts';
 import { learningGroupKeys } from './vocab.ts';
 import {
@@ -480,6 +484,7 @@ export function getDictionaryEntry(
     .all()
     .map((member) => member.id);
 
+  const parent = alias(sections, 'parent');
   const occurrences = db
     .select({
       tokenId: tokens.id,
@@ -490,13 +495,15 @@ export function getDictionaryEntry(
       sentenceText: sentences.text,
       needsReview: sentences.needsReview,
       sectionId: sections.id,
-      sectionTitle: sections.title,
+      title: sections.title,
+      chapterTitle: parent.title,
       workTitle: works.title,
     })
     .from(tokens)
     .innerJoin(sentences, eq(sentences.id, tokens.sentenceId))
     .innerJoin(sections, eq(sections.id, sentences.sectionId))
     .innerJoin(works, eq(works.id, sections.workId))
+    .leftJoin(parent, eq(parent.id, sections.parentId))
     .where(
       and(
         sql`${tokens.lexemeId} in ${groupMembers}`,
@@ -504,7 +511,11 @@ export function getDictionaryEntry(
       ),
     )
     .orderBy(asc(works.createdAt), asc(sections.orderIndex), asc(sentences.orderIndex))
-    .all();
+    .all()
+    .map(({ title, chapterTitle, ...occurrence }) => ({
+      ...occurrence,
+      sectionTitle: sectionLabel(chapterTitle, title),
+    }));
 
   return {
     entry,

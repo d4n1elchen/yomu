@@ -474,6 +474,33 @@ work; the reader draws a collapsed 目次 above the prose and the neighbours bel
 it, and draws neither when there is only one section. A chapter still resolving
 is printed but not linked — the same reason the Library greys a row.
 
+### Numbered parts inside a chapter
+
+A chapter runs 5,000–30,000 characters, which was too long a sitting. Neither
+sample book lists its sections in the contents — the NCX stops at chapters —
+but both number them in the prose: カミュの歌鳥 with a bold `１` on its own line,
+神椿市建設中。 with `【１】`. `splitParts` splits on a line that is only such a
+number, and only when a chapter has **two or more** (神椿's epilogue carries one
+lone heading). Kanji numerals count only inside brackets, since a bare `三` on a
+line is prose. Text before the first number joins the first part. Measured: 21
+of 24 chapters split, into parts of roughly 1,000–5,000 characters.
+
+The rejected alternative was keeping the chapter whole and drawing the numbers
+as headings in the reader; nesting was chosen because the part is the more
+comfortable reading length.
+
+The chapter becomes a **heading row** — `section` with a title, no sentences,
+no `sourceText`, resolved on arrival — and its parts carry `parentId`.
+`orderIndex` is reading order across the whole work, heading before parts, so
+every walk of a book still sorts one column. The heading is stamped resolved, so
+the Library filters to leaf sections (`leafSection`) or an unread book would open
+on an empty page; `sectionCount` counts chapters, not parts. Standing alone, a
+part is named `章名（２）` (`sectionLabel`) — in the reader's heading, the
+footer neighbours, and Dictionary occurrences. A URL to a heading redirects to
+its first part.
+
+`＊　＊　＊` scene-break rows are still read as sentences; they do not split.
+
 ### Not built
 
 - **A chapter picker.** Importing is all-or-nothing, and a sixteen-chapter book
@@ -481,9 +508,11 @@ is printed but not linked — the same reason the Library greys a row.
   chapter's length for exactly this, and nothing uses it yet.
 - **Appending to an existing work.** Every import creates a new work, so a novel
   pasted chapter by chapter is still six unrelated Library rows.
-- **`section.parentId`.** Written as null, never read. A nested contents is
-  flattened: entries pointing into a file already claimed are ignored, so
-  subsections do not split their chapter.
+- **A nested contents.** Still flattened: entries pointing into a file already
+  claimed are ignored. Parts come from the numbers in the prose instead, which
+  is what the sample books actually have.
+- **Re-splitting a book already imported.** Nesting applies to new imports; an
+  existing book stays flat until it is deleted and imported again.
 - **The reading in `<rt>`.** Thrown away. If the analyzer's furigana is ever
   checked against the book's own, that is where the book's answer was.
 

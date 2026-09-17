@@ -79,6 +79,7 @@ export async function importEpubFile(
     sections: book.sections.map((section) => ({
       title: section.title,
       body: section.body,
+      parts: section.parts?.map((part) => ({ title: part.title, body: part.body })),
     })),
   });
 

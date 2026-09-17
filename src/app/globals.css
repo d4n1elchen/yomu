@@ -1711,6 +1711,42 @@ h2.divider + .subtitle {
   cursor: default;
 }
 
+/*
+ * A chapter split into parts: its name as a plain heading, numbered like any
+ * other chapter, and the parts indented under it. The parts print their own
+ * numbers -- they are the book's `１` and `２` -- so the counter would say it twice.
+ */
+.chapters li.group {
+  display: block;
+}
+
+.chapters li.group > .heading {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  padding: 0.45rem 0.5rem 0.15rem;
+  color: var(--muted);
+}
+
+.chapters li.group > .heading::before {
+  content: counter(chapter);
+  min-width: 1.4rem;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--faint);
+  text-align: right;
+}
+
+.chapters ol ol {
+  padding: 0 0 0.2rem 2.1rem;
+}
+
+.chapters ol ol li a::before,
+.chapters ol ol li .pending::before,
+.chapters ol ol li.current > .here::before {
+  content: none;
+}
+
 /* Same wording the Library uses for a section whose links are still moving. */
 .chapters li .pending .analysing-label {
   display: inline;

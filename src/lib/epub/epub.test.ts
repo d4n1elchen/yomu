@@ -193,3 +193,53 @@ test('refuses an EPUB whose documents hold no prose at all', () => {
   });
   assert.throws(() => parseEpub(book), /內文/u);
 });
+
+/** A chapter that numbers its own parts, the way カミュの歌鳥 does. */
+const numbered = (body: string) =>
+  parseEpub(
+    buildEpub({
+      documents: [{ name: 'a.xhtml', body }],
+      contents: [{ href: 'a.xhtml', label: '１　エコーノイズ' }],
+    }),
+  ).sections[0]!;
+
+test('a chapter that numbers its parts is split into them', () => {
+  // Neither sample book lists these in its contents; they are only in the prose.
+  const chapter = numbered('<p>１</p><p>一の本文。</p><p>２</p><p>二の本文。</p><p>つづき。</p>');
+  assert.deepEqual(
+    chapter.parts?.map((part) => [part.title, part.body]),
+    [
+      ['１', '一の本文。'],
+      ['２', '二の本文。\nつづき。'],
+    ],
+  );
+  // The chapter keeps its whole text, so what the importer reports is unchanged.
+  assert.equal(chapter.body.includes('二の本文。'), true);
+});
+
+test('reads bracketed numbers too, kanji numerals included', () => {
+  const chapter = numbered('<p>【０】</p><p>零。</p><p>【一】</p><p>一。</p>');
+  assert.deepEqual(
+    chapter.parts?.map((part) => part.title),
+    ['０', '一'],
+  );
+});
+
+test('one number is a heading, not a split', () => {
+  const chapter = numbered('<p>【１】</p><p>本文。</p>');
+  assert.equal(chapter.parts, undefined);
+  assert.equal(chapter.body, '【１】\n本文。');
+});
+
+test('a bare kanji numeral on its own line is prose, not a part', () => {
+  const chapter = numbered('<p>三</p><p>一。</p><p>四</p><p>二。</p>');
+  assert.equal(chapter.parts, undefined);
+});
+
+test('text before the first number joins the first part', () => {
+  const chapter = numbered('<p>題辞。</p><p>１</p><p>一。</p><p>２</p><p>二。</p>');
+  assert.deepEqual(
+    chapter.parts?.map((part) => part.body),
+    ['題辞。\n一。', '二。'],
+  );
+});

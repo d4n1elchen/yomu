@@ -182,3 +182,43 @@ test("a book's progress counts the chapters before the one it opens", () => {
   assert.equal(book.sectionId, bookIds[1]);
   assert.equal(book.progress, Math.floor(((lengths[0]! + 1) / whole) * 100));
 });
+
+test('a chapter split into parts nests them, and only the parts are opened', async () => {
+  const { sectionIds } = await ingestWork({
+    title: '歌鳥',
+    sourceType: 'file',
+    sections: [
+      {
+        title: '１　エコーノイズ',
+        body: '一の本文。\n二の本文。',
+        parts: [
+          { title: '１', body: '一の本文。' },
+          { title: '２', body: '二の本文。' },
+        ],
+      },
+      { title: 'エピローグ', body: '終わり。' },
+    ],
+  });
+  // Reading order, heading first: 章, 節, 節, 章.
+  const [heading, first, second] = sectionIds as [string, string, string];
+
+  const article = getArticle(second)!;
+  assert.deepEqual(
+    article.chapters.map((c) => [c.title, c.parentId]),
+    [
+      ['１　エコーノイズ', null],
+      ['１', heading],
+      ['２', heading],
+      ['エピローグ', null],
+    ],
+  );
+  // Standing alone, a part carries its chapter's name.
+  assert.equal(article.sectionTitle, '１　エコーノイズ（２）');
+  assert.equal(getArticle(heading)!.sentences.length, 0);
+
+  // The heading is resolved on arrival and has no text, so an unread book must
+  // not open on it; and the row counts chapters, not parts.
+  const row = find('歌鳥');
+  assert.equal(row.sectionId, first);
+  assert.equal(row.sectionCount, 2);
+});

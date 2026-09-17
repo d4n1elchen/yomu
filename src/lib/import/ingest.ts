@@ -15,6 +15,12 @@ export interface IngestSection {
   body: string;
   /** 'text' | 'transcript' -- transcripts are inherently suspect. */
   origin?: string;
+  /**
+   * Sections nested under this one. When present the section is only a heading:
+   * its row carries the title and no sentences, and `body` is not analysed --
+   * the parts already hold every line of it.
+   */
+  parts?: IngestSection[];
 }
 
 export interface IngestWork {
@@ -28,6 +34,7 @@ export interface IngestWork {
 
 export interface IngestResult {
   workId: string;
+  /** Every section row written, headings included, in reading order. */
   sectionIds: string[];
 }
 
@@ -41,12 +48,28 @@ export async function ingestWork(input: IngestWork): Promise<IngestResult> {
 
   // All analysis happens up front: better-sqlite3 transactions are synchronous
   // and cannot await, so nothing async may run once one is open.
+  //
+  // The tree is flattened into reading order first, a heading before its parts,
+  // and `orderIndex` is that order across the whole work. So everything that
+  // walks a book -- the Library, the contents, the drain -- sorts one column and
+  // finds each part in place, without a recursive query.
+  const flat: { section: IngestSection; parent: number | null }[] = [];
+  for (const section of input.sections) {
+    const parent = flat.length;
+    flat.push({ section, parent: null });
+    for (const part of section.parts ?? []) flat.push({ section: part, parent });
+  }
+
   const prepared = await Promise.all(
-    input.sections.map(async (section) => {
+    flat.map(async ({ section, parent }) => {
+      if ((section.parts ?? []).length > 0) {
+        return { section, parent, body: null, segmented: [] };
+      }
       const body = section.body.replace(/\r\n?/gu, '\n');
       const analyzed = await analyzer.analyze(body);
       return {
         section,
+        parent,
         body,
         segmented: segmentSentences(body, analyzed),
       };
@@ -69,7 +92,7 @@ export async function ingestWork(input: IngestWork): Promise<IngestResult> {
     const sectionIds: string[] = [];
     const now = Math.floor(Date.now() / 1000);
 
-    prepared.forEach(({ section, body, segmented }, index) => {
+    prepared.forEach(({ section, parent, body, segmented }, index) => {
       const sectionId = randomUUID();
       sectionIds.push(sectionId);
 
@@ -78,7 +101,7 @@ export async function ingestWork(input: IngestWork): Promise<IngestResult> {
         .values({
           id: sectionId,
           workId,
-          parentId: null,
+          parentId: parent === null ? null : sectionIds[parent]!,
           orderIndex: (index + 1) * ORDER_STEP,
           title: section.title ?? null,
           sourceText: body,

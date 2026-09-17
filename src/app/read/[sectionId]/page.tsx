@@ -22,6 +22,12 @@ export default async function ReadPage({
   const article = getArticle(sectionId);
   if (!article) notFound();
 
+  // A chapter split into parts is only their heading, with no text to read.
+  // Nothing links to it, but a URL saved before the split would land on an
+  // empty page -- open its first part instead.
+  const firstPart = article.chapters.find((chapter) => chapter.parentId === sectionId);
+  if (firstPart) redirect(`/read/${firstPart.sectionId}`);
+
   // A book puts the work's name above the chapter's; an article has only the
   // one name and repeating it would read as a mistake.
   const isBook = article.chapters.length > 1;

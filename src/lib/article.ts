@@ -1,4 +1,5 @@
 import { asc, eq, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/sqlite-core';
 import { db } from '../db/client.ts';
 import {
   dictEntries,
@@ -66,9 +67,37 @@ export interface ArticleSentence {
 export interface ArticleChapter {
   sectionId: string;
   title: string | null;
+  /**
+   * The chapter this is a numbered part of, or null for a chapter. A chapter
+   * with parts is only their heading: it has no sentences and is never opened.
+   *
+   * Optional only because a chapter downloaded before nesting existed is stored
+   * without it; everything the server builds carries it.
+   */
+  parentId?: string | null;
   /** False while homograph resolution is still moving this section's links. */
   readable: boolean;
 }
+
+/**
+ * The name a part goes by outside the contents: `１　エコーノイズ（２）`.
+ *
+ * Inside the contents a part sits under its chapter and `２` is enough. Anywhere
+ * it stands alone -- the reader's heading, a Dictionary occurrence, the offline
+ * shelf -- a bare number says nothing, so the chapter comes with it.
+ */
+export function sectionLabel(
+  chapterTitle: string | null,
+  title: string | null,
+): string | null {
+  if (chapterTitle === null) return title;
+  return title === null ? chapterTitle : `${chapterTitle}（${title}）`;
+}
+
+/** The sections a reader opens: a heading whose chapter was split has none of its own. */
+export const leafSection = sql`not exists (
+  select 1 from ${sections} as child where child.parent_id = ${sections.id}
+)`;
 
 export interface Article {
   sectionId: string;
@@ -128,10 +157,12 @@ export interface Article {
 }
 
 export function getArticle(sectionId: string): Article | null {
-  const head = db
+  const parent = alias(sections, 'parent');
+  const found = db
     .select({
       sectionId: sections.id,
-      sectionTitle: sections.title,
+      title: sections.title,
+      chapterTitle: parent.title,
       origin: sections.origin,
       editState: sections.editState,
       progressSentenceId: sections.progressSentenceId,
@@ -141,10 +172,13 @@ export function getArticle(sectionId: string): Article | null {
     })
     .from(sections)
     .innerJoin(works, eq(works.id, sections.workId))
+    .leftJoin(parent, eq(parent.id, sections.parentId))
     .where(eq(sections.id, sectionId))
     .get();
 
-  if (!head) return null;
+  if (!found) return null;
+  const { title, chapterTitle, ...rest } = found;
+  const head = { ...rest, sectionTitle: sectionLabel(chapterTitle, title) };
 
   const rows = db
     .select({
@@ -251,6 +285,7 @@ export function getArticle(sectionId: string): Article | null {
     .select({
       sectionId: sections.id,
       title: sections.title,
+      parentId: sections.parentId,
       resolvedAt: sections.resolvedAt,
     })
     .from(sections)
@@ -260,6 +295,7 @@ export function getArticle(sectionId: string): Article | null {
     .map((row) => ({
       sectionId: row.sectionId,
       title: row.title,
+      parentId: row.parentId,
       readable: row.resolvedAt !== null,
     }));
 
@@ -377,8 +413,13 @@ export function listArticles(): ArticleSummary[] {
       resolvedAt: sections.resolvedAt,
       resolveDone: sections.resolveDone,
       resolveTotal: sections.resolveTotal,
+      parentId: sections.parentId,
     })
     .from(sections)
+    // Only what can be opened. A split chapter's heading has no sentences, is
+    // stamped resolved the moment it is written, and would otherwise be the
+    // "first readable chapter" an unread book opens on -- an empty page.
+    .where(leafSection)
     .orderBy(asc(sections.orderIndex))
     .all();
 
@@ -473,7 +514,9 @@ export function listArticles(): ArticleSummary[] {
       lastReadAt: lastRead,
       progress,
       vocabCount: vocabByWork.get(work.workId) ?? 0,
-      sectionCount: owned.length,
+      // Chapters, not parts: the row says 共 16 章 for the book's sixteen,
+      // however many numbered sections they split into.
+      sectionCount: new Set(owned.map((s) => s.parentId ?? s.id)).size,
       analysis:
         unresolved.length === 0
           ? null

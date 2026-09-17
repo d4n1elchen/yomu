@@ -220,6 +220,57 @@ export interface EpubSection extends IngestSection {
   body: string;
   /** Characters of prose, so the importer can say what it is about to take on. */
   length: number;
+  /** The chapter's numbered sections, when it has at least two. See `splitParts`. */
+  parts?: EpubSection[];
+}
+
+/**
+ * A line that is nothing but a section number: `１`, or `【２】`.
+ *
+ * Neither sample book lists its sections in the table of contents -- the
+ * contents stops at chapters, and each chapter numbers its own parts in the
+ * prose: カミュの歌鳥 with a bold `１` on its own line, 神椿市建設中。 with
+ * `【１】`. So this is read from the text, not the navigation. Kanji numerals
+ * count only inside brackets, because a bare `三` alone on a line is prose.
+ */
+const PART_MARKER = /^(?:【([0-9０-９]{1,3}|[一二三四五六七八九十]{1,4})】|([0-9０-９]{1,3}))$/u;
+
+/**
+ * SECTIONS COME FROM THE NUMBERS A CHAPTER PRINTS, and only when there are two.
+ *
+ * A chapter runs 5,000 to 30,000 characters, which is a long sitting; its
+ * numbered parts are the book's own shorter stopping points. The number line
+ * becomes the part's title and leaves the prose, where it would otherwise be
+ * read as a sentence.
+ *
+ * One marker is not a split: 神椿市建設中。's epilogue carries a single heading,
+ * and a chapter with one part is just the chapter. Anything before the first
+ * marker -- an epigraph, a heading the markup put in the text -- joins the first
+ * part rather than becoming an untitled section of its own.
+ */
+export function splitParts(body: string): EpubSection[] | undefined {
+  const lines = body.split('\n');
+  const starts: { line: number; title: string }[] = [];
+  lines.forEach((line, index) => {
+    const match = PART_MARKER.exec(line.trim());
+    if (match) starts.push({ line: index, title: (match[1] ?? match[2])! });
+  });
+  if (starts.length < 2) return undefined;
+
+  const parts = starts
+    .map((start, i) => {
+      const from = i === 0 ? 0 : start.line;
+      const to = starts[i + 1]?.line ?? lines.length;
+      const text = lines
+        .slice(from, to)
+        .filter((_, offset) => from + offset !== start.line)
+        .join('\n')
+        .trim();
+      return { title: start.title, body: text, length: text.length };
+    })
+    // A number with no prose under it is not a section to open.
+    .filter((part) => part.length > 0);
+  return parts.length < 2 ? undefined : parts;
 }
 
 export interface ParsedEpub extends IngestWork {
@@ -265,7 +316,13 @@ export function parseEpub(file: Buffer): ParsedEpub {
     if (!open) return;
     const body = open.parts.join('\n').trim();
     if (body.length > 0) {
-      sections.push({ title: open.title, body, length: body.length });
+      const parts = splitParts(body);
+      sections.push({
+        title: open.title,
+        body,
+        length: body.length,
+        ...(parts ? { parts } : {}),
+      });
     }
     open = null;
   };
