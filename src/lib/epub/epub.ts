@@ -1,4 +1,5 @@
 import type { IngestSection, IngestWork } from '../import/ingest.ts';
+import { extractRuby } from '../text/ruby.ts';
 import { xhtmlToText } from './xhtml.ts';
 import { openZip, type Zip } from './zip.ts';
 
@@ -266,11 +267,16 @@ export function splitParts(body: string): EpubSection[] | undefined {
         .filter((_, offset) => from + offset !== start.line)
         .join('\n')
         .trim();
-      return { title: start.title, body: text, length: text.length };
+      return { title: start.title, body: text, length: proseLength(text) };
     })
     // A number with no prose under it is not a section to open.
     .filter((part) => part.length > 0);
   return parts.length < 2 ? undefined : parts;
+}
+
+/** Characters of prose, not counting the ruby markup carried in the body. */
+function proseLength(body: string): number {
+  return extractRuby(body).text.length;
 }
 
 export interface ParsedEpub extends IngestWork {
@@ -320,7 +326,7 @@ export function parseEpub(file: Buffer): ParsedEpub {
       sections.push({
         title: open.title,
         body,
-        length: body.length,
+        length: proseLength(body),
         ...(parts ? { parts } : {}),
       });
     }

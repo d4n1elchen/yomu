@@ -3,6 +3,7 @@ import { db } from '../../db/client.ts';
 import { lexemes, sections, sentences, tokens } from '../../db/schema.ts';
 import { getAnalyzer } from '../analyzer/index.ts';
 import { linkLexemes } from '../dict/match.ts';
+import { extractRuby } from '../text/ruby.ts';
 import { segmentSentences } from '../text/sentences.ts';
 import { writeSentences } from './ingest.ts';
 import { LexemeResolver } from './tokens.ts';
@@ -102,7 +103,8 @@ export async function retokenizeSection(sectionId: string): Promise<void> {
   if (body === null) throw new Error(`Section ${sectionId} has no source text.`);
 
   const analyzer = getAnalyzer();
-  const segmented = segmentSentences(body, await analyzer.analyze(body));
+  const { text, spans } = extractRuby(body);
+  const segmented = segmentSentences(text, await analyzer.analyze(text));
 
   const old = db
     .select({ id: sentences.id, text: sentences.text, needsReview: sentences.needsReview })
@@ -110,7 +112,7 @@ export async function retokenizeSection(sectionId: string): Promise<void> {
     .where(eq(sentences.sectionId, sectionId))
     .orderBy(sentences.orderIndex)
     .all();
-  const bookmark = locate(body, old, section.progressSentenceId);
+  const bookmark = locate(text, old, section.progressSentenceId);
   const before = ambiguousIn(sectionId);
 
   db.transaction((tx) => {
@@ -120,6 +122,7 @@ export async function retokenizeSection(sectionId: string): Promise<void> {
     const ids = writeSentences(tx, new LexemeResolver(tx), {
       sectionId,
       segmented,
+      ruby: spans,
       dictionary: analyzer.dictionary,
       // A transcript's review flag is per sentence and the boundaries moved, so
       // it is kept only as "some of this still needs reading".

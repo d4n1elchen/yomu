@@ -1,6 +1,7 @@
 'use client';
 
-import { alignFurigana } from '../lib/text/furigana.ts';
+import { withBookRuby } from '../lib/text/furigana.ts';
+import type { RubySpan } from '../lib/text/ruby.ts';
 import type { ArticleToken } from '../lib/article.ts';
 
 /**
@@ -16,6 +17,8 @@ export function TokenSpan({
   token,
   marked,
   selected,
+  bookRuby = [],
+  bare = false,
   onSelect,
   onHover,
 }: {
@@ -23,6 +26,13 @@ export function TokenSpan({
   /** Above the difficulty slider: gets the dashed underline and the card. */
   marked: boolean;
   selected: boolean;
+  /** The book's ruby inside this token, offsets relative to its surface. */
+  bookRuby?: RubySpan[];
+  /**
+   * The token sits under a ruby that spans several tokens, which the sentence
+   * draws around all of them -- so this one draws no furigana of its own.
+   */
+  bare?: boolean;
   onSelect: (token: ArticleToken, element: HTMLElement) => void;
   /** Null on the way out. Hover is the pointer affordance; tapping still works. */
   onHover: (token: ArticleToken | null, element: HTMLElement) => void;
@@ -31,7 +41,10 @@ export function TokenSpan({
     .filter(Boolean)
     .join(' ');
 
-  const content = alignFurigana(token.surface, token.reading).map((segment, i) =>
+  const segments = bare
+    ? [{ text: token.surface, ruby: null }]
+    : withBookRuby(token.surface, token.reading, bookRuby);
+  const content = segments.map((segment, i) =>
     segment.ruby ? (
       <ruby key={i}>
         {segment.text}

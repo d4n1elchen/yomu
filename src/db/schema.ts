@@ -53,7 +53,11 @@ export const sections = sqliteTable(
     /** Sparse (steps of 1000) so inserts do not renumber siblings. */
     orderIndex: integer('order_index').notNull(),
     title: text('title'),
-    /** The original imported text. Immutable -- provenance only, never rendered. */
+    /**
+     * The original imported text. Immutable -- provenance, and what a section is
+     * rebuilt from; never rendered. Ruby travels inside it as Aozora markup,
+     * `｜base《reading》`.
+     */
     sourceText: text('source_text'),
     /** 'text' | 'transcript' -- whether this content is inherently suspect. */
     origin: text('origin').notNull().default('text'),
@@ -147,6 +151,17 @@ export const sentences = sqliteTable(
     paragraphStart: integer('paragraph_start', { mode: 'boolean' })
       .notNull()
       .default(true),
+    /**
+     * The text's own furigana over this sentence, as JSON
+     * `[[charStart, charEnd, reading], ...]` relative to `text`. Null when it has
+     * none, which is nearly always for pasted text.
+     *
+     * Derived, like the tokens: `section.sourceText` carries the ruby as Aozora
+     * markup and every write of a section's sentences reads it back out (see
+     * `src/lib/text/ruby.ts`). A column rather than a table because it is only
+     * ever read with its sentence, to draw it.
+     */
+    ruby: text('ruby'),
     /** Transcriber's per-segment confidence, when the engine reports one. */
     confidence: real('confidence'),
     /** Media timings, for playback sync once audio/video input lands. */

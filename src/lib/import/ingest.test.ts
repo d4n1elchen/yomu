@@ -258,3 +258,26 @@ test('a grouped 〟。 does not slide the offsets of everything after it', async
     assert.equal(row.text.slice(row.charStart, row.charEnd), row.surface);
   }
 });
+
+test('ruby in the source is kept as the source and recorded on its sentence', async () => {
+  const body = '小笛｜千遥《ちはる》が笑った。\n彼は頷《うなず》いた。';
+  const { sectionIds } = await ingestWork({
+    title: 'ルビ',
+    sourceType: 'paste',
+    sections: [{ body }],
+  });
+
+  const section = db.select().from(sections).where(eq(sections.id, sectionIds[0]!)).get();
+  assert.equal(section?.sourceText, body);
+
+  const rows = db
+    .select({ text: sentences.text, ruby: sentences.ruby })
+    .from(sentences)
+    .where(eq(sentences.sectionId, sectionIds[0]!))
+    .orderBy(sentences.orderIndex)
+    .all();
+  assert.deepEqual(rows, [
+    { text: '小笛千遥が笑った。', ruby: JSON.stringify([[2, 4, 'ちはる']]) },
+    { text: '彼は頷いた。', ruby: JSON.stringify([[2, 3, 'うなず']]) },
+  ]);
+});

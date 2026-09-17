@@ -169,7 +169,7 @@ test('keeps the book readable as one untitled section when there is no contents'
   assert.equal(book.sections[0]!.body, '一。\n二。');
 });
 
-test('strips ruby on the way through, which is the point of reading the file', () => {
+test('carries ruby through as markup, never flattened into the prose', () => {
   const book = parseEpub(
     buildEpub({
       documents: [
@@ -178,7 +178,9 @@ test('strips ruby on the way through, which is the point of reading the file', (
       contents: [{ href: 'a.xhtml', label: '第一章' }],
     }),
   );
-  assert.equal(book.sections[0]!.body, '頷いた。');
+  assert.equal(book.sections[0]!.body, '｜頷《うなず》いた。');
+  // The length is of the prose, not of the markup around it.
+  assert.equal(book.sections[0]!.length, 4);
 });
 
 test('refuses a zip that is not an EPUB', () => {

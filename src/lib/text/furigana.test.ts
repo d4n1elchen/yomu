@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { alignFurigana } from './furigana.ts';
+import { alignFurigana, withBookRuby } from './furigana.ts';
 
 const flat = (surface: string, reading: string | null) =>
   alignFurigana(surface, reading).map((s) => `${s.text}(${s.ruby ?? ''})`).join('');
@@ -72,4 +72,40 @@ test('reconstructs the surface exactly for every input', () => {
       .join('');
     assert.equal(rebuilt, surface, `lost characters in ${surface}`);
   }
+});
+
+test('the book ruby replaces the analyzer reading where it is given', () => {
+  // IPADIC reads the unknown-to-it name by its pieces; the book says ちはる.
+  assert.deepEqual(withBookRuby('千遥', 'センハルカ', [{ start: 0, end: 2, reading: 'ちはる' }]), [
+    { text: '千遥', ruby: 'ちはる' },
+  ]);
+});
+
+test('outside the book ruby the analyzer alignment stands', () => {
+  // 頷いた: the book annotates 頷 only; the okurigana stays bare.
+  assert.deepEqual(withBookRuby('頷い', 'ウナズイ', [{ start: 0, end: 1, reading: 'うなず' }]), [
+    { text: '頷', ruby: 'うなず' },
+    { text: 'い', ruby: null },
+  ]);
+  // A second kanji the book left alone keeps the analyzer's reading.
+  assert.deepEqual(
+    withBookRuby('食べ物', 'タベモノ', [{ start: 2, end: 3, reading: 'もの' }]),
+    [
+      { text: '食', ruby: 'た' },
+      { text: 'べ', ruby: null },
+      { text: '物', ruby: 'もの' },
+    ],
+  );
+});
+
+test('an analyzer segment the book ruby cuts through is shown bare', () => {
+  // The analyzer carries one reading over 学校; the book annotates only 校.
+  assert.deepEqual(withBookRuby('学校', 'ガッコウ', [{ start: 1, end: 2, reading: 'こう' }]), [
+    { text: '学', ruby: null },
+    { text: '校', ruby: 'こう' },
+  ]);
+});
+
+test('no book ruby is exactly the analyzer alignment', () => {
+  assert.deepEqual(withBookRuby('食べ', 'タベ', []), alignFurigana('食べ', 'タベ'));
 });

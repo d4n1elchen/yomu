@@ -1,3 +1,5 @@
+import { rubyMarkup } from '../text/ruby.ts';
+
 /**
  * Plain text out of an EPUB's XHTML, without a DOM.
  *
@@ -9,21 +11,38 @@
  */
 
 /**
- * RUBY IS THE WHOLE POINT, and it is dropped rather than kept.
+ * RUBY IS THE WHOLE POINT, and it is kept -- as markup, not as running text.
  *
- * `<ruby><rb>頷</rb><rt>うなず</rt></ruby>` yields 頷 -- base text only. This is
- * the same furigana whose *flattened* form (頷うなずいた, what a copy-paste from
- * a rendered page produces) is the single largest class of unmatched word in
- * the corpus, and it corrupts more than matching: the reader prints the reading
- * as running text, the Dictionary gains a junk single-kanji entry, and the
- * vocabulary count is inflated by both halves.
+ * `<ruby><rb>頷</rb><rt>うなず</rt></ruby>` yields `｜頷《うなず》`. What must never
+ * happen is the *flattened* form, 頷うなずいた, which is what a copy-paste from a
+ * rendered page produces: the reading lands in the prose, the Dictionary gains a
+ * junk single-kanji entry, and the vocabulary count is inflated by both halves.
  *
- * Reading the markup means that never happens. The reading is thrown away
- * because the analyzer owns readings -- it derives one for 頷いた from the
- * lemma, and a second source for the same fact could only disagree with it. If
- * the two are ever reconciled, `<rt>` is where the book's own answer was.
+ * It used to be thrown away, on the grounds that the analyzer owns readings. But
+ * the book's furigana is the author's answer exactly where the analyzer has none
+ * or a wrong one -- names above all -- so it now travels in Aozora markup, which
+ * import strips before analysis and records as spans (`src/lib/text/ruby.ts`).
+ *
+ * A group ruby with several readings (`<ruby>千<rt>ち</rt>遥<rt>はる</rt></ruby>`)
+ * becomes one markup per pair; `<rp>` is a fallback renderer's brackets and goes.
  */
-const RUBY_ANNOTATION = /<(rt|rp)\b[^>]*>[\s\S]*?<\/\1>/giu;
+const RUBY = /<ruby\b[^>]*>([\s\S]*?)<\/ruby>/giu;
+const RUBY_FALLBACK = /<rp\b[^>]*>[\s\S]*?<\/rp>/giu;
+const RUBY_TEXT = /<rt\b[^>]*>([\s\S]*?)<\/rt>/giu;
+
+function rubyToMarkup(inner: string): string {
+  const content = inner.replace(RUBY_FALLBACK, '');
+  const bare = (html: string) => html.replace(/<[^>]*>/gu, '').replace(/\s+/gu, '');
+  let out = '';
+  let cursor = 0;
+  for (const match of content.matchAll(RUBY_TEXT)) {
+    const base = bare(content.slice(cursor, match.index));
+    const reading = bare(match[1]!);
+    out += base !== '' && reading !== '' ? rubyMarkup(base, reading) : base;
+    cursor = match.index + match[0].length;
+  }
+  return out + bare(content.slice(cursor));
+}
 
 /** Not prose: markup, scripts, stylesheets, and the SVG that carries a 扉 image. */
 const NON_PROSE = /<(head|script|style|svg)\b[^>]*>[\s\S]*?<\/\1>/giu;
@@ -86,7 +105,7 @@ export function xhtmlToText(xhtml: string): string {
   const withBreaks = xhtml
     .replace(COMMENT, '')
     .replace(NON_PROSE, '')
-    .replace(RUBY_ANNOTATION, '')
+    .replace(RUBY, (_, inner: string) => rubyToMarkup(inner))
     .replace(LINE_BREAK, '\n')
     .replace(SELF_CLOSING_BLOCK, '\n')
     .replace(BLOCK_END, '\n');

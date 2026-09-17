@@ -4,6 +4,7 @@ import { db } from '../../db/client.ts';
 import { lexemes, sections, sentences, tokens, works } from '../../db/schema.ts';
 import { getAnalyzer } from '../analyzer/index.ts';
 import { linkLexemes } from '../dict/match.ts';
+import { extractRuby, spansWithin, type RubySpan } from '../text/ruby.ts';
 import { segmentSentences, type SegmentedSentence } from '../text/sentences.ts';
 import { LexemeResolver, writeSentenceTokens } from './tokens.ts';
 
@@ -63,15 +64,19 @@ export async function ingestWork(input: IngestWork): Promise<IngestResult> {
   const prepared = await Promise.all(
     flat.map(async ({ section, parent }) => {
       if ((section.parts ?? []).length > 0) {
-        return { section, parent, body: null, segmented: [] };
+        return { section, parent, body: null, ruby: [], segmented: [] };
       }
       const body = section.body.replace(/\r\n?/gu, '\n');
-      const analyzed = await analyzer.analyze(body);
+      // The body keeps its ruby markup, since it is stored as the source; the
+      // analyzer sees the prose alone.
+      const { text, spans } = extractRuby(body);
+      const analyzed = await analyzer.analyze(text);
       return {
         section,
         parent,
         body,
-        segmented: segmentSentences(body, analyzed),
+        ruby: spans,
+        segmented: segmentSentences(text, analyzed),
       };
     }),
   );
@@ -92,7 +97,7 @@ export async function ingestWork(input: IngestWork): Promise<IngestResult> {
     const sectionIds: string[] = [];
     const now = Math.floor(Date.now() / 1000);
 
-    prepared.forEach(({ section, parent, body, segmented }, index) => {
+    prepared.forEach(({ section, parent, body, ruby, segmented }, index) => {
       const sectionId = randomUUID();
       sectionIds.push(sectionId);
 
@@ -117,6 +122,7 @@ export async function ingestWork(input: IngestWork): Promise<IngestResult> {
       writeSentences(tx, resolver, {
         sectionId,
         segmented,
+        ruby,
         dictionary: analyzer.dictionary,
         needsReview: origin === 'transcript',
       });
@@ -186,11 +192,13 @@ export function writeSentences(
   options: {
     sectionId: string;
     segmented: SegmentedSentence[];
+    /** The section's ruby, offsets into the text that was segmented. */
+    ruby: RubySpan[];
     dictionary: string;
     needsReview: boolean;
   },
 ): string[] {
-  const { sectionId, segmented, dictionary, needsReview } = options;
+  const { sectionId, segmented, ruby, dictionary, needsReview } = options;
 
   return segmented.map((sentence, index) => {
     const sentenceId = randomUUID();
@@ -202,6 +210,7 @@ export function writeSentences(
         text: sentence.text,
         needsReview,
         paragraphStart: sentence.paragraphStart,
+        ruby: rubyColumn(spansWithin(ruby, sentence.charStart, sentence.charEnd)),
       })
       .run();
 
@@ -213,4 +222,11 @@ export function writeSentences(
     });
     return sentenceId;
   });
+}
+
+/** A sentence's ruby as stored: compact JSON triples, or null for none. */
+function rubyColumn(spans: RubySpan[]): string | null {
+  return spans.length === 0
+    ? null
+    : JSON.stringify(spans.map((span) => [span.start, span.end, span.reading]));
 }

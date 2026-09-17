@@ -10,6 +10,7 @@ import {
   tokens,
   works,
 } from '../db/schema.ts';
+import type { RubySpan } from './text/ruby.ts';
 import { contentWord } from './dictionary.ts';
 import { learningGroupKeys } from './vocab.ts';
 
@@ -62,6 +63,11 @@ export interface ArticleSentence {
   /** Whether this sentence opens a paragraph -- the reader groups on it. */
   paragraphStart: boolean;
   tokens: ArticleToken[];
+  /**
+   * The text's own furigana, offsets into `text`. Optional only because a
+   * chapter downloaded before ruby was kept is stored without it.
+   */
+  ruby?: RubySpan[];
 }
 
 export interface ArticleChapter {
@@ -186,6 +192,7 @@ export function getArticle(sectionId: string): Article | null {
       sentenceText: sentences.text,
       needsReview: sentences.needsReview,
       paragraphStart: sentences.paragraphStart,
+      ruby: sentences.ruby,
       sentenceOrder: sentences.orderIndex,
       tokenId: tokens.id,
       lexemeId: tokens.lexemeId,
@@ -219,6 +226,7 @@ export function getArticle(sectionId: string): Article | null {
         needsReview: row.needsReview,
         paragraphStart: row.paragraphStart,
         tokens: [],
+        ruby: parseRuby(row.ruby),
       };
       bySentence.set(row.sentenceId, sentence);
     }
@@ -571,4 +579,12 @@ export function saveProgress(sectionId: string, sentenceId: string): boolean {
     )
     .run();
   return result.changes > 0;
+}
+
+/** `sentence.ruby` as stored -- JSON triples -- back into spans. */
+export function parseRuby(column: string | null): RubySpan[] {
+  if (column === null) return [];
+  return (JSON.parse(column) as Array<[number, number, string]>).map(
+    ([start, end, reading]) => ({ start, end, reading }),
+  );
 }

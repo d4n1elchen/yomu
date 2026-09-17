@@ -1,4 +1,5 @@
 import { containsKanji, isKanji, toHiragana } from './kana.ts';
+import type { RubySpan } from './ruby.ts';
 
 export interface RubySegment {
   text: string;
@@ -85,4 +86,51 @@ function splitRuns(surface: string): Run[] {
     else runs.push({ text: char, kanji });
   }
   return runs;
+}
+
+/**
+ * Furigana for a token, with the book's own ruby taking precedence wherever the
+ * book gave one. `spans` are the book's ruby inside this token, offsets relative
+ * to its surface.
+ *
+ * The book wins because it is the author's reading where the analyzer's is a
+ * guess -- a name, a rare kanji, a deliberate unusual reading. Where the book is
+ * silent the analyzer's alignment stands, except that an analyzer segment the
+ * book's ruby cuts through is shown bare rather than carrying a reading that
+ * now overlaps the book's.
+ */
+export function withBookRuby(
+  surface: string,
+  reading: string | null | undefined,
+  spans: RubySpan[],
+): RubySegment[] {
+  if (spans.length === 0) return alignFurigana(surface, reading);
+
+  const placed: Array<RubySegment & { start: number; end: number }> = [];
+  let offset = 0;
+  for (const segment of alignFurigana(surface, reading)) {
+    placed.push({ ...segment, start: offset, end: offset + segment.text.length });
+    offset += segment.text.length;
+  }
+
+  const out: RubySegment[] = [];
+  const analyzerBetween = (from: number, to: number) => {
+    for (const segment of placed) {
+      const start = Math.max(segment.start, from);
+      const end = Math.min(segment.end, to);
+      if (start >= end) continue;
+      const whole = start === segment.start && end === segment.end;
+      out.push({ text: surface.slice(start, end), ruby: whole ? segment.ruby : null });
+    }
+  };
+
+  let cursor = 0;
+  for (const span of [...spans].sort((a, b) => a.start - b.start)) {
+    if (span.start < cursor) continue;
+    analyzerBetween(cursor, span.start);
+    out.push({ text: surface.slice(span.start, span.end), ruby: span.reading });
+    cursor = span.end;
+  }
+  analyzerBetween(cursor, surface.length);
+  return out;
 }

@@ -11,6 +11,7 @@ import { ReaderSettings } from './ReaderSettings.tsx';
 import { ReadStamp } from './ReadStamp.tsx';
 import { ReadingProgress } from './ReadingProgress.tsx';
 import { TokenSpan } from './TokenSpan.tsx';
+import type { RubySpan } from '../lib/text/ruby.ts';
 import { WordCard } from './WordCard.tsx';
 import type { AnchorRect } from './useCardAnchor.ts';
 
@@ -346,8 +347,23 @@ function Sentence({
 }) {
   const parts: React.ReactNode[] = [];
   let cursor = 0;
+  const { inside, across } = placeRuby(sentence);
 
-  for (const token of sentence.tokens) {
+  const tokenSpan = (token: ArticleToken, bare: boolean) => (
+    <TokenSpan
+      key={token.id}
+      token={token}
+      marked={marked(token)}
+      selected={token.id === selectedId}
+      bookRuby={inside.get(token.id)}
+      bare={bare}
+      onSelect={onSelect}
+      onHover={onHover}
+    />
+  );
+
+  for (let index = 0; index < sentence.tokens.length; index++) {
+    const token = sentence.tokens[index]!;
     // Whitespace between tokens is not stored as a token, so it is read back
     // out of the sentence text. This also means any character the analyzer
     // skipped still reaches the page.
@@ -358,16 +374,25 @@ function Sentence({
         </span>,
       );
     }
-    parts.push(
-      <TokenSpan
-        key={token.id}
-        token={token}
-        marked={marked(token)}
-        selected={token.id === selectedId}
-        onSelect={onSelect}
-        onHover={onHover}
-      />,
-    );
+
+    // A book ruby over several tokens -- a name the analyzer split, 千|遥 under
+    // ちはる -- is one <ruby> around all of them, each drawing no reading of its
+    // own. The tokens stay separate targets inside it.
+    const group = across.get(token.id);
+    if (group) {
+      const members = sentence.tokens.slice(index, index + group.count);
+      parts.push(
+        <ruby key={`ruby-${token.id}`}>
+          {members.map((member) => tokenSpan(member, true))}
+          <rt>{group.reading}</rt>
+        </ruby>,
+      );
+      index += group.count - 1;
+      cursor = members[members.length - 1]!.charEnd;
+      continue;
+    }
+
+    parts.push(tokenSpan(token, false));
     cursor = token.charEnd;
   }
 
@@ -391,4 +416,36 @@ function Sentence({
       {parts}
     </span>
   );
+}
+
+/**
+ * Assigns a sentence's book ruby to the tokens it annotates: `inside` a single
+ * token, rebased to its surface, or `across` a run of whole tokens, keyed on the
+ * first. A ruby whose ends fall inside different tokens fits neither and is not
+ * drawn; the analyzer's furigana stands there.
+ */
+function placeRuby(sentence: ArticleSentence): {
+  inside: Map<string, RubySpan[]>;
+  across: Map<string, { count: number; reading: string }>;
+} {
+  const inside = new Map<string, RubySpan[]>();
+  const across = new Map<string, { count: number; reading: string }>();
+  const tokens = sentence.tokens;
+
+  for (const span of sentence.ruby ?? []) {
+    const first = tokens.findIndex((t) => t.charStart <= span.start && span.start < t.charEnd);
+    if (first === -1) continue;
+    const token = tokens[first]!;
+    if (span.end <= token.charEnd) {
+      const list = inside.get(token.id) ?? [];
+      list.push({ ...span, start: span.start - token.charStart, end: span.end - token.charStart });
+      inside.set(token.id, list);
+      continue;
+    }
+    const last = tokens.findIndex((t) => t.charEnd === span.end);
+    if (token.charStart === span.start && last > first && !across.has(token.id)) {
+      across.set(token.id, { count: last - first + 1, reading: span.reading });
+    }
+  }
+  return { inside, across };
 }

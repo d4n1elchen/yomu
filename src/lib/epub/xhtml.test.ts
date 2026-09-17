@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { xhtmlToText } from './xhtml.ts';
 
-test('keeps the base text of a ruby and drops the reading', () => {
+test('keeps a ruby as markup, never as running text', () => {
   const text = xhtmlToText('<p><ruby><rb>頷</rb><rt>うなず</rt></ruby>いた。</p>');
-  assert.equal(text, '頷いた。');
+  assert.equal(text, '｜頷《うなず》いた。');
 });
 
-test('drops the reading through the spans a publisher wraps it in', () => {
+test('reads the ruby through the spans a publisher wraps it in', () => {
   // Kadokawa's files wrap every run in a kobo span, inside the ruby as well as
   // outside it, which is what defeats a naive <ruby>(.*)<rt> match.
   const text = xhtmlToText(
@@ -17,12 +17,17 @@ test('drops the reading through the spans a publisher wraps it in', () => {
       '<ruby><span class="koboSpan" id="kobo.8.1">歩</span><rt>ふ</rt></ruby>' +
       '<span class="koboSpan" id="kobo.9.1">ちゃ……」</span></p>',
   );
-  assert.equal(text, '「化……歩ちゃ……」');
+  assert.equal(text, '「｜化《か》……｜歩《ふ》ちゃ……」');
 });
 
 test('drops the parentheses a fallback renderer would show around a reading', () => {
   const text = xhtmlToText('<p><ruby>漢字<rp>（</rp><rt>かんじ</rt><rp>）</rp></ruby></p>');
-  assert.equal(text, '漢字');
+  assert.equal(text, '｜漢字《かんじ》');
+});
+
+test('a group ruby becomes one markup per base and reading', () => {
+  const text = xhtmlToText('<p><ruby>千<rt>ち</rt>遥<rt>はる</rt></ruby>が</p>');
+  assert.equal(text, '｜千《ち》｜遥《はる》が');
 });
 
 test('gives every paragraph its own line, because the reader breaks on them', () => {
