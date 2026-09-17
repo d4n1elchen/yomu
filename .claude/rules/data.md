@@ -49,8 +49,9 @@ source file, which an article import must not need on disk.
 entries created during Q&A with the model judging novelty, which does not work
 — vocabulary dedups on a natural key the analyzer derives mechanically, while a
 model inventing names produces near-duplicates. The key is now chosen: the L2
-id of the 「つつじ」 functional-expression dictionary, matched over the token
-stream and confirmed by the model choosing among matches, never naming. The
+id of the 「つつじ」 functional-expression dictionary, matched over one
+sentence's tokens when you ask about it, with the model choosing among the
+matches and never naming, and nothing stored until you add a card. The
 schema comment still describes the question as open; `docs/PLAN.md` ("Grammar —
 measured, not built") has the measurements and the direction. Read it before
 designing any grammar table.

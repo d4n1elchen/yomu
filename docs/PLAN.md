@@ -815,7 +815,8 @@ produces near-duplicates that only become visible once the collection is large
 enough to matter. The two candidates for a key were token-stream patterns and a
 fixed inventory the model selects from. **Measured against real reading, the
 answer is both, in sequence: an inventory that already carries its patterns,
-matched as you read, with the model only choosing among the matches.**
+matched in the sentence you ask about, with the model only choosing among the
+matches and you deciding what enters the library.**
 
 **The key is the L2 id of 「つつじ」**, 松吉・佐藤's dictionary of Japanese
 functional expressions (v1.1u, CC BY-SA 4.0, a 1.2 MB zip from the
@@ -863,7 +864,28 @@ JMdict (178 tagged `exp`), but one JMdict entry spans several meanings and knows
 nothing of variants. Nothing collides with vocabulary: kuromoji never emits
 these expressions as a single token.
 
-### Measured: detection while reading
+### The flow: asked for, one sentence at a time
+
+**Grammar is found when you ask about a sentence, never by analysing a work.**
+The reader double-taps a sentence, and alongside the explanation the card offers
+the grammar points that sentence contains; each is a card you add to the grammar
+library by hand, or ignore. Nothing is filed by a background pass, and nothing is
+added without a tap — the same shape as confirming names in “Book ruby and
+names”, and the same reason: the confirmation is cheap for you and the automatic
+version is wrong often enough to matter.
+
+That makes recall the number to optimise and precision the number to keep
+honest. A missed point costs you a card you never see; a wrong card costs a tap
+and, if you take it, a wrong entry in the library. What you must be able to do
+is judge it, so a card shows the span in its sentence and the meaning in
+Chinese, not a bare id.
+
+**Adding is what stores anything.** Q&A still streams and is discarded. The add
+writes the entry (keyed on the L2 id, so ちゃう and てしまう land on one row) and
+the occurrence it came from: sentence, `sentenceRevision`, token range. Meeting
+the same point again offers 已在文法庫 — 加入這個例句 rather than a second entry.
+
+### Measured: finding the points in one sentence
 
 On the local library (4,664 sentences, 7 works), matching exact surface
 sequences under LEFT/RIGHT and keeping maximal spans:
@@ -877,22 +899,34 @@ sequences under LEFT/RIGHT and keeping maximal spans:
   送信された**もの**だった), and 19 were grammar with the wrong candidates
   offered (帰ら**なければ**いけない got only ないと).
 
-Precision is the share of what would be stored that is right — the number that
-matters, because a wrong occurrence teaches the wrong thing while a missed one
-only costs a review sentence. Over all 200:
+Precision is the share of offered cards that are right, recall the share of real
+points that get a card. Over all 200 labelled spans:
 
 | | precision | recall |
 |---|---|---|
 | Matcher, first candidate | 60% | 83% |
 | Matcher, only when unambiguous | 72% | 70% |
-| `qwen3.8:27b` picks or rejects, Tsutsuji labels shown | 87% | 68% |
+| `qwen3.8:27b`, one span per request, Tsutsuji labels shown | 87% | 68% |
 | Same, Chinese glosses shown | 86% | 79% |
-| Both prompts agree | 94% | 64% |
+| Two prompts required to agree | 94% | 64% |
+| **One request per sentence, all its spans at once** | **85%** | **91%** |
 
-The model got the candidates plus "none", constrained by a JSON-schema enum, at
-temperature 0 — the resolver's shape. **2.3 s median per span**, one span per
-request, so roughly four hours for this library if every multi-morpheme and
-above-A1 span goes through it.
+**The whole sentence in one request is the right shape**, and not only for
+latency. Judging a span against its neighbours lifted recall from 79% to 91%
+(96% on multi-morpheme spans) at the same precision, because a model that has
+already accounted for ている in the sentence stops rejecting てくる next to it.
+The model gets every span with its candidates plus "none", a JSON-schema reply,
+temperature 0 — the resolver's shape, one sentence wide.
+
+**8.5 s median for a sentence** (p90 11.5 s, worst 23.9 s over 194 sentences),
+against 2.3 s per span sequentially. Median 2 spans per sentence, at most 7, and
+~500 prompt tokens. That fits beside a Q&A answer, which takes tens of seconds
+by itself.
+
+**1.4 cards per sentence** (median 1, at most 4) once lone A1 particles are
+dropped, and **16% of sentences offer nothing** — which is the honest answer for
+a sentence whose only grammar is a particle, and better than padding the card
+with 助詞「に」.
 
 **The matcher is the weak part, not the model.** 10 of the 18 wrong accepts in
 the gloss run were spans offered the wrong family; where the matcher offered
@@ -909,12 +943,15 @@ raised recall from 68% to 79%. They need review before anyone sees them: two
 are display text, never a key, so a bad gloss costs clarity rather than
 creating duplicates.
 
-### Measured: linking what Q&A answers name
+### Rejected: reading the points back out of the answer
 
-30 grammar-rich sentences through the app's own Q&A prompt and the 說明文法
-chip, then extract the points named, retrieve candidates (matcher spans in the
-sentence, then surface lookup, then `bge-m3` over L2 descriptions), and have the
-model pick or reject:
+The obvious way to get cards out of a chat is to let the model explain in prose
+and then mine the explanation. Measured and rejected: it is slower, noisier and
+no more accurate than asking about the matched spans directly. 30 grammar-rich
+sentences through the app's own Q&A prompt and the 說明文法 chip, then extract
+the points named, retrieve candidates (matcher spans in the sentence, then
+surface lookup, then `bge-m3` over L2 descriptions), and have the model pick or
+reject:
 
 - **249 mentions, 8.3 per answer**: 38% grammar patterns, 31% particles and the
   copula, 16% conjugation forms, 14% vocabulary (ほとんど, 敬遠).
@@ -926,9 +963,18 @@ model pick or reject:
   remains is generic (連體修飾節, て形) or a few real gaps (に見える, 様態 そう,
   かける), which the supplement covers. Extraction adds ~16 s to a ~43 s answer.
 
-**So Q&A extraction and a queue of proposed new points are not built first.**
-The Q&A card can show the sentence's detected points instead, and "Q&A stores
-nothing" stands. Revisit only if the supplement stops keeping up.
+So the cards come from the matched spans, not from the prose. The two can still
+agree: identification is one short structured call, so it can run **before** the
+explanation streams and be handed to the explaining prompt as the points to
+cover.
+
+**The off-list proposals are worth keeping, and are not entries.** Asked for
+grammar it can see beyond the offered spans, the model proposed 22 points over
+194 sentences (15 sentences had any). Some are real gaps — ～てよかった, ～ようだ,
+～とはいえ, ～に合わせて — and some are vocabulary in disguise (～込む, よく). They
+show on the card as explained-but-not-addable, because an addable one would be a
+model-named entry, which is the design that failed. They are the worklist for the
+hand-written supplement.
 
 ### Direction
 
@@ -936,26 +982,32 @@ nothing" stands. Revisit only if the supplement stops keeping up.
    the source in the gitignored `data/`, an attribution notice like
    `EdrdgNotice`. ShareAlike applies to anything derived from it and distributed
    — the reviewed glosses included.
-2. **Match at import** into a grammar-occurrence table: sentence, revision
-   (`sentenceRevision`, like every other anchor), token range, candidate L2s,
-   status. Deterministic, like tokens.
-3. **Confirm in the background**, like homograph resolution: announced through
-   `priority.ts`, abortable, never gating reading.
-4. **Review keyed on L2**, so ちゃう and てしまう are one card. Cards come from
-   your own occurrences, a different sentence each time; 意味的等価クラス peers
-   are the distractors and are not scheduled on the same day. Meeting a point
-   while reading is exposure, not a review. A level threshold on difficulty
-   hides the A1 particles, the way the band slider hides common words.
+2. **Match one sentence** (`src/lib/grammar/match.ts`), pure and tested against
+   the labelled spans. No table, no background pass: the spans are derived from
+   `token` rows on demand, the way the reader already derives everything else.
+3. **Identify on ask**: one structured call for the sentence, through
+   `priority.ts` as interactive work, before the answer streams.
+4. **Cards in the Q&A panel**, each with its span in the sentence and a Chinese
+   name and gloss. Adding writes the entry and the occurrence; a point already
+   in the library offers its example sentence instead.
+5. **Grammar in the Dictionary**, listed apart from vocabulary the way confirmed
+   names are, each point with the sentences you added and its
+   意味的等価クラス peers alongside.
+6. **Review last**, keyed on L2, sharing whatever schedule vocabulary gets — one
+   quiz, two kinds of item, rather than two schedulers.
 
 **Open, not measured:**
 
-- **Which spans reach the model at all.** The level threshold is the main cost
-  lever.
-- **One span per request, or a sentence's spans in one request.** Only per-span
-  has been measured.
-- **Whether to require two agreeing prompts** — 94% at twice the cost.
-- **Whether A1 particles are grammar items at all.** Tsutsuji has them, eight
-  meanings of に among them.
+- **Whether identification should gate the answer or run beside it.** 8.5 s
+  before the first token is a long time to look at a spinner; the alternative is
+  cards that arrive after the prose and may disagree with it.
+- **Whether a card can be added from a wrong sentence.** The span is what is
+  stored; a user who adds ～ては from 嫌な感じ**では** stores a bad example, and
+  nothing yet notices.
+- **Whether A1 particles are ever cards.** Dropped by default here. Tsutsuji has
+  eight meanings of に, and 83 of the 211 A1 accepts in the measurement were に.
+- **What "identify" costs on a phone over the LAN**, where Q&A already feels
+  slow.
 
 The labels and scripts are not committed: the labelled sentences are
 copyrighted book text, the same reason EPUB fixtures are built rather than
