@@ -54,7 +54,9 @@ const stored = db
 let rebuilt = 0;
 for (const section of stored) {
   const label = section.title ?? '(untitled)';
-  const marked = byText.get(section.sourceText!);
+  // Keyed on the prose, so a section already given its ruby still matches and
+  // reads as unchanged -- running this twice is harmless.
+  const marked = byText.get(extractRuby(section.sourceText!).text);
   if (marked === undefined) {
     process.stdout.write(`  no match: ${label}\n`);
     continue;
