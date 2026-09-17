@@ -135,3 +135,24 @@ test('a form needing something to its left cannot open a sentence', async () => 
 test('says nothing about a sentence with no grammar in the inventory', async () => {
   assert.deepEqual(await match('猫が好きだ。'), []);
 });
+
+test('two forms may share the joint they are chained on', async () => {
+  // ～ようにしている is ～ようにする in て-form followed by ～ている, and the て
+  // belongs to both. Greedy alone kept よう.に.し.て and left ている with
+  // nowhere to begin, which lost the commonest point in the language.
+  const hits = await match('目立たないようにしていた。');
+  assert.deepEqual(
+    hits.map((h) => h.ids.join()),
+    ['1871', '1351'],
+  );
+});
+
+test('sharing a joint is not licence to overlap further', async () => {
+  // ～こと inside ～ことができる starts where nothing ends, and is contained
+  // rather than chained: it stays dropped.
+  const hits = await match('泳ぐことができる。');
+  assert.deepEqual(
+    hits.map((h) => h.ids.join()),
+    ['1751'],
+  );
+});

@@ -1,0 +1,77 @@
+import { loadGrammar } from '../../../lib/grammar/load.ts';
+import { grammarInSentence } from '../../../lib/grammar/sentence.ts';
+
+/** Similar expressions shown beside a point. Enough to place it, not a list. */
+const PEERS = 4;
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+interface GrammarBody {
+  sentenceId?: unknown;
+}
+
+/**
+ * The grammar points in one sentence, as JSON rather than a stream.
+ *
+ * Unlike an answer, there is nothing to watch arrive: the reply is a short list
+ * and the card has nothing to show until all of it is there. It takes about
+ * 8.5s, which is why the reader asks for it when the card opens rather than
+ * when a question is sent -- by the time the greeting has been read, the cards
+ * are usually there.
+ *
+ * A failure here is empty-handed, not fatal: the reader still has the
+ * conversation, and grammar is the part that quietly did not arrive. The status
+ * says which, so the card can say 暫時找不到 rather than pretending the
+ * sentence has no grammar in it.
+ */
+export async function POST(request: Request) {
+  let body: GrammarBody;
+  try {
+    body = await request.json();
+  } catch {
+    return new Response('Malformed request body.', { status: 400 });
+  }
+
+  const sentenceId =
+    typeof body.sentenceId === 'string' && body.sentenceId.length > 0
+      ? body.sentenceId
+      : null;
+  if (!sentenceId) {
+    return new Response('A sentence is required.', { status: 400 });
+  }
+
+  try {
+    const grammar = await grammarInSentence(sentenceId, request.signal);
+    return Response.json(
+      {
+        revision: grammar.revision,
+        points: grammar.points.map((point) => ({
+          pointId: point.pointId,
+          name: point.point.nameZh,
+          gloss: point.point.glossZh,
+          base: point.point.base,
+          difficulty: point.point.difficulty,
+          charStart: point.charStart,
+          charEnd: point.charEnd,
+          surface: point.surface,
+          // 意味的等価クラス siblings: から beside ので. Related, never merged,
+          // and what tells the reader which of two neighbouring points this card is.
+          peers: loadGrammar()
+            .peers(point.pointId)
+            .slice(0, PEERS)
+            .map((peer) => peer.base),
+        })),
+        others: grammar.others,
+      },
+      { headers: { 'cache-control': 'no-store' } },
+    );
+  } catch (error) {
+    // An abort is the reader closing the card before the model answered. It is
+    // not a failure to report: nobody is listening, and the client has already
+    // thrown its own request away.
+    if (request.signal.aborted) return new Response(null, { status: 499 });
+    const message = error instanceof Error ? error.message : 'Unknown failure.';
+    return new Response(message, { status: 502 });
+  }
+}

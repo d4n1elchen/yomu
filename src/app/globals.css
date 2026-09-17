@@ -1428,6 +1428,128 @@ rt {
   color: var(--faint);
 }
 
+/* --- the grammar this sentence contains --- */
+
+/*
+ * A bubble rather than a strip above the composer. The panel is a bottom sheet
+ * on a phone, and a permanent strip would spend that height on every sentence,
+ * including the one in six with nothing to offer.
+ *
+ * Wider than an ordinary bubble because its rows are two columns, and the
+ * Chinese gloss has to be readable at the width left over.
+ */
+.grammar-bubble {
+  max-width: 94%;
+  width: 94%;
+  padding: 0.5rem 0.7rem 0.45rem;
+}
+
+.grammar-lead,
+.grammar-quiet {
+  margin: 0 0 0.25rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.grammar-quiet {
+  margin: 0;
+}
+
+.grammar-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.grammar-list li + li {
+  border-top: 1px solid rgb(34 32 28 / 0.07);
+}
+
+/* The whole row opens the detail: a tap target the width of the bubble rather
+   than a caret a thumb has to find. */
+.grammar-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.35rem 0.15rem;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.grammar-row:hover {
+  background: rgb(255 255 255 / 0.5);
+}
+
+.grammar-form {
+  font-family: var(--serif);
+  font-size: 0.95rem;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.grammar-name {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.76rem;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.grammar-caret {
+  margin-left: auto;
+  font-size: 0.7rem;
+  color: var(--faint);
+}
+
+.grammar-open {
+  padding: 0 0.15rem 0.4rem;
+}
+
+/* The sentence with the span marked. A matched span is often a fragment --
+   てい of ～ていた -- and a fragment alone cannot be judged. */
+.grammar-context {
+  margin: 0.1rem 0 0.45rem;
+  font-family: var(--serif);
+  font-size: 0.85rem;
+  line-height: 1.8;
+  color: var(--muted);
+}
+
+.grammar-context mark {
+  padding: 0 0.05em;
+  background: linear-gradient(transparent 62%, rgb(255 255 255 / 0.85) 62%);
+  color: var(--ink);
+}
+
+.grammar-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.75rem;
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--faint);
+}
+
+.grammar-others {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: baseline;
+  margin: 0.15rem 0 0;
+  padding-top: 0.35rem;
+  border-top: 1px solid rgb(34 32 28 / 0.07);
+  font-size: 0.72rem;
+  color: var(--faint);
+}
+
+.grammar-others span[lang='ja'] {
+  font-family: var(--serif);
+}
+
 /* --- dictionary entry: meanings and provenance --- */
 
 .section-label {

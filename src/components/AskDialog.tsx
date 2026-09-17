@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { LlmMessage } from '../lib/llm/index.ts';
+import { GrammarBubble, useSentenceGrammar } from './GrammarBubble.tsx';
 import { Markdown } from './Markdown.tsx';
 import { anchorStyle, useCardAnchor, type AnchorRect } from './useCardAnchor.ts';
 
@@ -38,6 +39,8 @@ export function AskDialog({
   const abort = useRef<AbortController | null>(null);
   const threadRef = useRef<HTMLDivElement>(null);
   const cardRef = useCardAnchor<HTMLDivElement>(target.rect);
+  // Starts with the card, not with the first question: see `useSentenceGrammar`.
+  const grammar = useSentenceGrammar(target.sentenceId);
 
   useEffect(() => () => abort.current?.abort(), []);
 
@@ -53,7 +56,7 @@ export function AskDialog({
   useEffect(() => {
     const thread = threadRef.current;
     if (thread) thread.scrollTop = thread.scrollHeight;
-  }, [turns, streaming]);
+  }, [turns, streaming, grammar.status]);
 
   const pending = streaming !== null;
 
@@ -129,6 +132,12 @@ export function AskDialog({
         <p className="bubble assistant">
           想知道這一句的什麼呢？可以直接問，或從下面選一個。
         </p>
+        {/*
+          Arrives on its own, a few seconds after the card opens, and sits above
+          whatever is asked afterwards -- it is about the sentence rather than
+          about any question.
+        */}
+        <GrammarBubble state={grammar} sentence={target.text} />
         {/*
           The answer is rendered as Markdown, the question is not: the model was
           asked for 條列式 and emits bullets and bold, while the reader typed

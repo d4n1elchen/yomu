@@ -133,10 +133,34 @@ export function matchSentence(
   );
 
   const kept: GrammarMatch[] = [];
+  const shelved: GrammarMatch[] = [];
   for (const match of ranked) {
     const clashes = kept.some((other) => match.start < other.end && other.start < match.end);
-    if (!clashes) kept.push(match);
+    if (clashes) shelved.push(match);
+    else kept.push(match);
   }
 
-  return kept.sort((a, b) => a.start - b.start);
+  // Forms chain on a shared joint, and dropping the second one loses a real
+  // point. ～ようにしている is ～ようにする in て-form plus ～ている, and the て
+  // belongs to both: greedy keeps よう.に.し.て and ている then has nowhere to
+  // start. Measured over 800 sentences, this was eleven losses, nearly all of
+  // them ～ている -- the commonest point there is.
+  //
+  // So a shelved span is readmitted when its only overlap is that one joint:
+  // it begins exactly where a kept span ends, on the token they share, and
+  // clashes with nothing else. Anything overlapping more deeply stays out,
+  // because two cards would then be claiming the same words.
+  for (const match of shelved) {
+    const joins = kept.some(
+      (other) => other.end - 1 === match.start && other.start < match.start,
+    );
+    if (!joins) continue;
+    const overlapsMore = kept.some(
+      (other) => match.start < other.end - 1 && other.start < match.end,
+    );
+    if (overlapsMore) continue;
+    kept.push(match);
+  }
+
+  return kept.sort((a, b) => a.start - b.start || a.end - b.end);
 }

@@ -389,6 +389,102 @@ export const dictSenses = sqliteTable(
 
 
 /**
+ * A grammar point: one meaning of one expression, and the thing a card is
+ * filed under.
+ *
+ * The id is 「つつじ」's L2 id (`1351` for ～ている) -- the level where meanings
+ * separate and below which everything is a way of writing the same point, so
+ * ちゃう and てしまう are one row and ながら "while" and ながら "although" are
+ * two. Supplements つつじ does not cover carry a `yomu:` id instead. The id is
+ * never generated and never invented by a model: that was the earlier design,
+ * and it produced near-duplicates.
+ *
+ * `meaningClass` is つつじ's 意味的等価クラス -- expressions that paraphrase
+ * each other (から / ので / ものだから). Related, never merged: it is what a
+ * card lists as similar and what a quiz draws wrong answers from.
+ */
+export const grammarPoints = sqliteTable(
+  'grammar_point',
+  {
+    id: text('id').primaryKey(),
+    /** The representative written form, for display: ている, にとって. */
+    base: text('base').notNull(),
+    /** つつじ's grade: 'A1' | 'A2' | 'B' | 'C' | 'F'. Cards start at A2. */
+    difficulty: text('difficulty').notNull(),
+    meaningClass: text('meaning_class').notNull(),
+    /** つつじ's Japanese name for that class: 進行-継続-テイル類. */
+    meaningName: text('meaning_name').notNull(),
+    /**
+     * Traditional Chinese, for the card: a name like ～ながら（雖然…卻） and a
+     * one-line gloss. Written by the model from つつじ's own labels and then
+     * reviewed, the same order as `dictSense.glossZh` -- and for the same
+     * reason: a model given a real meaning to render can phrase it badly, but
+     * it cannot invent a point that the dictionary never had.
+     *
+     * Null until generated, and `name_zh is null` IS the queue. Display only:
+     * a bad gloss costs clarity, never a duplicate, because the key is the id.
+     */
+    nameZh: text('name_zh'),
+    glossZh: text('gloss_zh'),
+    glossModel: text('gloss_model'),
+  },
+  (t) => [
+    index('grammar_point_class_idx').on(t.meaningClass),
+    // The gloss queue, and the difficulty floor cards are chosen by.
+    index('grammar_point_gloss_idx').on(t.nameZh),
+    index('grammar_point_difficulty_idx').on(t.difficulty),
+  ],
+);
+
+/**
+ * One written form of a point, in the units a morphological analyzer produces.
+ *
+ * つつじ stores `に.とっ.て`, which is why matching runs over tokens rather than
+ * over a string: the dots are the analyzer's own boundaries. 16,801 rows, and
+ * `firstUnit` is the index matching walks -- one lookup per token rather than a
+ * pass over all of them.
+ *
+ * `left` and `right` are つつじ's connection classes: what may stand before the
+ * form, and what the form's own last token must be. They are what keeps ～ては
+ * off 嫌な感じ**では**なかった.
+ */
+export const grammarForms = sqliteTable(
+  'grammar_form',
+  {
+    pointId: text('point_id')
+      .notNull()
+      .references(() => grammarPoints.id, { onDelete: 'cascade' }),
+    /** The units, joined with '.' exactly as つつじ writes them. */
+    units: text('units').notNull(),
+    /** `units` up to the first dot, denormalized so the index can be used. */
+    firstUnit: text('first_unit').notNull(),
+    left: text('left'),
+    right: text('right'),
+  },
+  (t) => [
+    // Both constraints are in the key. つつじ lists ～と思いきや twice under one
+    // point with the same units and two different `left` classes, and keying
+    // without it would keep one of them and quietly narrow what the form can
+    // follow. 214 rows in the distribution are duplicates in every field, and
+    // those do collapse -- that is what this key is for.
+    primaryKey({ columns: [t.pointId, t.units, t.left, t.right] }),
+    index('grammar_form_first_idx').on(t.firstUnit),
+  ],
+);
+
+/**
+ * つつじ's connection classes, as written: IPADIC feature rows, or the names of
+ * other classes to union in. Kept whole rather than flattened at import,
+ * because flattening is cheap at load and a flattened table could not be read
+ * back against the distribution it came from.
+ */
+export const grammarConnections = sqliteTable('grammar_connection', {
+  code: text('code').primaryKey(),
+  /** Semicolon-separated, as in the `connectID` file. */
+  rows: text('rows').notNull(),
+});
+
+/**
  * Names you confirmed while reading a work -- 人名 -- which the analyzer then
  * treats as one word throughout that work.
  *
