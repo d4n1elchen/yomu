@@ -55,8 +55,8 @@ test('token offsets are relative to the sentence they render in', () => {
         sentence.text.slice(token.charStart, token.charEnd),
         token.surface,
       );
-      // The reader needs the owning sentence on every token to map a browser
-      // selection back onto these offsets.
+      // The reader reads the gaps between tokens back out of the sentence
+      // text by these offsets, so they must index into the sentence it renders.
       assert.equal(token.sentenceId, sentence.id);
     }
   }

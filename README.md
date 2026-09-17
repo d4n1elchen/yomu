@@ -4,7 +4,7 @@ An LLM-assisted Japanese reader. You read the Japanese; the app explains it.
 
 Paste an article or import an EPUB, and Yomu segments it, puts furigana over
 the kanji, underlines the words a newspaper corpus says are uncommon, and
-answers questions about any sentence you select. Word definitions are
+answers questions about any sentence you double-tap. Word definitions are
 Traditional Chinese, translated from JMdict rather than invented.
 
 The interface is Traditional Chinese throughout. The only Japanese on screen is

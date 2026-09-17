@@ -606,6 +606,9 @@ button:disabled {
      the demibold honestly, not because 700 would look different.
      Furigana stays light regardless: `rt` sets its own font-weight: normal. */
   font-weight: 600;
+  /* A double tap on a sentence opens the Q&A card. Without this, iOS spends the
+     same double tap zooming the page. */
+  touch-action: manipulation;
 }
 
 /* A paragraph is the block; sentences flow inside it as prose. A newline in the
@@ -630,6 +633,12 @@ button:disabled {
   border-radius: 4px;
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
+}
+
+/* The sentence the Q&A card is open on, so it is clear which one it is asking
+   about once the card covers the text around it. */
+.sentence.asking {
+  background: var(--accent-soft);
 }
 
 .sentence:target {
@@ -1039,7 +1048,7 @@ rt {
 
 /* --- ask card --- */
 
-/* Mobile first: a bottom sheet, because a bubble anchored to the selection
+/* Mobile first: a bottom sheet, because a bubble anchored to the sentence
    would sit on top of the text being asked about on a narrow screen. */
 .ask-card {
   position: fixed;
@@ -1081,12 +1090,12 @@ rt {
   border-bottom: 1px solid var(--border);
 }
 
-.ask-selection {
+.ask-sentence {
   min-width: 0;
 }
 
-/* Pushed to the corner rather than sitting next to the selected text, whose
-   width varies with whatever was dragged over. */
+/* Pushed to the corner rather than sitting next to the sentence, whose width
+   varies with whichever one was tapped. */
 .ask-head .close {
   margin: -0.2rem -0.4rem auto auto;
   align-self: flex-start;
@@ -1101,7 +1110,7 @@ rt {
   margin-bottom: 0.2rem;
 }
 
-.ask-selection p {
+.ask-sentence p {
   margin: 0;
   font-family: var(--serif);
   font-size: 1rem;

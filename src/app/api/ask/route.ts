@@ -1,37 +1,12 @@
-import { askAboutSelection } from '../../../lib/qa/ask.ts';
+import { askAboutSentence } from '../../../lib/qa/ask.ts';
 import type { LlmMessage } from '../../../lib/llm/index.ts';
-import type { SelectionSpan } from '../../../lib/qa/selection.ts';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 interface AskBody {
-  spans?: unknown;
+  sentenceId?: unknown;
   turns?: unknown;
-}
-
-function parseSpans(raw: unknown): SelectionSpan[] | null {
-  if (!Array.isArray(raw) || raw.length === 0) return null;
-
-  const spans: SelectionSpan[] = [];
-  for (const item of raw) {
-    if (typeof item !== 'object' || item === null) return null;
-    const { sentenceId, charStart, charEnd } = item as Record<string, unknown>;
-    if (
-      typeof sentenceId !== 'string' ||
-      sentenceId.length === 0 ||
-      !Number.isInteger(charStart) ||
-      !Number.isInteger(charEnd)
-    ) {
-      return null;
-    }
-    spans.push({
-      sentenceId,
-      charStart: charStart as number,
-      charEnd: charEnd as number,
-    });
-  }
-  return spans;
 }
 
 /**
@@ -74,11 +49,14 @@ export async function POST(request: Request) {
     return new Response('Malformed request body.', { status: 400 });
   }
 
-  const spans = parseSpans(body.spans);
+  const sentenceId =
+    typeof body.sentenceId === 'string' && body.sentenceId.length > 0
+      ? body.sentenceId
+      : null;
   const turns = parseTurns(body.turns);
 
-  if (!spans || !turns) {
-    return new Response('A selection and an alternating thread are required.', {
+  if (!sentenceId || !turns) {
+    return new Response('A sentence and an alternating thread are required.', {
       status: 400,
     });
   }
@@ -87,8 +65,8 @@ export async function POST(request: Request) {
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
-        for await (const chunk of askAboutSelection({
-          spans,
+        for await (const chunk of askAboutSentence({
+          sentenceId,
           turns,
           signal: request.signal,
         })) {

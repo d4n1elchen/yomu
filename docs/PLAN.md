@@ -170,7 +170,7 @@ resolves segmentation ambiguity. Building a MeCab dictionary from it means
 recreating IPADIC without IPADIC's annotated corpus. The popup-dictionary
 alternative — deinflect by rule, longest match wins — answers "what word is at
 this cursor" and cannot produce a token stream, which the occurrence rows,
-furigana alignment and selection offsets are all built on.
+furigana alignment and the Q&A prompt's token table are all built on.
 
 **A JMdict fallback for words matching nothing.** Still rejected, but the reason
 has changed: it used to be "nothing to fix, 0 of 34 unmatched", and on real

@@ -2,15 +2,14 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { LlmMessage } from '../lib/llm/index.ts';
-import type { SelectionSpan } from '../lib/qa/selection.ts';
 import { Markdown } from './Markdown.tsx';
 import { anchorStyle, useCardAnchor, type AnchorRect } from './useCardAnchor.ts';
 
-export interface ReaderSelection {
-  spans: SelectionSpan[];
-  /** The selected text, snapped out to whole tokens. */
+export interface AskTarget {
+  sentenceId: string;
+  /** The sentence's text, as shown at the top of the card. */
   text: string;
-  /** The selection's box in viewport coordinates. */
+  /** The sentence's box in viewport coordinates. */
   rect: AnchorRect;
 }
 
@@ -18,18 +17,18 @@ const CHIPS = ['說明文法', '為何是這個形式？', '語感差異'];
 
 /**
  * A chat, not an answer. The card opens on a templated greeting so it appears
- * the instant you let go of the selection, rather than after a generation --
+ * the instant you double-tap the sentence, rather than after a generation --
  * and from there it is a conversation, so a follow-up does not mean starting
  * over with a differently worded question.
  *
- * Nothing here is stored. The greeting is regenerated next time you select the
- * same text, and closing the card discards the thread.
+ * Nothing here is stored. The greeting is regenerated next time you open the same
+ * sentence, and closing the card discards the thread.
  */
 export function AskDialog({
-  selection,
+  target,
   onClose,
 }: {
-  selection: ReaderSelection;
+  target: AskTarget;
   onClose: () => void;
 }) {
   const [turns, setTurns] = useState<LlmMessage[]>([]);
@@ -38,7 +37,7 @@ export function AskDialog({
   const [draft, setDraft] = useState('');
   const abort = useRef<AbortController | null>(null);
   const threadRef = useRef<HTMLDivElement>(null);
-  const cardRef = useCardAnchor<HTMLDivElement>(selection.rect);
+  const cardRef = useCardAnchor<HTMLDivElement>(target.rect);
 
   useEffect(() => () => abort.current?.abort(), []);
 
@@ -76,7 +75,7 @@ export function AskDialog({
       const response = await fetch('/api/ask', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ spans: selection.spans, turns: next }),
+        body: JSON.stringify({ sentenceId: target.sentenceId, turns: next }),
         signal: controller.signal,
       });
 
@@ -112,14 +111,14 @@ export function AskDialog({
     <div
       className="ask-card"
       role="dialog"
-      aria-label="關於選取內容的問答"
+      aria-label="關於這一句的問答"
       ref={cardRef}
-      style={anchorStyle(selection.rect)}
+      style={anchorStyle(target.rect)}
     >
       <div className="ask-head">
-        <div className="ask-selection">
-          <span className="ask-label">選取的部分</span>
-          <p>{selection.text}</p>
+        <div className="ask-sentence">
+          <span className="ask-label">這一句</span>
+          <p>{target.text}</p>
         </div>
         <button type="button" className="close" onClick={onClose} aria-label="關閉">
           ×
@@ -128,8 +127,7 @@ export function AskDialog({
 
       <div className="ask-thread" ref={threadRef}>
         <p className="bubble assistant">
-          「{selection.text}」{'\n'}
-          想知道這個部分的什麼呢？可以直接問，或從下面選一個。
+          想知道這一句的什麼呢？可以直接問，或從下面選一個。
         </p>
         {/*
           The answer is rendered as Markdown, the question is not: the model was

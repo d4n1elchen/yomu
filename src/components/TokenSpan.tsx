@@ -11,11 +11,6 @@ import type { ArticleToken } from '../lib/article.ts';
  * change, no focus stop, nothing inviting a tap that would open a card with
  * nothing in it worth stopping for. The dashed underline is the affordance,
  * and marking is what decides there is something to say.
- *
- * The data attributes are load-bearing on every token, marked or not: they are
- * how a browser selection is mapped back onto our sentence-relative offsets.
- * Punctuation carries them too, so a selection running through 「」 is not
- * silently clipped at the quotes.
  */
 export function TokenSpan({
   token,
@@ -47,16 +42,9 @@ export function TokenSpan({
     ),
   );
 
-  const anchors = {
-    'data-token': token.id,
-    'data-sentence': token.sentenceId,
-    'data-start': token.charStart,
-    'data-end': token.charEnd,
-  };
-
   if (!marked) {
     return (
-      <span className={className} {...anchors}>
+      <span className={className}>
         {content}
       </span>
     );
@@ -65,7 +53,6 @@ export function TokenSpan({
   return (
     <span
       className={className}
-      {...anchors}
       role="button"
       // Ruby markup gives the element no computed name of its own, which would
       // leave the word announced as an unlabelled button.

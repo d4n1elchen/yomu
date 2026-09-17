@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { buildMessages, type PromptSentence, type PromptToken } from './prompt.ts';
+import { buildMessages, type PromptInput, type PromptToken } from './prompt.ts';
 
 const tokens: PromptToken[] = [
   { surface: '窓', reading: 'マド', lemma: '窓', pos: '名詞' },
@@ -10,15 +10,11 @@ const tokens: PromptToken[] = [
   { surface: '𩸽', reading: null, lemma: '𩸽', pos: '名詞' },
 ];
 
-const sentence: PromptSentence = {
-  text: '窓の外を眺める',
-  tokens,
-  selected: '眺め',
-};
-
-const build = (over: Partial<Parameters<typeof buildMessages>[0]> = {}) =>
+const build = (over: Partial<PromptInput> = {}) =>
   buildMessages({
-    sentences: [sentence],
+    target: { text: '窓の外を眺める。', tokens },
+    previous: '雨が降っていた。',
+    next: 'それから本を読んだ。',
     turns: [{ role: 'user', content: 'なぜ？' }],
     ...over,
   });
@@ -46,8 +42,33 @@ test('marks an unknown reading rather than inventing one', () => {
   assert.match(build()[1]!.content, /𩸽（—）/);
 });
 
-test('always names the selected fragment', () => {
-  assert.match(build()[1]!.content, /學生選取的片段：「眺め」/);
+test('labels the target and places the neighbours either side of it', () => {
+  const user = build()[1]!.content;
+  const previous = user.indexOf('【前一句】（僅供脈絡）\n雨が降っていた。');
+  const target = user.indexOf('【目標句】（學生問的是這一句）\n窓の外を眺める。');
+  const next = user.indexOf('【後一句】（僅供脈絡）\nそれから本を読んだ。');
+
+  assert.ok(previous >= 0 && target >= 0 && next >= 0);
+  assert.ok(previous < target && target < next);
+});
+
+test('only the target sentence gets a token table', () => {
+  const user = build()[1]!.content;
+  assert.equal(user.match(/詞法分析結果/g)!.length, 1);
+  assert.match(user, /【目標句】的詞法分析結果/);
+});
+
+test('tells the model the neighbours are context, not the question', () => {
+  const system = build()[0]!.content;
+  assert.match(system, /學生問的是【目標句】/);
+  assert.match(system, /不要解釋它們/);
+});
+
+test('leaves out a neighbour at the edge of a chapter', () => {
+  const user = build({ previous: null, next: null })[1]!.content;
+  assert.equal(user.includes('【前一句】'), false);
+  assert.equal(user.includes('【後一句】'), false);
+  assert.match(user, /^【目標句】/);
 });
 
 test('instructs the model to write Traditional Chinese and not invent readings', () => {
@@ -57,30 +78,12 @@ test('instructs the model to write Traditional Chinese and not invent readings',
   assert.match(system, /不要自行推測或改寫任何讀音/);
 });
 
-test('carries the question through verbatim', () => {
+test('carries the question through verbatim, tied to the target', () => {
   const turns = [{ role: 'user' as const, content: '「と」的作用？' }];
-  assert.match(build({ turns })[1]!.content, /問題：「と」的作用？/);
-});
-
-test('a selection spanning sentences carries every sentence and its tokens', () => {
-  const second: PromptSentence = {
-    text: '本を読んだ。',
-    tokens: [{ surface: '読ん', reading: 'ヨン', lemma: '読む', pos: '動詞' }],
-    selected: '読ん',
-  };
-  const user = build({ sentences: [sentence, second] })[1]!.content;
-
-  assert.match(user, /句子 1：/);
-  assert.match(user, /句子 2：/);
-  assert.match(user, /読ん（よん）動詞 ← 読む/);
-  // The fragment is the concatenation of what was selected in each sentence.
-  assert.match(user, /學生選取的片段：「眺め読ん」/);
-});
-
-test('a single sentence is not numbered', () => {
-  const user = build()[1]!.content;
-  assert.match(user, /句子：/);
-  assert.equal(/句子 1：/.test(user), false);
+  assert.match(
+    build({ turns })[1]!.content,
+    /關於【目標句】的問題：「と」的作用？$/,
+  );
 });
 
 test('later turns follow the context as an ordinary conversation', () => {
@@ -100,7 +103,7 @@ test('later turns follow the context as an ordinary conversation', () => {
   assert.equal(messages[3]!.content, '語感差異？');
 });
 
-test('the token tables are sent once, not once per turn', () => {
+test('the sentences are sent once, not once per turn', () => {
   const messages = build({
     turns: [
       { role: 'user', content: '說明文法' },
@@ -113,7 +116,6 @@ test('the token tables are sent once, not once per turn', () => {
   assert.equal(messages.at(-1)!.content, '再說明');
 });
 
-test('refuses to build a prompt with no question or no selection', () => {
+test('refuses to build a prompt with no question', () => {
   assert.throws(() => build({ turns: [] }), /question is required/);
-  assert.throws(() => build({ sentences: [] }), /selection is required/);
 });

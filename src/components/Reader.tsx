@@ -5,8 +5,7 @@ import { toggleLearning } from '../app/read/actions.ts';
 import type { Article, ArticleSentence, ArticleToken } from '../lib/article.ts';
 import { DownloadChapter } from './DownloadChapter.tsx';
 import { DEFAULT_LEVEL, MAX_BAND, isHardWord } from '../lib/marking.ts';
-import { selectionSpans, type TouchedToken } from '../lib/qa/selection.ts';
-import { AskDialog, type ReaderSelection } from './AskDialog.tsx';
+import { AskDialog, type AskTarget } from './AskDialog.tsx';
 import { ReadStamp } from './ReadStamp.tsx';
 import { ReadingProgress } from './ReadingProgress.tsx';
 import { TokenSpan } from './TokenSpan.tsx';
@@ -30,48 +29,19 @@ function anchorOf(element: HTMLElement): AnchorRect {
   return { top: rect.top, bottom: rect.bottom, left: rect.left };
 }
 
-function readToken(element: Element): TouchedToken | null {
-  const sentenceId = element.getAttribute('data-sentence');
-  const start = element.getAttribute('data-start');
-  const end = element.getAttribute('data-end');
-  if (sentenceId === null || start === null || end === null) return null;
-  return { sentenceId, charStart: Number(start), charEnd: Number(end) };
-}
-
-function closestToken(node: Node | null): Element | null {
-  const element =
-    node === null
-      ? null
-      : node.nodeType === Node.ELEMENT_NODE
-        ? (node as Element)
-        : node.parentElement;
-  return element?.closest('[data-token]') ?? null;
-}
-
 /**
- * The tokens a range touches, in document order.
- *
- * Cloning the range is what makes this cheap: a partially selected element is
- * cloned with its attributes, so the fragment holds exactly the tokens with at
- * least one selected character and nothing else in the article is examined.
- *
- * The exception is a selection living entirely inside one token -- dragging
- * across 読み inside 読み終わる. There the token element is the range's common
- * ancestor rather than its content, so the fragment comes back with no token in
- * it and the enclosing one has to be found by walking up.
+ * Two taps closer than this, in time and on screen, are a double tap. 300ms is
+ * the interval iOS itself uses to tell a double tap from two taps; the distance
+ * forgives a thumb that lands a few pixels off the first time.
  */
-function touchedTokens(range: Range): TouchedToken[] {
-  const found: TouchedToken[] = [];
-  for (const element of range.cloneContents().querySelectorAll('[data-token]')) {
-    const token = readToken(element);
-    if (token) found.push(token);
-  }
-  if (found.length > 0) return found;
+const DOUBLE_TAP_MS = 300;
+const DOUBLE_TAP_SLOP_PX = 24;
 
-  const enclosing =
-    closestToken(range.startContainer) ?? closestToken(range.endContainer);
-  const token = enclosing ? readToken(enclosing) : null;
-  return token ? [token] : [];
+interface Tap {
+  time: number;
+  x: number;
+  y: number;
+  sentenceId: string;
 }
 
 export function Reader({ article }: { article: Article }) {
@@ -83,9 +53,10 @@ export function Reader({ article }: { article: Article }) {
   const [learning, setLearningKeys] = useState<Set<string>>(
     () => new Set(article.learning),
   );
-  const [selection, setSelection] = useState<ReaderSelection | null>(null);
+  const [asking, setAsking] = useState<AskTarget | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
+  const lastTap = useRef<Tap | null>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // `entryId ?? lexemeId` is `coalesce(dict_entry_id, lexeme.id)` -- the
@@ -149,75 +120,6 @@ export function Reader({ article }: { article: Article }) {
     [],
   );
 
-  const textOf = useCallback(
-    (sentenceId: string, charStart: number, charEnd: number) =>
-      article.sentences
-        .find((s) => s.id === sentenceId)
-        ?.text.slice(charStart, charEnd) ?? '',
-    [article.sentences],
-  );
-
-  const settle = useCallback(() => {
-    const root = rootRef.current;
-    const current = window.getSelection();
-    if (!root || !current || current.rangeCount === 0) return;
-
-    const range = current.getRangeAt(0);
-    // A selection outside the article -- clicking into the card's composer, for
-    // one -- says nothing about what is selected in the text, so it is ignored
-    // rather than treated as a dismissal.
-    if (!root.contains(range.commonAncestorContainer)) return;
-
-    if (current.isCollapsed) {
-      setSelection(null);
-      return;
-    }
-
-    const spans = selectionSpans(touchedTokens(range));
-    if (spans.length === 0) {
-      setSelection(null);
-      return;
-    }
-
-    // Where the selection is, in viewport coordinates. Deciding where the card
-    // fits around it needs the card's own size, so that is left to the card.
-    const rect = range.getBoundingClientRect();
-
-    setSelection({
-      spans,
-      text: spans
-        .map((span) => textOf(span.sentenceId, span.charStart, span.charEnd))
-        .join(''),
-      rect: { top: rect.top, bottom: rect.bottom, left: rect.left },
-    });
-    // A selection and a word card are two answers to the same gesture; the
-    // selection wins.
-    setWord(null);
-  }, [textOf]);
-
-  useEffect(() => {
-    const onSelectionChange = () => {
-      // Mid-drag the selection is still growing; wait for the release.
-      if (!dragging.current) settle();
-    };
-    const onPointerDown = () => {
-      dragging.current = true;
-    };
-    const onPointerUp = () => {
-      dragging.current = false;
-      settle();
-    };
-
-    document.addEventListener('selectionchange', onSelectionChange);
-    document.addEventListener('pointerdown', onPointerDown);
-    document.addEventListener('pointerup', onPointerUp);
-    return () => {
-      document.removeEventListener('selectionchange', onSelectionChange);
-      document.removeEventListener('pointerdown', onPointerDown);
-      document.removeEventListener('pointerup', onPointerUp);
-    };
-  }, [settle]);
-
   const hold = () => {
     if (closeTimer.current) clearTimeout(closeTimer.current);
     closeTimer.current = null;
@@ -243,13 +145,92 @@ export function Reader({ article }: { article: Article }) {
       closeTimer.current = setTimeout(() => setWord(null), HOVER_GRACE_MS);
       return;
     }
-    // A selection and a word card are two answers to the same gesture, and the
-    // selection wins -- the same rule tapping already follows. Mid-drag the
-    // pointer also sweeps over words on its way to the end of the selection,
-    // and none of those crossings is a request to explain anything.
-    if (selection || dragging.current) return;
+    // An open Q&A card wins over a word card, the same rule a double tap
+    // follows. Mid-drag the pointer also sweeps over words on its way to the end
+    // of a selection, and none of those crossings is a request to explain
+    // anything.
+    if (asking || dragging.current) return;
     hold();
     setWord({ token, rect: anchorOf(element) });
+  };
+
+  // Only tracks whether a mouse button is down, so sweeping across words while
+  // dragging out a selection to copy does not pop a card open on each of them.
+  useEffect(() => {
+    const onPointerDown = () => {
+      dragging.current = true;
+    };
+    const onPointerUp = () => {
+      dragging.current = false;
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('pointerup', onPointerUp);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('pointerup', onPointerUp);
+    };
+  }, []);
+
+  /**
+   * A double tap anywhere in a sentence asks about that sentence.
+   *
+   * This replaced opening the card on a text selection, which is a fiddly
+   * gesture on a phone: iOS selects by long press, then asks you to drag
+   * handles to the ends of what you meant. A sentence -- as segmentation
+   * already cut it, through its 。 and any closing quote -- is nearly always
+   * the unit the question is about anyway, and the model is sent the sentences
+   * either side for context.
+   *
+   * Detected by hand from `pointerup` rather than `dblclick`, which iOS Safari
+   * does not reliably deliver for touch. `touch-action: manipulation` on the
+   * reader is what stops the same double tap from zooming the page.
+   *
+   * The first tap still does what a tap does, so double-tapping a marked word
+   * flashes its card before the Q&A card replaces it. Holding every tap back
+   * 300ms to rule out a second one would make the word card, the thing tapped
+   * far more often, feel slow.
+   */
+  const onReaderPointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    const element = (event.target as Element).closest('[data-sentence-id]');
+    const sentenceId = element?.getAttribute('data-sentence-id');
+    if (!element || !sentenceId) {
+      lastTap.current = null;
+      return;
+    }
+
+    const tap: Tap = {
+      time: event.timeStamp,
+      x: event.clientX,
+      y: event.clientY,
+      sentenceId,
+    };
+    const previous = lastTap.current;
+    const isDouble =
+      previous !== null &&
+      previous.sentenceId === sentenceId &&
+      tap.time - previous.time < DOUBLE_TAP_MS &&
+      Math.hypot(tap.x - previous.x, tap.y - previous.y) < DOUBLE_TAP_SLOP_PX;
+
+    if (!isDouble) {
+      lastTap.current = tap;
+      return;
+    }
+
+    // A third tap starts over rather than counting as a second double tap.
+    lastTap.current = null;
+    const sentence = article.sentences.find((s) => s.id === sentenceId);
+    if (!sentence) return;
+
+    const rect = element.getBoundingClientRect();
+    setAsking({
+      sentenceId,
+      text: sentence.text,
+      rect: { top: rect.top, bottom: rect.bottom, left: rect.left },
+    });
+    // The Q&A card and a word card are two answers to the same gesture; the
+    // Q&A card wins.
+    hold();
+    setWord(null);
   };
 
   return (
@@ -297,7 +278,16 @@ export function Reader({ article }: { article: Article }) {
         </div>
       ) : null}
 
-      <div className="reader" ref={rootRef}>
+      <div
+        className="reader"
+        ref={rootRef}
+        onPointerUp={onReaderPointerUp}
+        // A double click would otherwise also select the word under it, leaving
+        // a highlight that has nothing to do with the card that just opened.
+        onMouseDown={(event) => {
+          if (event.detail > 1) event.preventDefault();
+        }}
+      >
         {paragraphs.map((group) => (
           <p className="para" key={group[0]!.id}>
             {group.map((sentence) => (
@@ -306,6 +296,7 @@ export function Reader({ article }: { article: Article }) {
                 sentence={sentence}
                 marked={marked}
                 selectedId={word?.token.id ?? null}
+                asking={sentence.id === asking?.sentenceId}
                 onSelect={onSelectToken}
                 onHover={onHoverToken}
               />
@@ -315,13 +306,11 @@ export function Reader({ article }: { article: Article }) {
       </div>
 
 
-      {selection ? (
+      {asking ? (
         <AskDialog
-          key={selection.spans
-            .map((s) => `${s.sentenceId}:${s.charStart}-${s.charEnd}`)
-            .join(',')}
-          selection={selection}
-          onClose={() => setSelection(null)}
+          key={asking.sentenceId}
+          target={asking}
+          onClose={() => setAsking(null)}
         />
       ) : word ? (
         <WordCard
@@ -347,12 +336,15 @@ function Sentence({
   sentence,
   marked,
   selectedId,
+  asking,
   onSelect,
   onHover,
 }: {
   sentence: ArticleSentence;
   marked: (token: ArticleToken) => boolean;
   selectedId: string | null;
+  /** The Q&A card is open on this sentence. */
+  asking: boolean;
   onSelect: (token: ArticleToken, element: HTMLElement) => void;
   onHover: (token: ArticleToken | null, element: HTMLElement) => void;
 }) {
@@ -391,7 +383,13 @@ function Sentence({
     <span
       // Anchor target for Dictionary occurrence links.
       id={`sentence-${sentence.id}`}
-      className={sentence.needsReview ? 'sentence review' : 'sentence'}
+      className={[
+        'sentence',
+        sentence.needsReview ? 'review' : '',
+        asking ? 'asking' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
       data-sentence-id={sentence.id}
     >
       {parts}
