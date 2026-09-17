@@ -324,6 +324,18 @@ export interface ArticleSummary {
   createdAt: number;
   /** Most recent read across the work's sections. Null until one is stamped. */
   lastReadAt: number | null;
+  /**
+   * How far through the work you are, 1-100, or null before any position has
+   * been saved in it.
+   *
+   * Measured in sentences, and for a book it assumes chapters are read in
+   * order: every chapter before the one the row opens counts as read, plus the
+   * position inside that one. Reading out of order makes the figure wrong, but
+   * tracking which chapters were actually finished is a second record nothing
+   * else needs. Sentences rather than characters, because sentences are what
+   * the position is kept in.
+   */
+  progress: number | null;
   /** Distinct content words, counted the way the Dictionary counts them. */
   vocabCount: number;
   /** Chapters. One for a pasted article, which is why the Library only prints it above one. */
@@ -388,6 +400,25 @@ export function listArticles(): ArticleSummary[] {
 
   const vocabByWork = new Map(vocabRows.map((r) => [r.workId, r.count]));
 
+  // Each section's length, and how many of its sentences come at or before the
+  // saved one. The position is joined by id and compared by order, so a
+  // position whose sentence was merged away reads as no position at all.
+  const positionRows = db
+    .select({
+      sectionId: sentences.sectionId,
+      total: sql<number>`count(*)`,
+      reached: sql<number>`coalesce(sum(${sentences.orderIndex} <= saved.order_index), 0)`,
+    })
+    .from(sentences)
+    .innerJoin(sections, eq(sections.id, sentences.sectionId))
+    .leftJoin(
+      sql`${sentences} as saved`,
+      sql`saved.id = ${sections.progressSentenceId}`,
+    )
+    .groupBy(sentences.sectionId)
+    .all();
+  const positions = new Map(positionRows.map((r) => [r.sectionId, r]));
+
   const summaries: ArticleSummary[] = [];
   for (const work of workRows) {
     const owned = sectionRows.filter((s) => s.workId === work.workId);
@@ -414,6 +445,24 @@ export function listArticles(): ArticleSummary[] {
     // readable when every chapter's links have settled, not the first.
     const unresolved = owned.filter((s) => s.resolvedAt === null);
 
+    const length = (id: string) => positions.get(id)?.total ?? 0;
+    const whole = owned.reduce((n, s) => n + length(s.id), 0);
+    // Earlier chapters count only once the row opens where you last were. An
+    // unread book opens at its first *readable* chapter, which is not the first
+    // chapter while analysis is still running, and those were never read.
+    const behind =
+      entry.lastReadAt === null
+        ? 0
+        : owned
+            .filter((s) => s.orderIndex < entry.orderIndex)
+            .reduce((n, s) => n + length(s.id), 0);
+    const read = behind + (positions.get(entry.id)?.reached ?? 0);
+    // Nothing saved yet is no figure, not 0%: a row reading "0%" beside a work
+    // you have plainly opened would look like a bug. Reaching chapter five shows
+    // the four behind it even before you scroll.
+    const progress =
+      read === 0 || whole === 0 ? null : Math.max(1, Math.floor((read / whole) * 100));
+
     summaries.push({
       workId: work.workId,
       title: work.title,
@@ -422,6 +471,7 @@ export function listArticles(): ArticleSummary[] {
       readable: entry.resolvedAt !== null,
       createdAt: work.createdAt,
       lastReadAt: lastRead,
+      progress,
       vocabCount: vocabByWork.get(work.workId) ?? 0,
       sectionCount: owned.length,
       analysis:

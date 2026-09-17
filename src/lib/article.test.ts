@@ -156,3 +156,29 @@ test('a sentence from another section is refused rather than stored', () => {
   assert.equal(saveProgress(bookIds[0]!, 'no-such-sentence'), false);
   assert.equal(getArticle(bookIds[0]!)!.progressSentenceId, before);
 });
+
+test('a work with no saved position shows no progress rather than 0%', () => {
+  const fresh = getArticle(readingId)!;
+  db.update(sections).set({ progressSentenceId: null }).where(eq(sections.id, readingId)).run();
+  assert.equal(find('読書').progress, null);
+  assert.equal(saveProgress(readingId, fresh.sentences[0]!.id), true);
+});
+
+test('an article at its last sentence is 100% read', () => {
+  const article = getArticle(readingId)!;
+  assert.equal(saveProgress(readingId, article.sentences.at(-1)!.id), true);
+  assert.equal(find('読書').progress, 100);
+});
+
+test("a book's progress counts the chapters before the one it opens", () => {
+  const lengths = bookIds.map((id) => getArticle(id)!.sentences.length);
+  const whole = lengths[0]! + lengths[1]!;
+  const second = getArticle(bookIds[1]!)!;
+
+  db.update(sections).set({ lastReadAt: 2_000_000_000 }).where(eq(sections.id, bookIds[1]!)).run();
+  assert.equal(saveProgress(bookIds[1]!, second.sentences[0]!.id), true);
+
+  const book = find('三四郎');
+  assert.equal(book.sectionId, bookIds[1]);
+  assert.equal(book.progress, Math.floor(((lengths[0]! + 1) / whole) * 100));
+});

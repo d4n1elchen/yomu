@@ -578,9 +578,14 @@ the server. This is the same trade as a 生詞 mark made offline, left unsynced 
 the same reason. Unverified in a browser, because development registers no
 service worker.
 
-**Not shown in the Library.** A percentage per row was left out because nobody
-asked for it. Adding one needs only the saved sentence's order within its
-section.
+**The Library shows 已讀 N% under the last-read time.** It counts sentences.
+For a book, every chapter before the one the row opens counts as read, plus the
+position inside that chapter. Read out of order and the figure is wrong, but
+recording which chapters were finished would be a second record nothing else
+needs. Earlier chapters count only once the work has been read: an unread book
+opens at its first *readable* chapter, which may not be chapter one, and those
+earlier chapters were never read. No saved position shows no figure rather than
+0%.
 
 ## Deleting an article — built
 

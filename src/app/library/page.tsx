@@ -107,7 +107,12 @@ export default function LibraryPage() {
                   </span>
                 </span>
               ) : (
-                <span className="last">{relativeTime(article.lastReadAt)}</span>
+                <span className="last">
+                  {relativeTime(article.lastReadAt)}
+                  {article.progress !== null ? (
+                    <span className="read-progress">已讀 {article.progress}%</span>
+                  ) : null}
+                </span>
               );
 
               // Not readable: a span rather than a link, so there is nothing to

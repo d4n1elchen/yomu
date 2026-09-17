@@ -461,6 +461,13 @@ button:disabled {
   color: var(--muted);
 }
 
+/* Under the time rather than in a column of its own: both answer "where am I
+   with this", and a fifth column would not fit a phone. */
+.library .read-progress {
+  display: block;
+  font-size: 0.75rem;
+}
+
 .library .num {
   text-align: right;
   font-size: 0.875rem;
