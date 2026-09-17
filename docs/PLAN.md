@@ -1030,9 +1030,15 @@ hand-written supplement.
    the source in the gitignored `data/`, an attribution notice like
    `EdrdgNotice`. ShareAlike applies to anything derived from it and distributed
    — the reviewed glosses included.
-2. **Match one sentence** (`src/lib/grammar/match.ts`), pure and tested against
-   the labelled spans. No table, no background pass: the spans are derived from
-   `token` rows on demand, the way the reader already derives everything else.
+2. ~~**Match one sentence**~~ — **built**. `src/lib/grammar/match.ts` takes a
+   sentence's tokens and an inventory and returns the spans, longest first and
+   never overlapping; `inventory.ts` holds the shapes and resolves つつじ's
+   connection classes. Pure, and the inventory is an argument, so the tests run
+   on a hand-cut corner of つつじ rather than needing the gitignored `data/`.
+   No table and no background pass: spans are derived on demand, the way the
+   reader derives everything else. Not yet re-scored against the labels — that
+   needs step 1, and the lemma the matcher still ignores is why ていく and
+   てくる both match てき.
 3. **Identify on ask**: one structured call for the sentence, through
    `priority.ts` as interactive work, before the answer streams.
 4. **Cards in the Q&A panel**, each with its span in the sentence and a Chinese
@@ -1057,9 +1063,16 @@ hand-written supplement.
 - **What "identify" costs on a phone over the LAN**, where Q&A already feels
   slow.
 
-The labels and scripts are not committed: the labelled sentences are
-copyrighted book text, the same reason EPUB fixtures are built rather than
-checked in.
+The labels live in `data/grammar-labels.json` — 200 spans, each with its
+sentence, character offsets, the candidates it was offered and the label. Not
+committed, because the sentences are copyrighted book text, the same reason
+EPUB fixtures are built rather than checked in. Offsets are into the sentence
+text rather than token indices, so re-tokenizing cannot move them; that has
+already happened twice mid-measurement.
+
+`design/grammar-cards.mock.html` is the card design these numbers are for, hand
+written rather than exported from the design canvas, and worth deleting once
+the panel exists.
 
 ## Deferred
 

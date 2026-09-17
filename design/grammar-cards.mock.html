@@ -1,0 +1,311 @@
+<!doctype html>
+<!--
+  Hand-written, unlike the .dc.html files beside it, which are design-canvas
+  exports with {{placeholders}} and a support.js. Nothing builds this: it is a
+  static picture of the grammar cards described in docs/PLAN.md ("Grammar —
+  measured, not built"), kept so the states are settled before the panel is
+  built rather than argued about in the middle of building it.
+
+  The palette and the card rules are copied from src/app/globals.css and will
+  drift from it. When the panel exists, this file has served its purpose and
+  should go.
+-->
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>文法卡片 — 對話泡泡</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Serif+JP:wght@400;500;600&display=swap">
+<style>
+/* Palette and card styles lifted from src/app/globals.css so the mock lies
+   as little as possible about how this would actually look. */
+:root {
+  color-scheme: light;
+  --bg: #fbfaf7; --surface: #ffffff; --border: #e2ded4;
+  --ink: #22201c; --muted: #6f6a60; --faint: #a8a296;
+  --accent: #7a4a2b; --accent-strong: #5c3620; --accent-soft: #f0e6dc;
+  --review: #b4791f; --mark: #b08a5e;
+  --sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --serif: 'Noto Serif JP', 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 16px; }
+.page { max-width: 76rem; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+h1 { font-size: 1.15rem; font-weight: 600; margin: 0 0 0.35rem; }
+.lede { color: var(--muted); font-size: 0.85rem; line-height: 1.7; margin: 0 0 2rem; max-width: 48rem; }
+.lede b { color: var(--ink); font-weight: 600; }
+.cols { display: flex; flex-wrap: wrap; gap: 2.5rem 3rem; align-items: flex-start; }
+.col { flex: 1 1 24rem; min-width: 0; display: flex; flex-direction: column; gap: 1.6rem; }
+.caption { font-size: 0.72rem; color: var(--faint); margin: 0 0 0.4rem; letter-spacing: 0.04em; }
+.caption b { color: var(--muted); font-weight: 600; }
+
+/* ---- the Q&A card, as it is today ---- */
+.ask-card {
+  display: flex; flex-direction: column; width: 100%; max-width: 30rem;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
+  box-shadow: 0 12px 38px rgba(34,32,28,0.10); padding: 0.75rem 1.1rem 1.1rem;
+}
+.ask-head { display: flex; align-items: flex-start; gap: 0.75rem; padding-bottom: 0.6rem; border-bottom: 1px solid var(--border); }
+.ask-label { display: block; font-size: 0.66rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--faint); margin-bottom: 0.2rem; }
+.ask-sentence p { margin: 0; font-family: var(--serif); font-size: 1rem; line-height: 1.6; }
+.ask-head .close { margin: -0.2rem -0.4rem auto auto; background: none; border: 0; color: var(--muted); font-size: 1.1rem; cursor: pointer; }
+.ask-thread { display: flex; flex-direction: column; gap: 0.6rem; padding: 0.75rem 0 0.25rem; }
+.bubble { margin: 0; max-width: 86%; padding: 0.55rem 0.75rem; font-size: 0.85rem; line-height: 1.85; }
+.bubble.assistant { align-self: flex-start; border-radius: 12px 12px 12px 3px; background: var(--accent-soft); }
+.bubble.user { align-self: flex-end; border-radius: 12px 12px 3px 12px; background: var(--accent); color: var(--bg); }
+.thinking { color: var(--muted); }
+.ask-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; padding: 0.5rem 0 0.15rem; }
+.ask-chips button { background: transparent; border: 1px solid var(--border); border-radius: 999px; color: var(--muted); font-size: 0.75rem; padding: 0.25rem 0.7rem; cursor: pointer; }
+.ask-chips button.back { border-style: dashed; }
+.ask-chips button.back b { font-weight: 600; color: var(--accent); }
+.ask-composer { display: flex; align-items: center; gap: 0.5rem; padding-top: 0.7rem; margin-top: 0.4rem; border-top: 1px solid var(--border); }
+.ask-composer input { flex: 1; border: 1px solid var(--border); border-radius: 999px; padding: 0.45rem 0.8rem; font-size: 0.875rem; background: var(--surface); }
+.ask-composer .send { width: 2.15rem; height: 2.15rem; flex-shrink: 0; border: 1px solid var(--border); border-radius: 50%; background: var(--surface); color: var(--muted); font-size: 1rem; }
+.ask-note { margin: 0.6rem 0 0; font-size: 0.7rem; color: var(--faint); }
+
+/* ---- the cards bubble ---- */
+.bubble.cards { max-width: 92%; width: 92%; padding: 0.55rem 0.7rem 0.45rem; }
+.cards-lead { margin: 0 0 0.3rem; font-size: 0.82rem; color: var(--muted); }
+.gram-list { list-style: none; margin: 0; padding: 0; }
+.gram-row { display: flex; align-items: baseline; gap: 0.5rem; padding: 0.35rem 0.15rem; cursor: pointer; border-radius: 6px; }
+.gram-row + .gram-row { border-top: 1px solid rgba(34,32,28,0.07); }
+.gram-row:hover { background: rgba(255,255,255,0.5); }
+.gram-form { font-family: var(--serif); font-size: 0.95rem; white-space: nowrap; }
+.gram-name { font-size: 0.76rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gram-add { margin-left: auto; flex: 0 0 auto; background: none; border: 0; padding: 0.1rem 0; color: var(--accent); font-size: 0.75rem; white-space: nowrap; cursor: pointer; }
+.gram-add.on { color: var(--muted); }
+.gram-off { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: baseline; padding: 0.35rem 0.15rem 0.1rem; margin-top: 0.15rem; border-top: 1px solid rgba(34,32,28,0.07); font-size: 0.72rem; color: var(--faint); }
+.gram-off .jp { font-family: var(--serif); }
+
+/* expanded row, inside the bubble */
+.gram-open { padding: 0.1rem 0.15rem 0.35rem; }
+.gram-context { margin: 0.15rem 0 0.45rem; font-family: var(--serif); font-size: 0.85rem; line-height: 1.8; color: var(--muted); }
+.gram-context .hit { color: var(--ink); background: linear-gradient(transparent 62%, rgba(255,255,255,0.85) 62%); padding: 0 0.05em; }
+.gram-meta { display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; font-size: 0.72rem; color: var(--faint); margin-bottom: 0.5rem; }
+.gram-meta .jp { font-family: var(--serif); color: var(--muted); }
+.gram-actions { display: flex; align-items: center; gap: 1rem; }
+.gram-primary { background: none; border: 0; padding: 0; color: var(--accent); font-size: 0.78rem; cursor: pointer; }
+.gram-cancel { background: none; border: 0; padding: 0; color: var(--faint); font-size: 0.75rem; cursor: pointer; }
+
+/* phone frame */
+.phone { width: 22.5rem; max-width: 100%; border: 1px solid var(--border); border-radius: 22px; background: var(--bg); padding: 0.5rem 0.5rem 0; box-shadow: 0 12px 38px rgba(34,32,28,0.10); overflow: hidden; }
+.phone .paper { font-family: var(--serif); font-size: 0.9rem; line-height: 2; padding: 0.75rem 0.6rem 1rem; }
+.phone .paper .dim { color: #b9b3a7; }
+.phone .paper .target { background: linear-gradient(transparent 64%, #f6eddf 64%); }
+.phone .ask-card { border: 0; border-top: 1px solid var(--border); border-radius: 12px 12px 0 0; box-shadow: 0 -6px 22px rgba(34,32,28,0.12); max-width: none; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>這一句的文法 — 對話裡的一則泡泡</h1>
+  <p class="lede">
+    卡片以泡泡送進對話，<b>開卡後自動出現</b>（辨識約 8.5 秒，此時招呼語已經在畫面上）。
+    捲走之後，靠 chips 列上的 <b>文法 2</b> 捲回去。句子與句型取自實測：每句平均 1.4 張卡，最多 4 張。
+  </p>
+
+  <div class="cols">
+    <div class="col">
+
+      <div>
+        <p class="caption"><b>1.</b> 開卡的瞬間 — 招呼語先到，泡泡還在找</p>
+        <div class="ask-card">
+          <div class="ask-head">
+            <div class="ask-sentence">
+              <span class="ask-label">這一句</span>
+              <p lang="ja">細い身体をいつも小さくして、クラスで悪目立ちしないようにしている。</p>
+            </div>
+            <button class="close" aria-label="關閉">×</button>
+          </div>
+          <div class="ask-thread">
+            <p class="bubble assistant">想知道這一句的什麼呢？可以直接問，或從下面選一個。</p>
+            <p class="bubble assistant"><span class="thinking">正在找這一句的句型…</span></p>
+          </div>
+          <div class="ask-chips"><button>說明文法</button><button>為何是這個形式？</button><button>語感差異</button></div>
+          <form class="ask-composer" onsubmit="return false"><input placeholder="輸入問題…"><button class="send">→</button></form>
+          <p class="ask-note">問答不會儲存；加入的句型會留在文法庫</p>
+        </div>
+      </div>
+
+      <div>
+        <p class="caption"><b>2.</b> 泡泡到了 — 兩張卡，其中一個已在文法庫，外加一個未收錄的句型</p>
+        <div class="ask-card">
+          <div class="ask-head">
+            <div class="ask-sentence">
+              <span class="ask-label">這一句</span>
+              <p lang="ja">細い身体をいつも小さくして、クラスで悪目立ちしないようにしている。</p>
+            </div>
+            <button class="close" aria-label="關閉">×</button>
+          </div>
+          <div class="ask-thread">
+            <p class="bubble assistant">想知道這一句的什麼呢？可以直接問，或從下面選一個。</p>
+            <div class="bubble assistant cards">
+              <p class="cards-lead">這一句有 2 個句型：</p>
+              <ul class="gram-list">
+                <li class="gram-row">
+                  <span class="gram-form" lang="ja">～ようにする</span>
+                  <span class="gram-name">設法做到、盡量不…</span>
+                  <button class="gram-add">＋ 加入</button>
+                </li>
+                <li class="gram-row">
+                  <span class="gram-form" lang="ja">～ている</span>
+                  <span class="gram-name">動作進行或狀態持續</span>
+                  <button class="gram-add on">✓ 已在</button>
+                </li>
+              </ul>
+              <div class="gram-off"><span>另外說明了</span><span class="jp" lang="ja">～ないように</span><span>（未收錄）</span></div>
+            </div>
+          </div>
+          <div class="ask-chips"><button>說明文法</button><button>為何是這個形式？</button><button>語感差異</button></div>
+          <form class="ask-composer" onsubmit="return false"><input placeholder="輸入問題…"><button class="send">→</button></form>
+          <p class="ask-note">問答不會儲存；加入的句型會留在文法庫</p>
+        </div>
+      </div>
+
+      <div>
+        <p class="caption"><b>3.</b> 點開一列 — 在泡泡裡展開，判斷這張卡該不該收</p>
+        <div class="ask-card">
+          <div class="ask-thread" style="padding-top:0">
+            <div class="bubble assistant cards">
+              <p class="cards-lead">這一句有 2 個句型：</p>
+              <ul class="gram-list">
+                <li class="gram-row" style="background:rgba(255,255,255,0.5)">
+                  <span class="gram-form" lang="ja">～ようにする</span>
+                  <span class="gram-name">設法做到、盡量不…</span>
+                  <button class="gram-add on">收合 ▴</button>
+                </li>
+              </ul>
+              <div class="gram-open">
+                <p class="gram-context" lang="ja">…クラスで悪目立ちし<span class="hit">ないようにし</span>ている。</p>
+                <div class="gram-meta">
+                  <span>難度 A2</span>
+                  <span>相似：<span class="jp" lang="ja">～ことにする</span>・<span class="jp" lang="ja">～ようになる</span></span>
+                </div>
+                <div class="gram-actions">
+                  <button class="gram-primary">＋ 加入文法庫</button>
+                  <button class="gram-cancel">這不是這個句型</button>
+                </div>
+              </div>
+              <ul class="gram-list">
+                <li class="gram-row">
+                  <span class="gram-form" lang="ja">～ている</span>
+                  <span class="gram-name">動作進行或狀態持續</span>
+                  <button class="gram-add on">✓ 已在</button>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <p class="caption"><b>4.</b> 已在文法庫的那一列 — 只剩例句可加</p>
+        <div class="ask-card" style="box-shadow:none">
+          <div class="ask-thread" style="padding-top:0">
+            <div class="bubble assistant cards">
+              <ul class="gram-list">
+                <li class="gram-row" style="background:rgba(255,255,255,0.5)">
+                  <span class="gram-form" lang="ja">～ている</span>
+                  <span class="gram-name">動作進行或狀態持續</span>
+                  <button class="gram-add on">收合 ▴</button>
+                </li>
+              </ul>
+              <div class="gram-open">
+                <p class="gram-context" lang="ja">…悪目立ちしないように<span class="hit">してい</span>る。</p>
+                <div class="gram-meta"><span>文法庫裡已有 6 個例句</span></div>
+                <div class="gram-actions">
+                  <button class="gram-primary">＋ 加入這個例句</button>
+                  <button class="gram-cancel">移出文法庫</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="col">
+
+      <div>
+        <p class="caption"><b>5.</b> 問了幾輪之後 — 泡泡捲上去了，chips 列留著 <b>文法 2</b> 捲回去</p>
+        <div class="ask-card">
+          <div class="ask-head">
+            <div class="ask-sentence">
+              <span class="ask-label">這一句</span>
+              <p lang="ja">細い身体をいつも小さくして、クラスで悪目立ちしないようにしている。</p>
+            </div>
+            <button class="close" aria-label="關閉">×</button>
+          </div>
+          <div class="ask-thread" style="max-height:13rem;overflow:hidden">
+            <div class="bubble assistant" style="margin-top:-2.6rem;opacity:0.5">…「しないように」是否定形加上 ように，表示<b>目的</b>。</div>
+            <p class="bubble user">語感差異</p>
+            <div class="bubble assistant">「～ようにする」是自己努力去達成；「～ようになる」則是自然變成那樣，沒有意志。</div>
+            <p class="bubble user">那「～ことにする」呢？</p>
+            <div class="bubble assistant">「～ことにする」是<b>一次決定</b>，「～ようにする」是持續努力維持的習慣。</div>
+          </div>
+          <div class="ask-chips">
+            <button class="back">↑ 文法 <b>2</b></button>
+            <button>為何是這個形式？</button>
+          </div>
+          <form class="ask-composer" onsubmit="return false"><input placeholder="輸入問題…"><button class="send">→</button></form>
+          <p class="ask-note">問答不會儲存；加入的句型會留在文法庫</p>
+        </div>
+      </div>
+
+      <div>
+        <p class="caption"><b>6.</b> 找不到可收錄的句型（約六分之一的句子）</p>
+        <div class="ask-card" style="box-shadow:none">
+          <div class="ask-thread" style="padding-top:0">
+            <p class="bubble assistant">想知道這一句的什麼呢？可以直接問，或從下面選一個。</p>
+            <p class="bubble assistant">這一句沒有可收錄的句型。</p>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <p class="caption"><b>7.</b> 手機 — 泡泡不佔固定高度，面板還是原來的高度</p>
+        <div class="phone">
+          <div class="paper">
+            <span class="dim">　千遥は何でもお見通しなのだ。</span>
+            <span class="target" lang="ja">細い身体をいつも小さくして、クラスで悪目立ちしないようにしている。</span>
+            <span class="dim">　でも、だからこそ──</span>
+          </div>
+          <div class="ask-card">
+            <div class="ask-head">
+              <div class="ask-sentence">
+                <span class="ask-label">這一句</span>
+                <p lang="ja">細い身体をいつも小さくして、クラスで悪目立ち…</p>
+              </div>
+              <button class="close" aria-label="關閉">×</button>
+            </div>
+            <div class="ask-thread">
+              <div class="bubble assistant cards">
+                <p class="cards-lead">這一句有 2 個句型：</p>
+                <ul class="gram-list">
+                  <li class="gram-row">
+                    <span class="gram-form" lang="ja">～ようにする</span>
+                    <span class="gram-name">設法做到</span>
+                    <button class="gram-add">＋ 加入</button>
+                  </li>
+                  <li class="gram-row">
+                    <span class="gram-form" lang="ja">～ている</span>
+                    <span class="gram-name">狀態持續</span>
+                    <button class="gram-add on">✓ 已在</button>
+                  </li>
+                </ul>
+              </div>
+              <p class="bubble user">說明文法</p>
+              <div class="bubble assistant">這句在講一種刻意維持的狀態：把身體縮小、避免在班上顯眼，而且一直是這樣。</div>
+            </div>
+            <div class="ask-chips"><button class="back">↑ 文法 <b>2</b></button><button>語感差異</button></div>
+            <form class="ask-composer" onsubmit="return false"><input placeholder="輸入問題…"><button class="send">→</button></form>
+            <p class="ask-note">問答不會儲存；加入的句型會留在文法庫</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</body>
+</html>
