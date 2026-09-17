@@ -466,6 +466,28 @@ work was one section.
 The entry section is now the first **readable** chapter rather than the first
 chapter, or a click would land on a page the reader bounces.
 
+### A grouped 〟。 drifted every offset after it
+
+kuromoji places each 、/。-delimited piece at the *start* of the previous
+piece's last token, and 〝…〟 is an unknown symbol that groups with the mark
+after it. In カミュの歌鳥 that moved every later token of two parts one character
+early: 84 sentences opened with the previous 。 or newline, 1,504 token rows
+failed `text.slice(charStart, charEnd) === surface`, and the merged 〟。 hid a
+sentence end. The reader looked fine, because it prints surfaces; the Dictionary
+quoted `。生身の…` with the highlight on `に満`, and Q&A was handed the glued text.
+The analyzer now places tokens by their surfaces (see `.claude/rules/analyzer.md`).
+
+**Existing imports are rebuilt in place** by `npm run db:retokenize`, from the
+`sourceText` import kept for this. Detection is the offset invariant itself, so
+it finds nothing on a healthy database and is safe to run again. The section row
+survives; the bookmark follows by overlap. Measured after the rebuild: all 48
+sections match a fresh analysis exactly, and none was reopened for resolution.
+
+**Rejected: delete and re-import.** It needs the EPUB again, and throws away read
+stamps and bookmarks for a fault confined to two parts. **Not built: refreshing
+downloaded copies.** An offline chapter is a snapshot and keeps the old rows until
+it is downloaded again.
+
 ### Chapter navigation
 
 The Library links to one section per work, so without a list carried into the
