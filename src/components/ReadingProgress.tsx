@@ -25,13 +25,34 @@ const RESUME_QUIET_MS = 200;
 const RESUME_GAP_PX = 16;
 
 /**
- * The line a sentence has to reach to count as started: just under the sticky
- * header, where resuming puts it. The extra pixel absorbs scroll offsets being
- * rounded to whole pixels, so a resumed sentence reports itself.
+ * The line a sentence has to reach to count as started: just under everything
+ * that stays pinned to the top, which is where resuming puts it.
+ *
+ * That is the site header, and in a book also the 目次 bar that sticks beneath
+ * it. The bar is counted by its closed height whether or not it is stuck at this
+ * moment: resuming measures before the page moves, when the bar is still up in
+ * the flow, and the sentence has to land clear of where the bar will be once it
+ * gets there. Open, the list is a panel over the text rather than part of the
+ * top edge.
+ *
+ * Callers add a pixel to absorb scroll offsets being rounded to whole pixels, so
+ * a resumed sentence reports itself.
  */
 function readingLine(): number {
   const header = document.querySelector('.site-header');
-  return (header?.getBoundingClientRect().bottom ?? 0) + RESUME_GAP_PX;
+  let edge = header?.getBoundingClientRect().bottom ?? 0;
+
+  const bar = document.querySelector<HTMLElement>('details.chapters');
+  const summary = bar?.querySelector<HTMLElement>(':scope > summary');
+  if (bar && summary) {
+    // Where the bar sticks, read from the stylesheet rather than repeated here,
+    // plus its closed height: the summary and the bar's own borders, which
+    // offsetHeight counts and clientHeight does not.
+    const stuckAt = parseFloat(getComputedStyle(bar).top) || 0;
+    const closed = summary.offsetHeight + bar.offsetHeight - bar.clientHeight;
+    edge = Math.max(edge, stuckAt + closed);
+  }
+  return edge + RESUME_GAP_PX;
 }
 
 /**
