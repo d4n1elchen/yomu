@@ -1024,7 +1024,70 @@ show on the card as explained-but-not-addable, because an addable one would be a
 model-named entry, which is the design that failed. They are the worklist for the
 hand-written supplement.
 
-### Direction
+### Phases
+
+Each phase ends with something a reader can use, and none of them leaves the
+app in a state where grammar half-exists. The order is chosen so that the
+riskiest thing is proven first: whether the points offered for a sentence are
+good enough to be worth a tap at all.
+
+**Phase G1 — the card tells you what grammar is in the sentence.**
+*You double-tap a sentence, and a bubble appears in the panel: 這一句有 2 個
+句型, each with its Japanese form and a Traditional Chinese name and gloss.
+Tapping one shows the span marked in the sentence, its difficulty and its
+similar expressions. Nothing can be added yet, and nothing is stored — the
+panel still says 不會儲存 — 關閉後即消失, and it is still true.*
+
+`data:tsutsuji` and `db:tsutsuji`, the inventory loader, the reviewed glosses,
+the identify call through `priority.ts`, and the bubble with its four states
+(searching, points, nothing found, off-list proposals). Ships only if
+re-scoring the 200 labels against the real matcher holds near the measured 85%
+precision and 91% recall; if it does not, fix the matcher before any of the UI.
+A downloaded chapter has no model, so it shows no bubble at all rather than an
+error — grammar is online-only by nature, like Q&A.
+
+**Phase G1b — the gaps, once G1 has been read against.**
+*Points that つつじ does not have start appearing as ordinary cards: ～てみる,
+the causative and the passive, 様態 そう, ～がち, ～っぽい, ～に見える, and
+directional ～てくる / ～ていく.*
+
+A hand-written supplement under `yomu:` ids, in the same record shape, with the
+off-list proposals G1 collects as the worklist. Deliberately after G1 rather
+than before: the list should be what real reading asked for, not what seemed
+missing while probing.
+
+**Phase G2 — you can keep a point.**
+*Every card grows ＋加入文法庫. Tapping it files the point under its つつじ id,
+with the sentence you met it in as its first example. Meet it again and the
+card reads ✓ 已在文法庫 and offers ＋加入這個例句 instead of a second entry. The
+footer note becomes 問答不會儲存；加入的句型會留在文法庫.*
+
+`user_grammar_state` (the point you keep) and `grammar_occurrence` (where you
+met it: sentence, `sentenceRevision`, token range), a migration, and the
+`schema.ts` comment corrected — it still says grammar has no key. Rejecting a
+card dismisses the row and stores nothing.
+
+**Phase G3 — you can see what you have collected.**
+*文法 appears in the Dictionary beside vocabulary, listed apart the way
+confirmed names are: every point you kept, with its Chinese name, difficulty,
+how many times you have met it, and the sentences themselves — each a link back
+into the chapter it came from. Its similar expressions are listed beside it, so
+から, ので and ものだから read as three faces of one thing. The Library row
+counts grammar as well as words.*
+
+The counter on the Library row is the one place the current placeholder lies:
+it reads zero today because grammar had no key.
+
+**Phase G4 — you can review it.**
+*A point you kept comes back as a question built from your own reading: a
+sentence you met it in, with the span blanked out. Its similar expressions are
+the wrong answers, which is what makes から against ので a real question.*
+
+Last, and keyed on the つつじ id so ちゃう and てしまう are one item. This shares
+whatever schedule vocabulary gets — `user_lexeme_state` already has the columns
+and no quiz — because two schedulers over one reader would drift apart.
+
+### Details
 
 1. **Import Tsutsuji** the way JMdict is imported: `data:tsutsuji` fetches,
    `db:tsutsuji` imports, the source in the gitignored `data/`, an attribution
