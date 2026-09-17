@@ -353,19 +353,3 @@ test('relink clears a model-resolution stamp along with the link it annotated', 
   assert.equal(linked?.dictResolver, null);
   assert.equal(linked?.dictEntryId, '1');
 });
-
-test('a word the model rejected every candidate for stays unlinked until a relink', () => {
-  lexeme('lex-6', '人気', 'ニンキ');
-  db.update(lexemes)
-    .set({ dictResolver: 'qwen3.8:27b' })
-    .where(eq(lexemes.id, 'lex-6'))
-    .run();
-
-  linkLexemes(db);
-  assert.equal(db.select().from(lexemes).where(eq(lexemes.id, 'lex-6')).get()?.dictEntryId, null);
-
-  linkLexemes(db, { relink: true });
-  const relinked = db.select().from(lexemes).where(eq(lexemes.id, 'lex-6')).get();
-  assert.equal(relinked?.dictEntryId, '2');
-  assert.equal(relinked?.dictResolver, null);
-});

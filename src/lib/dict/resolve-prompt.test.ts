@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   buildResolverMessages,
-  NONE,
   parseResolution,
   RESOLVER_FORMAT,
   type ResolverContext,
@@ -38,12 +37,12 @@ test('tells the model to select from the list, never to name a word', () => {
   assert.match(system.content, /不是命名或創造/);
 });
 
-test('lets the model reject a list that holds no right entry', () => {
+test('asks for a pick even where the word is a helper', () => {
+  // Offered a way out, the model unlinked しれる, いう and はず -- helpers whose
+  // entries it judged not to be what the sentence meant. There is no way out.
   const system = buildResolverMessages(context)[0]!.content;
-  assert.match(system, new RegExp(`"${NONE}"`));
-  // ...but not for a word merely being used as a helper, which cost 言う, 持つ
-  // and 筈 their glosses on the first run.
-  assert.match(system, /補助用法仍要選詞條/);
+  assert.doesNotMatch(system, /none/);
+  assert.match(system, /補助用法也要選/);
 });
 
 test('gives every occurrence as context and names the surface in each', () => {
@@ -75,9 +74,9 @@ test('the reply schema is a single entry id', () => {
   assert.equal(RESOLVER_FORMAT.properties.entryId.type, 'string');
 });
 
-test('accepts a choice that is one of the offered ids, or none', () => {
+test('accepts a choice that is one of the offered ids', () => {
   assert.equal(parseResolution(JSON.stringify({ entryId: '2' }), ['1', '2']), '2');
-  assert.equal(parseResolution(JSON.stringify({ entryId: NONE }), ['1', '2']), NONE);
+  assert.equal(parseResolution(JSON.stringify({ entryId: 'none' }), ['1', '2']), null);
 });
 
 test('rejects an id the model invented that was never offered', () => {

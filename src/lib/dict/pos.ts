@@ -145,8 +145,17 @@ export function familyAgrees(pos: string, entryTags: Iterable<string>): boolean 
   return false;
 }
 
+const FUNCTION_TAGS = ['aux', 'cop', 'prt', 'conj', 'exp'];
+
 const FAMILY: Record<string, (tag: string) => boolean> = {
   動詞: (tag) => tag.startsWith('v') || tag === 'aux-v',
   形容詞: (tag) => tag.startsWith('adj-i') || tag === 'aux-adj',
   フィラー: (tag) => tag === 'int' || tag === 'adv',
+  // The classical auxiliaries り and つ are not in JMdict at all, and without a
+  // floor they took 離 (a trigram of the I Ching) and 箇. A function word is
+  // never a plain noun.
+  助動詞: (tag) => FUNCTION_TAGS.some((prefix) => tag.startsWith(prefix)),
+  助詞: (tag) => FUNCTION_TAGS.some((prefix) => tag.startsWith(prefix)),
+  接頭詞: (tag) => tag === 'pref' || tag === 'n-pref',
+  感動詞: (tag) => tag === 'int' || tag === 'exp',
 };

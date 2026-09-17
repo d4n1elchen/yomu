@@ -257,9 +257,7 @@ export function linkLexemes(
       and(
         // A confirmed name is not a JMdict word, whatever its kanji spell.
         ne(lexemes.dictionary, NAME_DICTIONARY),
-        options.relink
-          ? undefined
-          : and(isNull(lexemes.dictEntryId), isNull(lexemes.dictResolver)),
+        options.relink ? undefined : isNull(lexemes.dictEntryId),
       ),
     )
     .all();

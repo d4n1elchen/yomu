@@ -16,7 +16,6 @@ import type { AnalyzerPos } from './pos.ts';
 import { posAgrees } from './pos.ts';
 import {
   buildResolverMessages,
-  NONE,
   parseResolution,
   RESOLVER_FORMAT,
   type ResolverCandidate,
@@ -282,10 +281,8 @@ export function resolverContext(
 }
 
 /**
- * Records the model's answer. A pick moves the link; a rejection removes it, and
- * both are stamped with the model so the lexeme is never asked again and a
- * non-relink `linkLexemes` leaves the rejection standing. No answer at all keeps
- * the deterministic pick, unstamped.
+ * Records the model's pick. No answer at all -- a malformed reply twice over --
+ * keeps the deterministic pick, unstamped, so a later run asks again.
  */
 export function writeResolution(
   lexemeId: string,
@@ -294,11 +291,7 @@ export function writeResolution(
 ): void {
   if (entryId === null) return;
   db.update(lexemes)
-    .set(
-      entryId === NONE
-        ? { dictEntryId: null, dictMatch: null, dictResolver: model }
-        : { dictEntryId: entryId, dictResolver: model },
-    )
+    .set({ dictEntryId: entryId, dictResolver: model })
     .where(eq(lexemes.id, lexemeId))
     .run();
 }
