@@ -17,8 +17,8 @@ export interface SegmentedSentence {
 }
 
 const TERMINATORS = new Set(['。', '！', '？', '!', '?']);
-const OPENERS = new Set(['「', '『', '（', '(', '【', '〈', '《', '〔', '｛', '［']);
-const CLOSERS = new Set(['」', '』', '）', ')', '】', '〉', '》', '〕', '｝', '］']);
+const OPENERS = new Set(['「', '『', '〝', '（', '(', '【', '〈', '《', '〔', '｛', '［']);
+const CLOSERS = new Set(['」', '』', '〟', '）', ')', '】', '〉', '》', '〕', '｝', '］']);
 
 const isWhitespace = (t: AnalyzedToken) =>
   t.features.posDetail1 === '空白' || /^\s+$/.test(t.surface);

@@ -4,6 +4,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import kuromoji from 'kuromoji';
 import type { IpadicFeatures, Tokenizer } from 'kuromoji';
+import { foldVariants } from '../text/variants.ts';
 import type { AnalyzedToken, Analyzer } from './types.ts';
 
 type Tk = Tokenizer<IpadicFeatures>;
@@ -119,9 +120,18 @@ function readLemma(tk: Tk, lemma: string): string {
  * So each token is placed where the previous one ended, in UTF-16 units, and a
  * surface that is not found there throws rather than writing a wrong offset.
  */
-function convert(tk: Tk, token: IpadicFeatures, charStart: number): AnalyzedToken {
-  const surface = token.surface_form;
-  // Unknown words (names, rare kanji, neologisms) have no dictionary form.
+function convert(
+  tk: Tk,
+  token: IpadicFeatures,
+  surface: string,
+  charStart: number,
+): AnalyzedToken {
+  // `token` was cut from the folded text, `surface` from the text as written;
+  // they differ only where a 2004 print form was folded (see variants.ts).
+  const folded = token.surface_form;
+  const symbol = token.word_type === 'UNKNOWN' && SYMBOLIC.test(folded);
+  // Unknown words (names, rare kanji, neologisms) have no dictionary form, and
+  // keep the spelling as written rather than the folded one.
   const lemma = value(token.basic_form) ?? surface;
   const reading = value(token.reading);
 
@@ -129,13 +139,15 @@ function convert(tk: Tk, token: IpadicFeatures, charStart: number): AnalyzedToke
     surface,
     lemma,
     lemmaReading:
-      lemma === surface ? (reading ?? '') : readLemma(tk, lemma),
+      lemma === folded || lemma === surface ? (reading ?? '') : readLemma(tk, lemma),
     reading,
-    pos: token.pos,
+    // IPADIC files an unknown run of marks under 名詞・サ変接続, which put 〝, 〟
+    // and !! into the Dictionary as nouns. They are symbols by any reading.
+    pos: symbol ? '記号' : token.pos,
     features: {
-      posDetail1: token.pos_detail_1,
-      posDetail2: token.pos_detail_2,
-      posDetail3: token.pos_detail_3,
+      posDetail1: symbol ? '一般' : token.pos_detail_1,
+      posDetail2: symbol ? '*' : token.pos_detail_2,
+      posDetail3: symbol ? '*' : token.pos_detail_3,
       conjugatedType: token.conjugated_type,
       conjugatedForm: token.conjugated_form,
       wordType: token.word_type,
@@ -145,46 +157,68 @@ function convert(tk: Tk, token: IpadicFeatures, charStart: number): AnalyzedToke
   };
 }
 
+/** No letter and no digit in any script: punctuation, brackets, marks. */
+const SYMBOLIC = /^[^\p{L}\p{N}]+$/u;
+
 /** The marks kuromoji splits its input at, and the ones sentences end on. */
 const PUNCTUATION = /([、。])/u;
 
 /**
- * 〟。 as one token hides the 。 from sentence segmentation, which looks for a
- * terminator token, so the sentence ran on into the next one. An unknown token
- * holding a mark is cut around it and each piece tokenized alone, so the mark
- * gets IPADIC's own 句点 or 読点 entry rather than one invented here. Known words
- * never contain one; only unknown grouping produces this.
+ * An unknown token that is nothing but marks is cut into single characters and
+ * each tokenized alone, so every mark gets IPADIC's own entry rather than one
+ * invented here.
+ *
+ * Two groupings made this necessary. 〟。 as one token hid the 。 from sentence
+ * segmentation, which looks for a terminator token, so the sentence ran on into
+ * the next one. And !!」 as one token hid the 」: segmentation tracks quote depth
+ * by closer tokens, so a quote ending in !! never closed and swallowed every
+ * sentence up to the next newline. Known words never contain a mark; only
+ * unknown grouping produces this.
  */
-function separatePunctuation(tk: Tk, token: IpadicFeatures): IpadicFeatures[] {
+function separateMarks(tk: Tk, token: IpadicFeatures): IpadicFeatures[] {
   const surface = token.surface_form;
-  if (token.word_type !== 'UNKNOWN' || surface.length < 2 || !PUNCTUATION.test(surface)) {
-    return [token];
+  if (token.word_type !== 'UNKNOWN' || surface.length < 2) return [token];
+  if (SYMBOLIC.test(surface)) {
+    return [...surface].flatMap((char) => tk.tokenize(char));
   }
+  if (!PUNCTUATION.test(surface)) return [token];
+  // A mark glued to a word (補佐〟。): cut the 、/。 out, and let each remaining
+  // piece go through the same test, so a leftover 〟 is split in turn.
   return surface
     .split(PUNCTUATION)
     .filter((piece) => piece !== '')
-    .flatMap((piece) => tk.tokenize(piece));
+    .flatMap((piece) => tk.tokenize(piece))
+    .flatMap((piece) => (piece.surface_form === surface ? [piece] : separateMarks(tk, piece)));
 }
 
 export const kuromojiAnalyzer: Analyzer = {
   id: 'kuromoji-ipadic',
-  version: '0.1.2',
+  /**
+   * Bumped whenever a change here would segment stored text differently, so
+   * `npm run db:retokenize` can find the sections an older analyzer wrote.
+   * `+yomu.2`: 2004 print forms folded, runs of marks split into symbols.
+   */
+  version: '0.1.2+yomu.2',
   dictionary: 'ipadic',
 
   async analyze(text: string): Promise<AnalyzedToken[]> {
     if (text.length === 0) return [];
     const tk = await tokenizer();
+    const folded = foldVariants(text);
     const analyzed: AnalyzedToken[] = [];
+    // A cursor into the folded text; `origin` maps it back to the text as written.
     let cursor = 0;
-    for (const token of tk.tokenize(text).flatMap((t) => separatePunctuation(tk, t))) {
-      if (!text.startsWith(token.surface_form, cursor)) {
+    for (const token of tk.tokenize(folded.text).flatMap((t) => separateMarks(tk, t))) {
+      if (!folded.text.startsWith(token.surface_form, cursor)) {
         throw new Error(
           `kuromoji returned ${JSON.stringify(token.surface_form)} where the text ` +
-            `has ${JSON.stringify(text.slice(cursor, cursor + 10))} (offset ${cursor}).`,
+            `has ${JSON.stringify(folded.text.slice(cursor, cursor + 10))} (offset ${cursor}).`,
         );
       }
-      analyzed.push(convert(tk, token, cursor));
-      cursor += token.surface_form.length;
+      const end = cursor + token.surface_form.length;
+      const start = folded.origin[cursor]!;
+      analyzed.push(convert(tk, token, text.slice(start, folded.origin[end]!), start));
+      cursor = end;
     }
     return analyzed;
   },

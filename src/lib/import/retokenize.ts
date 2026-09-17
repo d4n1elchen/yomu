@@ -1,4 +1,4 @@
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNotNull, isNull, ne } from 'drizzle-orm';
 import { db } from '../../db/client.ts';
 import { lexemes, sections, sentences, tokens } from '../../db/schema.ts';
 import { getAnalyzer } from '../analyzer/index.ts';
@@ -39,6 +39,21 @@ export function misalignedSections(): string[] {
     }
   }
   return [...found];
+}
+
+/**
+ * Sections an older analyzer wrote: a change to segmentation (2004 print forms
+ * folded, marks split out of unknown runs) only reaches stored text when the
+ * section is analysed again. Headings carry no source text and are skipped.
+ */
+export function staleSections(): string[] {
+  const { version } = getAnalyzer();
+  return db
+    .select({ id: sections.id })
+    .from(sections)
+    .where(and(ne(sections.analyzerVersion, version), isNotNull(sections.sourceText)))
+    .all()
+    .map((row) => row.id);
 }
 
 /** Unresolved ambiguous lexemes among a section's tokens -- the drain's queue. */

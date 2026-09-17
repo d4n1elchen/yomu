@@ -1,6 +1,7 @@
 /**
  * Rebuilds the sentences and tokens of every section whose token offsets no
- * longer select their own surfaces, from the section's stored source text.
+ * longer select their own surfaces, or that an older analyzer version wrote,
+ * from the section's stored source text.
  *
  * Run: npm run db:retokenize          (repairs)
  *      npm run db:retokenize -- --check (lists, changes nothing)
@@ -12,13 +13,21 @@
 
 import { sqlite, db } from '../src/db/client.ts';
 import { sections, works } from '../src/db/schema.ts';
-import { misalignedSections, retokenizeSection } from '../src/lib/import/retokenize.ts';
+import {
+  misalignedSections,
+  retokenizeSection,
+  staleSections,
+} from '../src/lib/import/retokenize.ts';
 import { eq } from 'drizzle-orm';
 
 const check = process.argv.includes('--check');
 
-const found = misalignedSections();
-process.stdout.write(`${found.length} misaligned section(s)\n`);
+const misaligned = misalignedSections();
+const stale = staleSections();
+const found = [...new Set([...misaligned, ...stale])];
+process.stdout.write(
+  `${misaligned.length} misaligned, ${stale.length} from an older analyzer\n`,
+);
 
 for (const sectionId of found) {
   const row = db
@@ -36,8 +45,8 @@ for (const sectionId of found) {
   process.stdout.write(`  rebuilt ${label}\n`);
 }
 
-if (!check && misalignedSections().length > 0) {
-  process.stdout.write('Some sections are still misaligned after rebuilding.\n');
+if (!check && misalignedSections().length + staleSections().length > 0) {
+  process.stdout.write('Some sections are still misaligned or stale after rebuilding.\n');
   process.exitCode = 1;
 }
 sqlite.close();
