@@ -1026,10 +1026,19 @@ hand-written supplement.
 
 ### Direction
 
-1. **Import Tsutsuji** the way JMdict is imported: a fetch and an import script,
-   the source in the gitignored `data/`, an attribution notice like
-   `EdrdgNotice`. ShareAlike applies to anything derived from it and distributed
-   — the reviewed glosses included.
+1. **Import Tsutsuji** the way JMdict is imported: `data:tsutsuji` fetches,
+   `db:tsutsuji` imports, the source in the gitignored `data/`, an attribution
+   notice like `EdrdgNotice`. ShareAlike applies to anything derived from it and
+   distributed — the reviewed glosses included.
+
+   Its only published download is a Google Drive link, which is a weaker
+   footing than JMdict's. The fetch must therefore **fail loudly and
+   specifically**: a Drive link that has rotted returns an HTML page, not a
+   zip, and a script that shrugs at that would leave the reader with a grammar
+   feature that silently finds nothing. Check the shape of what arrives, and
+   record the version in the import so a changed file is visible. If the link
+   does rot, the fallback is to commit the 1.2 MB of data — CC BY-SA permits it
+   with attribution — rather than to make the reader hunt for it.
 2. ~~**Match one sentence**~~ — **built**. `src/lib/grammar/match.ts` takes a
    sentence's tokens and an inventory and returns the spans, longest first and
    never overlapping; `inventory.ts` holds the shapes and resolves つつじ's
@@ -1050,16 +1059,29 @@ hand-written supplement.
 6. **Review last**, keyed on L2, sharing whatever schedule vocabulary gets — one
    quiz, two kinds of item, rather than two schedulers.
 
+**Decided, and not to be relitigated while building:**
+
+- **A card is offered at difficulty A2 and above, and never for a lone
+  particle.** ～ている, ～てしまう, ～ことができる, ～ざるをえない qualify; a bare
+  に or が never does, however many meanings つつじ gives it. That is 1.4 cards
+  per sentence rather than 2.1, and 83 of the 211 A1 accepts in the measurement
+  were に alone. The floor is a constant, not a setting: a slider is worth
+  adding when there is evidence it needs tuning, and the vocabulary one earned
+  its place by being wrong at its default first.
+- **這不是這個句型 dismisses the row and stores nothing.** Open the sentence
+  again and it is offered again. Remembering a rejection would be the first
+  judgement Q&A ever kept, and the rule that Q&A stores nothing is worth more
+  than saving a tap on a re-read. Revisit only if the same wrong card is
+  actually met twice.
+- **The glosses are reviewed before they are shown**, by Claude in full with the
+  uncertain ones flagged, and spot-checked by the reader. They are what makes a
+  card judgeable; a wrong one costs a wrong entry in the library.
+
 **Open, not measured:**
 
-- **What a rejected card does.** 這不是這個句型 can dismiss the row for now, or
-  be remembered so that span stops being offered on that sentence — which is a
-  stored judgement, and the first thing Q&A would keep besides an add.
 - **Whether a card can be added from a wrong sentence.** The span is what is
   stored; a user who adds ～ては from 嫌な感じ**では** stores a bad example, and
   nothing yet notices.
-- **Whether A1 particles are ever cards.** Dropped by default here. Tsutsuji has
-  eight meanings of に, and 83 of the 211 A1 accepts in the measurement were に.
 - **What "identify" costs on a phone over the LAN**, where Q&A already feels
   slow.
 
