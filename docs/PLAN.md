@@ -495,7 +495,7 @@ no `sourceText`, resolved on arrival — and its parts carry `parentId`.
 every walk of a book still sorts one column. The heading is stamped resolved, so
 the Library filters to leaf sections (`leafSection`) or an unread book would open
 on an empty page; `sectionCount` counts chapters, not parts. Standing alone, a
-part is named `章名（２）` (`sectionLabel`) — in the reader's heading, the
+part is named `章名（２）` (`sectionLabel`) — in the 目次 under its chapter, the reader's heading, the
 footer neighbours, and Dictionary occurrences. A URL to a heading redirects to
 its first part.
 

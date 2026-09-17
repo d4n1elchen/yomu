@@ -1713,8 +1713,9 @@ h2.divider + .subtitle {
 
 /*
  * A chapter split into parts: its name as a plain heading, numbered like any
- * other chapter, and the parts indented under it. The parts print their own
- * numbers -- they are the book's `１` and `２` -- so the counter would say it twice.
+ * other chapter, and the parts indented past the chapter name. Each part is
+ * named `章名（１）`, which already carries its number -- the counter would say
+ * it twice.
  */
 .chapters li.group {
   display: block;
@@ -1738,7 +1739,7 @@ h2.divider + .subtitle {
 }
 
 .chapters ol ol {
-  padding: 0 0 0.2rem 2.1rem;
+  padding: 0 0 0.2rem 3.4rem;
 }
 
 .chapters ol ol li a::before,

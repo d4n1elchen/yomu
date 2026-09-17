@@ -41,6 +41,13 @@ export function Chapters({
   const topLabel = (chapter: ArticleChapter) =>
     chapter.title ?? `第 ${tops.indexOf(chapter) + 1} 章`;
 
+  // A part goes by its chapter's name everywhere, the contents included: a
+  // column of bare `１ ２ ３` under a heading read as a list of nothing.
+  const label = (chapter: ArticleChapter) =>
+    chapter.parentId
+      ? `${titles.get(chapter.parentId) ?? ''}（${chapter.title ?? ''}）`
+      : topLabel(chapter);
+
   if (placement === 'foot') {
     const previous = index > 0 ? leaves[index - 1] : undefined;
     const next = index < leaves.length - 1 ? leaves[index + 1] : undefined;
@@ -50,12 +57,7 @@ export function Chapters({
     // under the last paragraph with nothing beneath it.
     if (!previous?.readable && !next?.readable) return null;
 
-    // Standing alone at the foot, a part needs its chapter's name: `２` says
-    // nothing. And it is a 節, not a 章 -- the words say which kind of step.
-    const footLabel = (chapter: ArticleChapter) =>
-      chapter.parentId
-        ? `${titles.get(chapter.parentId) ?? ''}（${chapter.title ?? ''}）`
-        : topLabel(chapter);
+    // A part is a 節, not a 章 -- the words say which kind of step.
     const unit = (chapter: ArticleChapter) => (chapter.parentId ? '節' : '章');
 
     return (
@@ -64,7 +66,7 @@ export function Chapters({
           <a className="previous" href={`/read/${previous.sectionId}`}>
             <span className="direction">← 上一{unit(previous)}</span>
             <span className="name" lang="ja">
-              {footLabel(previous)}
+              {label(previous)}
             </span>
           </a>
         ) : (
@@ -74,7 +76,7 @@ export function Chapters({
           <a className="next" href={`/read/${next.sectionId}`}>
             <span className="direction">下一{unit(next)} →</span>
             <span className="name" lang="ja">
-              {footLabel(next)}
+              {label(next)}
             </span>
           </a>
         ) : null}
@@ -82,10 +84,10 @@ export function Chapters({
     );
   }
 
-  const entry = (chapter: ArticleChapter, label: string) => {
+  const entry = (chapter: ArticleChapter) => {
     const name = (
       <span className="name" lang="ja">
-        {label}
+        {label(chapter)}
       </span>
     );
     if (chapter.sectionId === current) {
@@ -123,7 +125,7 @@ export function Chapters({
       </summary>
       <ol>
         {tops.map((chapter) => {
-          if (!headings.has(chapter.sectionId)) return entry(chapter, topLabel(chapter));
+          if (!headings.has(chapter.sectionId)) return entry(chapter);
           const parts = chapters.filter((part) => part.parentId === chapter.sectionId);
           return (
             <li key={chapter.sectionId} className="group">
@@ -133,9 +135,7 @@ export function Chapters({
                 </span>
               </span>
               <ol>
-                {parts.map((part, position) =>
-                  entry(part, part.title ?? String(position + 1)),
-                )}
+                {parts.map(entry)}
               </ol>
             </li>
           );
