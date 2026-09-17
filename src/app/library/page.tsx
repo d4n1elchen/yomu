@@ -33,13 +33,15 @@ export default function LibraryPage() {
         </p>
       ) : (
         <div className="library">
+          {/* Built like a row -- the columns in a grid, the delete control's
+              slot beside it -- so each heading sits over the numbers it names. */}
           <div className="library-head" aria-hidden="true">
-            <span>標題</span>
-            <span>最近閱讀</span>
-            <span className="num">詞彙</span>
-            <span className="num">文法</span>
-            {/* Reserves the column the delete control sits in, so the headings
-                stay over the numbers they name. */}
+            <div className="library-cols">
+              <span>標題</span>
+              <span>最近閱讀</span>
+              <span className="num">詞彙</span>
+              <span className="num">文法</span>
+            </div>
             <span className="row-action" />
           </div>
 

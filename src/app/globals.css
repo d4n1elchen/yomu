@@ -265,7 +265,7 @@ button:disabled {
 
 /* --- library --- */
 
-.library-head,
+.library-cols,
 .library li a,
 .library li .pending {
   display: grid;
@@ -302,12 +302,28 @@ button:disabled {
 }
 
 .library-head {
-  padding: 0 0.75rem 0.6rem;
+  display: flex;
+  gap: 0.5rem;
+  padding: 0 0 0.6rem;
   border-bottom: 1px solid var(--border);
   font-size: 0.7rem;
   letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--faint);
+}
+
+/* The rows' padding plus their 1px border, so the headings start where the text does. */
+.library-cols {
+  flex: 1;
+  min-width: 0;
+  padding: 0 calc(0.75rem + 1px);
+}
+
+/* Headings, not figures: the row numbers' size and colour are not theirs.
+   Qualified by .library to outrank that rule further down. */
+.library .library-head .num {
+  font-size: inherit;
+  color: inherit;
 }
 
 .library ul {
