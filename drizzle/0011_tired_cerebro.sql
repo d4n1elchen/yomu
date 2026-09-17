@@ -1,0 +1,1 @@
+ALTER TABLE `section` ADD `progress_sentence_id` text;

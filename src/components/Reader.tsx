@@ -8,6 +8,7 @@ import { DEFAULT_LEVEL, MAX_BAND, isHardWord } from '../lib/marking.ts';
 import { selectionSpans, type TouchedToken } from '../lib/qa/selection.ts';
 import { AskDialog, type ReaderSelection } from './AskDialog.tsx';
 import { ReadStamp } from './ReadStamp.tsx';
+import { ReadingProgress } from './ReadingProgress.tsx';
 import { TokenSpan } from './TokenSpan.tsx';
 import { WordCard } from './WordCard.tsx';
 import type { AnchorRect } from './useCardAnchor.ts';
@@ -254,6 +255,11 @@ export function Reader({ article }: { article: Article }) {
   return (
     <>
       <ReadStamp sectionId={article.sectionId} />
+      <ReadingProgress
+        sectionId={article.sectionId}
+        sentenceId={article.progressSentenceId ?? null}
+        root={rootRef}
+      />
 
       <div className="reader-controls">
         <DownloadChapter article={article} />

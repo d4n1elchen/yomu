@@ -97,6 +97,18 @@ export const sections = sqliteTable(
      * across a work's sections.
      */
     lastReadAt: integer('last_read_at'),
+    /**
+     * Where in this section you stopped: the sentence at the top of the screen
+     * the last time you scrolled. The reader scrolls back to it on open.
+     *
+     * A sentence id rather than a scroll offset or a percentage, because the
+     * sentence is the unit that survives: an offset moves with the font size,
+     * the window width and the furigana toggle, and an index moves when a
+     * transcript edit splits the sentence before it. The id only goes stale if
+     * that very sentence is merged away, and then the reader simply starts at
+     * the top -- so no foreign key, which would only be a second way to say so.
+     */
+    progressSentenceId: text('progress_sentence_id'),
   },
   (t) => [index('section_work_idx').on(t.workId, t.parentId, t.orderIndex)],
 );

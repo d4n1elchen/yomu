@@ -39,6 +39,12 @@ export interface OfflineChapter {
   sentenceCount: number;
   vocabCount: number;
   savedAt: number;
+  /**
+   * Where you were in the downloaded copy. Kept here rather than in the stored
+   * article so that recording it, which happens on every settled scroll, rewrites
+   * a few hundred bytes instead of a chapter's worth of megabytes.
+   */
+  progressSentenceId?: string | null;
 }
 
 interface StoredChapter extends OfflineChapter {
@@ -105,6 +111,7 @@ export async function saveChapter(article: Article): Promise<OfflineChapter> {
     sentenceCount: article.sentences.length,
     vocabCount: article.vocabCount,
     savedAt: Date.now(),
+    progressSentenceId: article.progressSentenceId ?? null,
   };
 
   const db = await open();
@@ -117,12 +124,45 @@ export async function saveChapter(article: Article): Promise<OfflineChapter> {
 
 export async function loadChapter(sectionId: string): Promise<Article | null> {
   const db = await open();
-  const tx = db.transaction(CHAPTERS, 'readonly');
-  const stored = await request<StoredChapter | undefined>(
-    tx.objectStore(CHAPTERS).get(sectionId),
-  );
+  const tx = db.transaction([CHAPTERS, SUMMARIES], 'readonly');
+  const [stored, summary] = await Promise.all([
+    request<StoredChapter | undefined>(tx.objectStore(CHAPTERS).get(sectionId)),
+    request<OfflineChapter | undefined>(tx.objectStore(SUMMARIES).get(sectionId)),
+  ]);
   await commit(db, tx);
-  return stored?.article ?? null;
+  if (!stored) return null;
+  // The copy's own position is where you were when you downloaded it; the
+  // summary's is where you have read to since, on or off the network.
+  return {
+    ...stored.article,
+    progressSentenceId:
+      summary?.progressSentenceId ?? stored.article.progressSentenceId ?? null,
+  };
+}
+
+/**
+ * Records a reading position on a downloaded chapter, and does nothing for one
+ * that is not downloaded. Called on every save, online or not, so that a copy
+ * read on the train resumes where you stopped rather than where you downloaded
+ * it -- the server cannot be told while there is no network.
+ *
+ * The write happens inside the `get`'s success callback, not after awaiting it:
+ * awaiting a request mid-transaction is the standard way to have IndexedDB
+ * auto-commit it out from under you.
+ */
+export async function rememberProgress(
+  sectionId: string,
+  sentenceId: string,
+): Promise<void> {
+  const db = await open();
+  const tx = db.transaction(SUMMARIES, 'readwrite');
+  const store = tx.objectStore(SUMMARIES);
+  const lookup = store.get(sectionId);
+  lookup.onsuccess = () => {
+    const summary = lookup.result as OfflineChapter | undefined;
+    if (summary) store.put({ ...summary, progressSentenceId: sentenceId });
+  };
+  await commit(db, tx);
 }
 
 /** Newest first, which is the order you would look for something you just saved. */

@@ -541,6 +541,47 @@ Measure before building one.
 address. Development registers no worker either, and actively unregisters one
 left behind by a production build on the same origin.
 
+## Reading position — built
+
+The Library already reopened a book at the chapter you last read; this adds
+where in that chapter. `section.progressSentenceId` holds the sentence you had
+reached, and the reader scrolls back to it on open.
+
+**A sentence id, not a scroll offset or a percentage.** An offset moves with the
+window width, the font and the furigana; an index moves when an edit splits an
+earlier sentence. The id goes stale only if that sentence itself is merged away,
+and then the reader starts at the top. **On the server, not in `localStorage`**,
+because the point is putting a book down on the laptop and picking it up on the
+phone.
+
+**"Where you are" is the last sentence to have started above the reading line**
+(just under the header), not the first one still on screen. Sentences are
+inline, so one often ends on the line where the next begins. Resuming puts a
+sentence's first line on the reading line, and the "still on screen" rule then
+picked the sentence ending on that line, so every open moved the bookmark back
+one line. Checking where sentences start gives back the sentence you resumed at.
+Checked in the browser: a 454-sentence chapter resumed at the saved sentence,
+and a small scroll there sent no save.
+
+**Only scrolling saves.** Scrolls in the first 800 ms are ignored: the resume
+itself, a jump to a `#sentence-` anchor, the browser restoring a reload's
+offset. A Dictionary occurrence link wins over the saved position and does not
+overwrite it. Saves happen after a second of stillness and again with
+`keepalive` when the page is hidden. It is kept apart from `lastReadAt`, which
+waits ten visible seconds so background tabs cannot reorder the Library. A
+background tab cannot scroll, so this needs no such wait.
+
+**Offline copies keep their own position**, in the small summary record rather
+than in the megabyte article, and every save writes both places when the chapter
+is downloaded. The two can drift apart: a position recorded offline never reaches
+the server. This is the same trade as a 生詞 mark made offline, left unsynced for
+the same reason. Unverified in a browser, because development registers no
+service worker.
+
+**Not shown in the Library.** A percentage per row was left out because nobody
+asked for it. Adding one needs only the saved sentence's order within its
+section.
+
 ## Deleting an article — built
 
 A work goes, and its sections, sentences and tokens go with it by the cascades

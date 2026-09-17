@@ -117,6 +117,14 @@ export interface Article {
    * article has a single entry here and the reader draws no navigation for it.
    */
   chapters: ArticleChapter[];
+  /**
+   * The sentence you were at when you last scrolled this section, or null to
+   * start at the top. See `section.progressSentenceId`.
+   *
+   * Optional only because a chapter downloaded before this existed is stored
+   * without it; everything the server builds carries it.
+   */
+  progressSentenceId?: string | null;
 }
 
 export function getArticle(sectionId: string): Article | null {
@@ -126,6 +134,7 @@ export function getArticle(sectionId: string): Article | null {
       sectionTitle: sections.title,
       origin: sections.origin,
       editState: sections.editState,
+      progressSentenceId: sections.progressSentenceId,
       workId: works.id,
       workTitle: works.title,
       author: works.author,
@@ -443,6 +452,30 @@ export function stampLastRead(sectionId: string): boolean {
     .update(sections)
     .set({ lastReadAt: Math.floor(Date.now() / 1000) })
     .where(eq(sections.id, sectionId))
+    .run();
+  return result.changes > 0;
+}
+
+/**
+ * Records where in a section you are. The sentence must belong to the section:
+ * an id from another chapter would scroll nowhere, and a stale tab posting to the
+ * wrong URL should be refused rather than stored.
+ *
+ * Deliberately separate from `stampLastRead`. That one waits ten visible seconds
+ * so background tabs do not reorder the Library; this one only fires when you
+ * scroll, which a background tab cannot do.
+ */
+export function saveProgress(sectionId: string, sentenceId: string): boolean {
+  const result = db
+    .update(sections)
+    .set({ progressSentenceId: sentenceId })
+    .where(
+      sql`${sections.id} = ${sectionId} and exists (
+        select 1 from ${sentences}
+        where ${sentences.id} = ${sentenceId}
+          and ${sentences.sectionId} = ${sectionId}
+      )`,
+    )
     .run();
   return result.changes > 0;
 }

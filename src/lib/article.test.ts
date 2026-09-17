@@ -10,7 +10,9 @@ process.env.YOMU_DB_PATH = path.join(dir, 'test.db');
 const { db, sqlite } = await import('../db/client.ts');
 const { sections } = await import('../db/schema.ts');
 const { ingestWork } = await import('./import/ingest.ts');
-const { getArticle, listArticles, stampLastRead } = await import('./article.ts');
+const { getArticle, listArticles, saveProgress, stampLastRead } = await import(
+  './article.ts'
+);
 const { migrate } = await import('drizzle-orm/better-sqlite3/migrator');
 const { eq } = await import('drizzle-orm');
 
@@ -126,4 +128,31 @@ test('reading a work brings it to the top of the Library', () => {
 
 test('stamping a section that does not exist says so instead of inventing one', () => {
   assert.equal(stampLastRead('no-such-section'), false);
+});
+
+test('an unread section has no reading position', () => {
+  assert.equal(getArticle(bookIds[1]!)!.progressSentenceId, null);
+});
+
+test('a saved position comes back with the section', () => {
+  const sentenceId = getArticle(readingId)!.sentences[0]!.id;
+  assert.equal(saveProgress(readingId, sentenceId), true);
+  assert.equal(getArticle(readingId)!.progressSentenceId, sentenceId);
+});
+
+test('a position is kept per section, so each chapter resumes on its own', () => {
+  const first = getArticle(bookIds[0]!)!.sentences[0]!.id;
+  const second = getArticle(bookIds[1]!)!.sentences[0]!.id;
+  assert.equal(saveProgress(bookIds[0]!, first), true);
+  assert.equal(saveProgress(bookIds[1]!, second), true);
+  assert.equal(getArticle(bookIds[0]!)!.progressSentenceId, first);
+  assert.equal(getArticle(bookIds[1]!)!.progressSentenceId, second);
+});
+
+test('a sentence from another section is refused rather than stored', () => {
+  const before = getArticle(bookIds[0]!)!.progressSentenceId;
+  const foreign = getArticle(readingId)!.sentences[0]!.id;
+  assert.equal(saveProgress(bookIds[0]!, foreign), false);
+  assert.equal(saveProgress(bookIds[0]!, 'no-such-sentence'), false);
+  assert.equal(getArticle(bookIds[0]!)!.progressSentenceId, before);
 });
