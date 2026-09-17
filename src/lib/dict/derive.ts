@@ -59,7 +59,14 @@ export function derivedForms(
   const forms: DerivedForm[] = [];
   const { pos, posDetail, conjugationType } = analyzer;
 
-  if (pos === '動詞' && conjugationType?.startsWith('一段') && lemma.endsWith('る')) {
+  // A lemma opening on づ or ぢ is a suffix in rendaku (元気づける's づける), not a
+  // verb of its own, and rewriting it made づける the potential of 付く.
+  if (
+    pos === '動詞' &&
+    conjugationType?.startsWith('一段') &&
+    lemma.endsWith('る') &&
+    !/^[づぢ]/u.test(lemma)
+  ) {
     const row = POTENTIAL[lemma.at(-2) ?? ''];
     if (row && row.tags.length > 0 && lemma.length >= 3) {
       forms.push({

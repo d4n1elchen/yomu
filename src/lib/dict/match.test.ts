@@ -218,6 +218,9 @@ test('a potential verb JMdict does not list reaches its plain form', () => {
     entryId: '12',
     kind: 'derived',
   });
+  // A rendaku suffix is not a potential verb.
+  assert.equal(matchLexeme('だせる', 'ダセル', potential), null);
+  assert.equal(matchLexeme('づける', 'ヅケル', potential), null);
 });
 
 test('a と-adverb reaches its stem, and a ない-adjective stem its adjective', () => {
