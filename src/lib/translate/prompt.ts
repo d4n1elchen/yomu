@@ -1,4 +1,5 @@
 import type { LlmMessage } from '../llm/index.ts';
+import { glossProblem, stripAddedLabel } from './check.ts';
 
 /** One JMdict sense handed to the model to translate. */
 export interface TranslationSense {
@@ -33,6 +34,9 @@ const SYSTEM = `你是一位日中辭典編輯，把日語詞條既有的英文�
 - 你是在**翻譯**既有的語義，不是重新定義這個詞。忠實翻出每一條英文語義，不要增減或自行詮釋。
 - 逐條對應：送進幾條語義就回幾條，順序與送進來的一致。
 - 每條譯文精簡，像辭典釋義，不要整句翻譯後再解釋，也不要加註。
+- 括號裡的詞性（n、v5r、prt…）只是讓你判斷語義用的，**譯文前不要加詞性標籤**，例如不要寫「（助詞）在」。
+- 用台灣的說法：影片不說視頻、使用者不說用戶、腳踏車不說自行車、軟體不說軟件、網路不說網絡、訊息不說信息、品質不說質量。
+- 英文要翻完，不要留下英文單字；CPU、DVD 這類台灣也照寫的縮寫可以保留。
 - 以 JSON 物件回覆，格式為 {"senses": ["第一條的譯文", "第二條的譯文", …]}。`;
 
 /**
@@ -92,4 +96,23 @@ export function parseTranslation(raw: string, expected: number): string[] | null
     out.push(sense.trim());
   }
   return out;
+}
+
+/**
+ * The glosses cleaned of what can be fixed without asking again -- a
+ * part-of-speech label the model put in front -- and the first problem that
+ * cannot, if any. See `check.ts`.
+ */
+export function reviewTranslation(
+  glosses: string[],
+  senses: TranslationSense[],
+): { glosses: string[]; problem: string | null } {
+  const cleaned = glosses.map((gloss, index) =>
+    stripAddedLabel(gloss, senses[index]?.glossEn ?? ''),
+  );
+  for (const [index, gloss] of cleaned.entries()) {
+    const problem = glossProblem(gloss, senses[index]?.glossEn ?? '');
+    if (problem) return { glosses: cleaned, problem };
+  }
+  return { glosses: cleaned, problem: null };
 }

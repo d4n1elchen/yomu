@@ -1,11 +1,13 @@
-import { and, asc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import { db } from '../../db/client.ts';
 import { dictEntries, dictSenses, lexemes } from '../../db/schema.ts';
 import { runAbortable, yieldToInteractive } from '../analysis/priority.ts';
 import { collect, getLlmProvider, type LlmProvider } from '../llm/index.ts';
+import { glossProblem, stripAddedLabel } from './check.ts';
 import {
   buildTranslationMessages,
   parseTranslation,
+  reviewTranslation,
   TRANSLATION_FORMAT,
   type TranslationEntry,
 } from './prompt.ts';
@@ -70,10 +72,13 @@ function pendingEntries(limit: number): PendingEntry[] {
 
 /**
  * Translates one entry's senses, or returns null if the model's reply cannot be
- * trusted. Retries once on a malformed or miscounted reply -- structured output
- * is not a guarantee -- then gives up so the sense stays null for the next
- * drain. A network failure is not caught here: it propagates so the caller can
- * stop the whole pass rather than hammer an unreachable host once per entry.
+ * trusted. Retries once on a malformed, miscounted or rejected reply --
+ * structured output is not a guarantee, and a gloss can be well-formed and still
+ * Simplified -- then gives up so the sense stays null for the next drain. A
+ * rejection is sent back with the reason, since a model told which character was
+ * Simplified fixes it where one simply asked again repeats it. A network failure
+ * is not caught here: it propagates so the caller can stop the whole pass rather
+ * than hammer an unreachable host once per entry.
  */
 async function translateEntry(
   provider: LlmProvider,
@@ -95,7 +100,13 @@ async function translateEntry(
     if (run === null) return 'abandoned';
 
     const parsed = parseTranslation(run.value, entry.senses.length);
-    if (parsed) return { zh: parsed };
+    if (!parsed) continue;
+    const reviewed = reviewTranslation(parsed, entry.senses);
+    if (!reviewed.problem) return { zh: reviewed.glosses };
+    messages.push(
+      { role: 'assistant', content: run.value },
+      { role: 'user', content: `${reviewed.problem}請修正後，重新回覆全部 ${entry.senses.length} 條的 JSON。` },
+    );
   }
   return { zh: null };
 }
@@ -205,4 +216,37 @@ export function translationProgress(): TranslationProgress {
       .get()?.n ?? 0;
 
   return { done: total - pendingTranslationCount(), total };
+}
+
+/**
+ * Applies today's checks to glosses written before them. A label the model
+ * prefixed is stripped in place; a gloss that still fails -- Simplified,
+ * Japanese forms, English left behind -- is set back to null, which puts its
+ * entry back in the translation queue. No model call happens here.
+ */
+export function recheckTranslations(): { stripped: number; cleared: number } {
+  const rows = db
+    .select({ id: dictSenses.id, en: dictSenses.glossEn, zh: dictSenses.glossZh })
+    .from(dictSenses)
+    .where(isNotNull(dictSenses.glossZh))
+    .all();
+
+  let stripped = 0;
+  let cleared = 0;
+  db.transaction((tx) => {
+    for (const row of rows) {
+      const zh = stripAddedLabel(row.zh!, row.en);
+      if (glossProblem(zh, row.en)) {
+        tx.update(dictSenses)
+          .set({ glossZh: null, glossModel: null })
+          .where(eq(dictSenses.id, row.id))
+          .run();
+        cleared += 1;
+      } else if (zh !== row.zh) {
+        tx.update(dictSenses).set({ glossZh: zh }).where(eq(dictSenses.id, row.id)).run();
+        stripped += 1;
+      }
+    }
+  });
+  return { stripped, cleared };
 }

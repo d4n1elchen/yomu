@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import {
   buildTranslationMessages,
   parseTranslation,
+  reviewTranslation,
   TRANSLATION_FORMAT,
   type TranslationEntry,
 } from './prompt.ts';
@@ -81,4 +82,22 @@ test('rejects an empty or non-string gloss rather than writing it', () => {
 test('rejects prose that is not JSON at all', () => {
   assert.equal(parseTranslation('這個詞的意思是成為。', 1), null);
   assert.equal(parseTranslation(JSON.stringify({ other: ['x'] }), 1), null);
+});
+
+test('tells the model not to prefix a part-of-speech label, and to use Taiwan words', () => {
+  const system = buildTranslationMessages(entry)[0]!.content;
+  assert.match(system, /不要加詞性標籤/);
+  assert.match(system, /影片不說視頻/);
+});
+
+test('review strips an added label and passes a clean translation', () => {
+  assert.deepEqual(reviewTranslation(['（動詞）成為；變成', '結果變成'], entry.senses), {
+    glosses: ['成為；變成', '結果變成'],
+    problem: null,
+  });
+});
+
+test('review names the first problem it cannot fix itself', () => {
+  const reviewed = reviewTranslation(['成為', '结果变成'], entry.senses);
+  assert.match(reviewed.problem ?? '', /簡體字/);
 });

@@ -3,6 +3,8 @@
  * waiting, then Chinese glosses for every entry the vocabulary points at.
  *
  * Run: npm run db:translate
+ *      npm run db:translate -- --recheck   (first apply the gloss checks to what
+ *                                          is already stored, requeueing failures)
  *
  * The same work the app does in the background, on demand. Useful after a
  * JMdict re-import (which relinks every lexeme and clears the resolver stamps),
@@ -12,9 +14,19 @@
 
 import { ensureDraining } from '../src/lib/analysis/drain.ts';
 import { sqlite } from '../src/db/client.ts';
-import { pendingTranslationCount } from '../src/lib/translate/translate.ts';
+import {
+  pendingTranslationCount,
+  recheckTranslations,
+} from '../src/lib/translate/translate.ts';
 
 async function main(): Promise<void> {
+  if (process.argv.includes('--recheck')) {
+    const { stripped, cleared } = recheckTranslations();
+    process.stdout.write(
+      `recheck: stripped a label from ${stripped}, requeued ${cleared}
+`,
+    );
+  }
   const started = Date.now();
   const before = pendingTranslationCount();
   process.stdout.write(`${before} entries await translation\n`);
