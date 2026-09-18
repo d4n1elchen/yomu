@@ -177,7 +177,8 @@ export function GrammarBubble({
   };
 
   return (
-    <div className="bubble assistant grammar-bubble">
+    // The id is what the chips row's ↑ 文法 chip scrolls back to.
+    <div className="bubble assistant grammar-bubble" id="grammar-bubble">
       {points.length > 0 ? (
         <>
           <p className="grammar-lead">這一句有 {points.length} 個句型：</p>

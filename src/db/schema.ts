@@ -18,8 +18,9 @@ import {
  * 1. A vocab occurrence needs no occurrence table -- the `token` row IS the
  *    occurrence. "Every place 食べる appeared" is one indexed query on
  *    token.lexemeId, with inflected forms already collapsed under the lemma.
- *    (Grammar occurrences are different: they are recorded during Q&A rather
- *    than derived from tokenization, so they get their own table. See below.)
+ *    (Grammar occurrences are different: they are written when you add a card
+ *    rather than derived from tokenization, so they get their own table,
+ *    `grammar_occurrence`.)
  *
  * 2. The sentence is the unit of text, of edit, and of offset. Transcribed
  *    audio contains errors that get fixed while reading, so `sentence.text` is
@@ -631,7 +632,7 @@ export const userLexemeState = sqliteTable('user_lexeme_state', {
  * nothing overrides it, which is what keeps the dashed line meaning one thing.
  *
  * ---------------------------------------------------------------------------
- * Grammar: deferred, and the earlier design was wrong.
+ * Grammar: keyed on つつじ, and never named by the model.
  * ---------------------------------------------------------------------------
  *
  * An earlier sketch here had grammar entries recorded during Q&A, with the
@@ -640,12 +641,14 @@ export const userLexemeState = sqliteTable('user_lexeme_state', {
  * inventing names for grammar points produces near-duplicates that only become
  * visible once the collection is large enough to matter.
  *
- * Grammar needs a natural key before it can work the way vocabulary does --
- * either token-stream patterns matched deterministically as you read, or a
- * fixed inventory the model may only select from, never name. Undecided, and
- * deliberately not built until there is real reading to ground it in.
+ * The key is now 「つつじ」's L2 id (`grammar_point`, above). Its forms are
+ * matched over a sentence's tokens when you ask about that sentence, the model
+ * only chooses among the matches, and nothing is filed until you add a card:
+ * `user_grammar_state` is the point you kept, `grammar_occurrence` the
+ * sentence you kept it from. `docs/PLAN.md` has the measurements.
  *
- * Q&A is not the mechanism of record. It streams an answer and keeps nothing.
+ * Q&A itself still keeps nothing. An add is the only write, and it writes a
+ * key the inventory already had.
  *
  * Note: orphaned lexemes are never garbage-collected. Editing a sentence drops
  * its tokens, which can take a lexeme's occurrence count to zero, but

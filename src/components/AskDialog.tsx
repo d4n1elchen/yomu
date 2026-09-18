@@ -109,6 +109,10 @@ export function AskDialog({
     turns.filter((t) => t.role === 'user').map((t) => t.content),
   );
   const chips = CHIPS.filter((chip) => !asked.has(chip));
+  // Only once there is something above to scroll back to: before the first
+  // question the bubble is still in view.
+  const backToGrammar =
+    grammar.status === 'ready' && grammar.reply.points.length > 0 && turns.length > 0;
 
   return (
     <div
@@ -173,8 +177,27 @@ export function AskDialog({
 
       {error ? <p className="error">{error}</p> : null}
 
-      {chips.length > 0 && !pending ? (
+      {(chips.length > 0 || backToGrammar) && !pending ? (
         <div className="ask-chips">
+          {/*
+            The bubble scrolls away once the conversation starts, and adding a
+            point is exactly what you want after a few follow-ups. This brings
+            it back rather than pinning it: the panel is too short on a phone to
+            spend a strip on every sentence.
+          */}
+          {backToGrammar ? (
+            <button
+              type="button"
+              className="back-to-grammar"
+              onClick={() =>
+                document
+                  .getElementById('grammar-bubble')
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+              }
+            >
+              ↑ 文法 <b>{grammar.status === 'ready' ? grammar.reply.points.length : 0}</b>
+            </button>
+          ) : null}
           {chips.map((chip) => (
             <button key={chip} type="button" onClick={() => void send(chip)}>
               {chip}

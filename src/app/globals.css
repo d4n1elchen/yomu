@@ -2357,3 +2357,13 @@ button.link.danger {
   gap: 1rem;
   font-size: 0.85rem;
 }
+
+/* Dashed rather than solid: a way back to something, not a question to ask. */
+.ask-chips button.back-to-grammar {
+  border-style: dashed;
+}
+
+.ask-chips button.back-to-grammar b {
+  font-weight: 600;
+  color: var(--accent);
+}
