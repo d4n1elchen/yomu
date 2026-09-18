@@ -19,6 +19,14 @@ interface PendingEntry extends TranslationEntry {
   senseIds: string[];
 }
 
+// Page polling starts new drains, and development reloads modules. Keep rejected
+// entries for this server's lifetime so neither can restart an endless retry.
+// A restart (or a different provider/model) permits another attempt.
+const translationState = globalThis as typeof globalThis & {
+  yomuRejectedTranslations?: Map<string, Set<string>>;
+};
+const rejectedByProvider = (translationState.yomuRejectedTranslations ??= new Map());
+
 /**
  * Every JMdict entry some word is linked to that still has an untranslated
  * sense. The queue is `glossZh is null`; the join to `lexeme` is what keeps it
@@ -29,16 +37,16 @@ interface PendingEntry extends TranslationEntry {
  * the flaw in the first cut: an entry left untranslated by one article was never
  * revisited unless a later article happened to contain it too.
  */
-function pendingEntries(limit: number): PendingEntry[] {
+function pendingEntries(limit: number, rejected: Set<string>): PendingEntry[] {
   const entryIds = db
     .selectDistinct({ entryId: lexemes.dictEntryId })
     .from(lexemes)
     .innerJoin(dictSenses, eq(dictSenses.entryId, lexemes.dictEntryId))
     .where(isNull(dictSenses.glossZh))
-    .limit(limit)
     .all()
     .map((row) => row.entryId)
-    .filter((id): id is string => id !== null);
+    .filter((id): id is string => id !== null && !rejected.has(id))
+    .slice(0, limit);
 
   const pending: PendingEntry[] = [];
   for (const entryId of entryIds) {
@@ -74,7 +82,7 @@ function pendingEntries(limit: number): PendingEntry[] {
  * Translates one entry's senses, or returns null if the model's reply cannot be
  * trusted. Retries once on a malformed, miscounted or rejected reply --
  * structured output is not a guarantee, and a gloss can be well-formed and still
- * Simplified -- then gives up so the sense stays null for the next drain. A
+ * Simplified -- then gives up so the sense stays null until a server restart. A
  * rejection is sent back with the reason, since a model told which character was
  * Simplified fixes it where one simply asked again repeats it. A network failure
  * is not caught here: it propagates so the caller can stop the whole pass rather
@@ -144,12 +152,15 @@ export async function translatePending(
   options: { provider?: LlmProvider; limit?: number } = {},
 ): Promise<{ reached: boolean; translated: number; exhausted: boolean }> {
   const limit = options.limit ?? Number.MAX_SAFE_INTEGER;
-  const pending = pendingEntries(limit);
+  const llm = options.provider ?? getLlmProvider();
+  const key = JSON.stringify([llm.id, llm.model]);
+  let rejected = rejectedByProvider.get(key);
+  if (!rejected) rejectedByProvider.set(key, (rejected = new Set()));
+  const pending = pendingEntries(limit, rejected);
   if (pending.length === 0) {
     return { reached: true, translated: 0, exhausted: true };
   }
 
-  const llm = options.provider ?? getLlmProvider();
   let translated = 0;
   for (const entry of pending) {
     // Do not open a new entry while a reader is waiting; the one already in
@@ -169,7 +180,10 @@ export async function translatePending(
     if (outcome === 'abandoned') {
       return { reached: true, translated, exhausted: false };
     }
-    if (!outcome.zh) continue;
+    if (!outcome.zh) {
+      rejected.add(entry.entryId);
+      continue;
+    }
     writeTranslations(entry.senseIds, outcome.zh, llm.model);
     translated += 1;
   }

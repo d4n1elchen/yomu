@@ -374,10 +374,14 @@ would be a second source of truth about work the data already describes, and it
 would have to be reconciled with the rows on every JMdict re-import — which the
 derived queues survive for free, because sense ids are `(entry, position)`.
 
-What would justify revisiting: **repeated failures**. An entry the model mangles
-twice is left null and retried from scratch on every drain, forever, with no
-record. An attempt counter would fix that, and needs a queue-ish place to live.
-Not built, because it has not been observed — measure before building.
+Repeated failures were observed keeping Ollama busy with 45 entries pending:
+the same first five rejected entries were selected on every lap. The server now
+remembers entries rejected twice, per provider/model, for its lifetime (including
+development module reloads). Selection skips them before taking the five-entry
+chunk, so later entries proceed and page polling cannot restart the failed work.
+Their glosses stay null and the English fallback remains; a server restart or a
+different model permits a fresh attempt. Network failures and interactive aborts
+are not recorded as rejected translations. No persistent queue table is needed.
 
 ### The drain gets out of the way
 
