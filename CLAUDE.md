@@ -7,8 +7,14 @@ chrome and explanations alike. Never Simplified, never English. The only
 Japanese on screen is the material being studied: article text, dictionary
 headwords, readings, and inflected forms.
 
-**Library** is the list of articles. **Dictionary** is vocabulary. Never
-"lesson" — this is an article reader.
+**Library** is the list of articles. **Dictionary** is vocabulary and grammar.
+Never "lesson" — this is an article reader.
+
+**Grammar is keyed on 「つつじ」, never named by the model.** Its forms are matched
+over a sentence's tokens when the reader asks about it; the model only chooses
+among those matches, and nothing is filed until the reader adds a card. A model
+that names grammar points produces near-duplicates — that design was tried and
+removed. `docs/PLAN.md` ("Grammar — built") has why and the measurements.
 
 The analyzer owns segmentation, readings, and dictionary forms. The LLM owns
 grammar and nuance, and is **never asked for a reading** — every model tested
@@ -42,6 +48,9 @@ analyzer's furigana, and a confirmed name takes its reading from it.
 - JMdict lives in a gitignored `data/`. A fresh clone needs `npm run
   data:jmdict` then `npm run db:jmdict` before the reader can mark hard words;
   without it the difficulty slider hides itself rather than marking everything.
+- つつじ lives there too: `npm run data:tsutsuji` then `npm run db:tsutsuji`,
+  then `npm run db:grammar-gloss` for the Chinese the review did not correct.
+  Without it the Q&A panel simply offers no grammar.
 - `npm run build` kills a running dev server; restart it afterwards.
 - `npm run deploy` installs a **systemd user service** and restarts it. It runs
   on the machine that serves the app, from a checkout there — the database is a

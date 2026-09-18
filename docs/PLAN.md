@@ -5,9 +5,9 @@ covers what is next and why. Delete sections as they ship.
 
 ## Naming
 
-**Library** is the list of articles. **Dictionary** is vocabulary (and grammar
-eventually). Never "lesson" — this is an article reader; "lesson-style" only
-ever described the presentation.
+**Library** is the list of articles. **Dictionary** is vocabulary and grammar.
+Never "lesson" — this is an article reader; "lesson-style" only ever described
+the presentation.
 
 Adding an article is its own page, not a dialog and not on the home screen.
 
@@ -827,23 +827,33 @@ reconcile pass on the shelf. Not built, because it only bites if you download an
 delete on different devices, and a stale download is untidy rather than broken.
 Revisit when that actually happens.
 
-## Grammar — measured, not built
+## Grammar — built
 
 The earlier design — entries created during Q&A, with the agent deciding
 novelty — was wrong and has been removed. Vocabulary dedups on a natural key the
 analyzer derives mechanically; a model inventing names for grammar points
 produces near-duplicates that only become visible once the collection is large
-enough to matter. The two candidates for a key were token-stream patterns and a
-fixed inventory the model selects from. **Measured against real reading, the
-answer is both, in sequence: an inventory that already carries its patterns,
-matched in the sentence you ask about, with the model only choosing among the
-matches and you deciding what enters the library.**
+enough to matter. **The key is now an inventory that already carries its
+patterns, matched in the sentence you ask about, with the model only choosing
+among the matches and you deciding what enters the library.**
 
-**The key is the L2 id of 「つつじ」**, 松吉・佐藤's dictionary of Japanese
-functional expressions (v1.1u, CC BY-SA 4.0, a 1.2 MB zip from the
-[TEU language media lab](https://sites.google.com/edu.teu.ac.jp/cl-lab/%E7%A0%94%E7%A9%B6/%E8%A8%80%E8%AA%9E%E8%B3%87%E6%BA%90/%E6%97%A5%E6%9C%AC%E8%AA%9E%E6%A9%9F%E8%83%BD%E8%A1%A8%E7%8F%BE%E8%BE%9E%E6%9B%B8%E3%81%A4%E3%81%A4%E3%81%98)).
-It has 341 headwords, 435 L2 meanings and 16,801 surface forms. Its nine levels
-are exactly the variation a dedup has to collapse:
+What a reader has:
+
+- **Double-tap a sentence**, and a bubble in the Q&A panel lists the grammar
+  points it contains, each with a Chinese gloss; a row opens to show the span
+  marked in the sentence, its level and its similar expressions.
+- **＋ 加入** keeps the point with that sentence as its example. Met again
+  elsewhere, the card reads ✓ 已在 and offers ＋ 加入這個例句.
+- **辭典 → 文法** lists what you kept; each point has a page with its meaning,
+  its similar expressions and every sentence you kept it from, linking back.
+  The Library row counts points kept from each work.
+- **複習** asks about kept points on your own sentences, on a Leitner schedule.
+
+### The key: 「つつじ」
+
+The L2 id of 松吉・佐藤's dictionary of Japanese functional expressions
+(v1.1u, CC BY-SA 4.0): 341 headwords, 435 L2 meanings, 16,801 written forms.
+Its nine levels are exactly the variation a dedup has to collapse:
 
 | Level | Separates | Example |
 |---|---|---|
@@ -857,307 +867,127 @@ are exactly the variation a dedup has to collapse:
 | L8 | With or without です/ます | にとりまして |
 | L9 | Spelling | に対して / にたいして |
 
-L2 is the learning item: everything below it is form, and above it meanings
-merge. Ids are prefixes (`0011P.1xx.01n01` → `0011`), so any matched form
-reduces to its key by truncation. 199 意味的等価クラス group paraphrasable
-L2s (から / ので / ものだから) — "similar grammar" and quiz distractors, **never a
-merge**. Each L2 carries a difficulty (A1, A2, B, C, F; F is undocumented and
-formal or archaic in practice), and 162 carry an id in the pre-2010 JLPT
-出題基準.
+L2 is the learning item: below it is form, above it meanings merge. Its 199
+意味的等価クラス group paraphrasable L2s (から / ので / ものだから) — shown as
+similar, **never merged**. Each L2 carries a difficulty (A1–C, and an
+undocumented F that is formal or archaic in practice).
 
-**It speaks IPADIC.** Its connection constraints are full IPADIC feature
-strings — `動詞,*,*,*,*,連用タ接続,*` — which is what kuromoji already stores in
-`token.features`, so candidates come off the existing token stream with no
-patterns to author. LEFT constrains the token before the expression, RIGHT the
-expression's own last token, and the trailing `90` on every code is unused.
-This makes the analyzer harder to swap: `src/lib/analyzer/types.ts` calls UniDic
-a one-file change, which stops being true once grammar matching exists.
+**`npm run data:tsutsuji`, then `db:tsutsuji`.** The only published download is
+a Google Drive link, and a rotted one answers 200 with an HTML page, so the
+fetch opens what arrives as a ZIP and refuses anything else by name. If the
+link does rot, commit the 1.2 MB instead — CC BY-SA permits it with
+attribution — rather than send a reader hunting. The import is a full rebuild;
+reviewed glosses and `yomu:` supplements survive it.
 
-**Not in it**, found by probing and by the measurements below: てみる, causative
-させる, the passive, suffixes (がち, っぽい, だらけ), 様態 そう, ～かける,
-～に見える, "wondering" だろうか (its only だろうか is rhetorical), and
-directional てくる / ていく (its entries are aspect only, so 近づいてくる is
-arguably not them). These need a small supplement in the same record shape
-under a `yomu:` id prefix, written by hand and never by the model.
+**Nothing in the library has a foreign key to `grammar_point`.** The import
+rebuilds that table, and a cascade would empty your 文法庫 on every re-import.
+The id is a natural key, so a kept point rejoins its row afterwards; one a
+later つつじ dropped still lists under its id, the same policy as an orphaned
+生詞. A test deletes every point and checks the library survives.
 
-**JMdict is a cross-reference, not a key.** 324 of the 435 L2s have a surface in
-JMdict (178 tagged `exp`), but one JMdict entry spans several meanings and knows
-nothing of variants. Nothing collides with vocabulary: kuromoji never emits
-these expressions as a single token.
+**The glosses are a draft, then a review.** `npm run db:grammar-gloss` has the
+model write a Chinese name and gloss per point from つつじ's labels, eight to a
+request. 45 of 435 contradicted their own class — ために had its two senses
+backwards, のに was glossed as concession where this entry is purpose, かぎりだ
+came out as "only" — and the corrections are committed in
+`src/lib/grammar/reviewed-glosses.json`, applied last by the import, so the
+review reaches every machine rather than being redone per clone. Still owed: the
+reader's spot-check of the rest.
 
-### The flow: asked for, one sentence at a time
+### Matching, and three things the labels could not see
 
-**Grammar is found when you ask about a sentence, never by analysing a work.**
-The reader double-taps a sentence, and alongside the explanation the card offers
-the grammar points that sentence contains; each is a card you add to the grammar
-library by hand, or ignore. Nothing is filed by a background pass, and nothing is
-added without a tap — the same shape as confirming names in “Book ruby and
-names”, and the same reason: the confirmation is cheap for you and the automatic
-version is wrong often enough to matter.
+`src/lib/grammar/match.ts` — tokens and an inventory in, candidate spans out.
+Longest match first, and no two spans over the same characters, except that two
+forms chained on one joint keep it both: ～ようにしている is ～ようにする in
+て-form plus ～ている, and dropping the second lost eleven spans in 800
+sentences, nearly all ～ている.
 
-That makes recall the number to optimise and precision the number to keep
-honest. A missed point costs you a card you never see; a wrong card costs a tap
-and, if you take it, a wrong entry in the library. What you must be able to do
-is judge it, so a card shows the span in its sentence and the meaning in
-Chinese, not a bare id.
+Three faults were found only by opening real sentences, because the scratch
+matcher the labels were made with had them too:
 
-**Adding is what stores anything.** Q&A still streams and is discarded. The add
-writes the entry (keyed on the L2 id, so ちゃう and てしまう land on one row) and
-the occurrence it came from: sentence, `sentenceRevision`, token range. Meeting
-the same point again offers 已在文法庫 — 加入這個例句 rather than a second entry.
-The card's footer note has to change with it: 不會儲存 — 關閉後即消失 is true of
-the whole card today and stops being true the moment a point can be added.
+- **The dictionaries cut words differently.** つつじ writes に.とっ.て; IPADIC
+  keeps にとって whole. Matching unit against token missed every compound the
+  analyzer lexicalizes — most of the common ones. Forms are now compared against
+  the run of surfaces, and may never end inside a token.
+- **The tagsets disagree about ない.** つつじ's class before ～ようにする admits
+  only 動詞; kuromoji tags the negative ない 助動詞, so every ～ないようにする was
+  invisible. A row asking only for "a verb in this form" also admits an
+  auxiliary or adjective in that form.
+- **The A2 floor judged candidates, not choices.** A lone に passed because one
+  of its eight meanings is A2. It now judges the point the model chose.
 
-**The cards arrive as their own bubble in the thread**, not as a strip pinned
-above the composer. Both were mocked; the panel is compact — a bottom sheet at
-76vh on a phone — and a permanent strip spends that height on every sentence,
-including the sixth that has nothing to offer. A bubble costs height only when
-there is something to show, and it reads as what it is: the panel saying what it
-found in this sentence.
+This also makes the analyzer harder to swap: `src/lib/analyzer/types.ts` calls
+UniDic a one-file change, which stops being true while grammar matches on
+IPADIC's tags.
 
-That settles the timing. **Identification starts when the card opens**, not when
-you ask, so the ~8.5 s runs while the templated greeting is on screen and the
-bubble lands before the first question — a strip could have filled in quietly
-either way, but a bubble arriving mid-conversation would interrupt one. It also
-lets the points be handed to the explaining prompt, so the prose covers the same
-points the cards offer.
+### Measured
 
-**A bubble scrolls away, which is its one real cost.** Adding is exactly what
-you want after three follow-ups, so the chips row keeps a ↑ 文法 2 chip that
-scrolls back to it. A row expands in place inside the bubble to show the span
-marked in its sentence (…悪目立ちし【ないようにし】ている), the difficulty, and
-the 意味的等価クラス peers — enough to judge the card, since the matched span is
-often a fragment and a fragment alone is unjudgeable. The reject is 這不是這個
-句型, and off-list proposals sit under a 未收錄 line with no add control.
+Against the 200 labelled spans in `data/grammar-labels.json` (gitignored — the
+sentences are copyrighted), with `node scripts/grammar-eval.ts`:
 
-**Nothing in the reader is underlined for grammar.** The dashed line means
-"JMdict does not call this common" and must keep meaning only that.
+| | coverage | precision | recall |
+|---|---|---|---|
+| Scratch matcher, first candidate | — | 60% | 83% |
+| Model, one span per request | — | 86% | 79% |
+| Model, one request per sentence (prototype) | 99/150 | 85% | 91% |
+| **Shipped, one request per sentence** | **141/143** | **85%** | **78%** |
 
-### Measured: finding the points in one sentence
+Coverage is whether the right point is among the candidates at all; it went
+from 99 of 150 to 141 of 143. **The drop in recall is the A2 floor, by
+design:** 24 of the 143 real points are lone A1 particles the floor never
+offers, capping recall at 83%, and of the points it may offer it finds 111 of
+119 — 93%. The evaluation asks the whole sentence, as the card does; scoring
+one span at a time measured a request the app never makes and read 74%.
 
-On the local library (4,664 sentences, 7 works), matching exact surface
-sequences under LEFT/RIGHT and keeping maximal spans:
+Identification takes about 8.5 s for a sentence and starts when the card opens,
+so it runs while the greeting is read. About 1.4 cards per sentence; one in
+six offers nothing.
 
-- **20,402 spans, in 95% of sentences** — mostly single A1 particles. 3,227
-  multi-morpheme spans over 123 L2s, and 3,703 single-morpheme spans above A1.
-- **200 spans labelled by hand**: 150 multi-morpheme, stratified at most four
-  per candidate set, and 50 single-morpheme above A1. The labels are Claude's,
-  not a native annotator's. Of the 150, 99 had the right candidate offered, 32
-  were not grammar at all (学生**では**なかった, 目**にして**いた,
-  送信された**もの**だった), and 19 were grammar with the wrong candidates
-  offered (帰ら**なければ**いけない got only ないと).
+### Decided while building
 
-Precision is the share of offered cards that are right, recall the share of real
-points that get a card. Over all 200 labelled spans:
+- **The cards are a bubble, not a pinned strip** — the panel is a 76vh sheet on
+  a phone — with a ↑ 文法 N chip in the chips row to scroll back once the
+  conversation has started. The chip is built but **not yet seen working in a
+  browser**: the pane stopped drawing before it could be checked.
+- **Cards start at A2 and never cover a lone particle**, judged on the chosen
+  meaning. A constant, not a setting, until there is evidence it needs tuning.
+- **這不是這個句型 dismisses the row and stores nothing.** The only write Q&A
+  makes is an add, and it writes a key the inventory already had.
+- **Off-list proposals are explained, never addable.** An addable one would be
+  a model-named entry. They are the worklist for the supplement.
+- **Review asks what the marked form means, not a cloze.** The plan had the
+  point's paraphrase class as a blank's wrong answers, but paraphrases fit the
+  same blank — ので where から goes — so that quiz marks right answers wrong. The
+  wrong answers are the same form's other meanings first (ために "because"
+  against "in order to"), then other classes at the same level; never the
+  point's own class. Choices show only the meaning: with the form left in, the
+  right choice was simply the one starting with the form the question named.
+- **One scheduler for anything kept.** `src/lib/review/schedule.ts` is pure and
+  written against the three columns `user_lexeme_state` and
+  `user_grammar_state` share, so vocabulary review uses it rather than a second.
+  Leitner boxes of 1, 3, 7, 16, 35 and 90 days, a miss back in ten minutes; a
+  fitted model like FSRS waits for review history to fit it to.
 
-| | precision | recall |
-|---|---|---|
-| Matcher, first candidate | 60% | 83% |
-| Matcher, only when unambiguous | 72% | 70% |
-| `qwen3.8:27b`, one span per request, Tsutsuji labels shown | 87% | 68% |
-| Same, Chinese glosses shown | 86% | 79% |
-| Two prompts required to agree | 94% | 64% |
-| **One request per sentence, all its spans at once** | **85%** | **91%** |
+### Not built
 
-**The whole sentence in one request is the right shape**, and not only for
-latency. Judging a span against its neighbours lifted recall from 79% to 91%
-(96% on multi-morpheme spans) at the same precision, because a model that has
-already accounted for ている in the sentence stops rejecting てくる next to it.
-The model gets every span with its candidates plus "none", a JSON-schema reply,
-temperature 0 — the resolver's shape, one sentence wide.
+- **The supplement (G1b).** つつじ lacks ～てみる, the causative and passive,
+  様態 そう, ～がち, ～っぽい, ～に見える, and directional ～てくる / ～ていく (its
+  entries are aspect only). A hand-written list under `yomu:` ids, in the same
+  record shape, with the off-list proposals as the worklist — deliberately after
+  reading with G1 rather than guessed from probing.
+- **Lemmas in matching.** ていく and てくる both match てき; the model settles
+  it, but the lemma would settle it for free.
+- **Handing the points to the explaining prompt**, so the prose covers what the
+  cards offer. Identification runs first, so it can.
+- **Vocabulary review.** The scheduler is ready for it; the question is not.
 
-**8.5 s median for a sentence** (p90 11.5 s, worst 23.9 s over 194 sentences),
-against 2.3 s per span sequentially. Median 2 spans per sentence, at most 7, and
-~500 prompt tokens. That fits beside a Q&A answer, which takes tens of seconds
-by itself.
+### Open
 
-**1.4 cards per sentence** (median 1, at most 4) once lone A1 particles are
-dropped, and **16% of sentences offer nothing** — which is the honest answer for
-a sentence whose only grammar is a particle, and better than padding the card
-with 助詞「に」.
-
-**The matcher is the weak part, not the model.** 10 of the 18 wrong accepts in
-the gloss run were spans offered the wrong family; where the matcher offered
-the right one, precision was 93%. Prefer the longest match across overlapping
-patterns (なければ|いけない, わけ|にはいかない, よう|になる), and add the
-supplement.
-
-**What the model is shown decides its recall.** Tsutsuji's own labels — てしまう
-is 過去-完了-タ類 — made it reject obvious cases. Traditional Chinese glosses
-for the L2s, generated in one pass (55 requests of eight, ~14 s each, one id
-dropped),
-raised recall from 68% to 79%. They need review before anyone sees them: two
-まで meanings came back with the same gloss, and the "even" まで was wrong. They
-are display text, never a key, so a bad gloss costs clarity rather than
-creating duplicates.
-
-### Rejected: reading the points back out of the answer
-
-The obvious way to get cards out of a chat is to let the model explain in prose
-and then mine the explanation. Measured and rejected: it is slower, noisier and
-no more accurate than asking about the matched spans directly. 30 grammar-rich
-sentences through the app's own Q&A prompt and the 說明文法 chip, then extract
-the points named, retrieve candidates (matcher spans in the sentence, then
-surface lookup, then `bge-m3` over L2 descriptions), and have the model pick or
-reject:
-
-- **249 mentions, 8.3 per answer**: 38% grammar patterns, 31% particles and the
-  copula, 16% conjugation forms, 14% vocabulary (ほとんど, 敬遠).
-- 79% of the grammar patterns have a Tsutsuji entry. **Link precision 93%**,
-  recall of the linkable 64%.
-- **137 of the 167 linkable mentions were retrieved through a matcher span in
-  the same sentence**, and for 122 of those the span already offered the right
-  entry. Q&A mostly re-finds what detection already found. What
-  remains is generic (連體修飾節, て形) or a few real gaps (に見える, 様態 そう,
-  かける), which the supplement covers. Extraction adds ~16 s to a ~43 s answer.
-
-So the cards come from the matched spans, not from the prose. The two can still
-agree: identification is one short structured call, so it can run **before** the
-explanation streams and be handed to the explaining prompt as the points to
-cover.
-
-**The off-list proposals are worth keeping, and are not entries.** Asked for
-grammar it can see beyond the offered spans, the model proposed 22 points over
-194 sentences (15 sentences had any). Some are real gaps — ～てよかった, ～ようだ,
-～とはいえ, ～に合わせて — and some are vocabulary in disguise (～込む, よく). They
-show on the card as explained-but-not-addable, because an addable one would be a
-model-named entry, which is the design that failed. They are the worklist for the
-hand-written supplement.
-
-### Phases
-
-Each phase ends with something a reader can use, and none of them leaves the
-app in a state where grammar half-exists. The order is chosen so that the
-riskiest thing is proven first: whether the points offered for a sentence are
-good enough to be worth a tap at all.
-
-**Phase G1 — the card tells you what grammar is in the sentence.**
-*You double-tap a sentence, and a bubble appears in the panel: 這一句有 2 個
-句型, each with its Japanese form and a Traditional Chinese name and gloss.
-Tapping one shows the span marked in the sentence, its difficulty and its
-similar expressions. Nothing can be added yet, and nothing is stored — the
-panel still says 不會儲存 — 關閉後即消失, and it is still true.*
-
-`data:tsutsuji` and `db:tsutsuji`, the inventory loader, the reviewed glosses,
-the identify call through `priority.ts`, and the bubble with its four states
-(searching, points, nothing found, off-list proposals). Ships only if
-re-scoring the 200 labels against the real matcher holds near the measured 85%
-precision and 91% recall; if it does not, fix the matcher before any of the UI.
-A downloaded chapter has no model, so it shows no bubble at all rather than an
-error — grammar is online-only by nature, like Q&A.
-
-**Phase G1b — the gaps, once G1 has been read against.**
-*Points that つつじ does not have start appearing as ordinary cards: ～てみる,
-the causative and the passive, 様態 そう, ～がち, ～っぽい, ～に見える, and
-directional ～てくる / ～ていく.*
-
-A hand-written supplement under `yomu:` ids, in the same record shape, with the
-off-list proposals G1 collects as the worklist. Deliberately after G1 rather
-than before: the list should be what real reading asked for, not what seemed
-missing while probing.
-
-**Phase G2 — you can keep a point.**
-*Every card grows ＋加入文法庫. Tapping it files the point under its つつじ id,
-with the sentence you met it in as its first example. Meet it again and the
-card reads ✓ 已在文法庫 and offers ＋加入這個例句 instead of a second entry. The
-footer note becomes 問答不會儲存；加入的句型會留在文法庫.*
-
-`user_grammar_state` (the point you keep) and `grammar_occurrence` (where you
-met it: sentence, `sentenceRevision`, token range), a migration, and the
-`schema.ts` comment corrected — it still says grammar has no key. Rejecting a
-card dismisses the row and stores nothing.
-
-**Phase G3 — you can see what you have collected.**
-*文法 appears in the Dictionary beside vocabulary, listed apart the way
-confirmed names are: every point you kept, with its Chinese name, difficulty,
-how many times you have met it, and the sentences themselves — each a link back
-into the chapter it came from. Its similar expressions are listed beside it, so
-から, ので and ものだから read as three faces of one thing. The Library row
-counts grammar as well as words.*
-
-The counter on the Library row is the one place the current placeholder lies:
-it reads zero today because grammar had no key.
-
-**Phase G4 — you can review it.**
-*A point you kept comes back as a question built from your own reading: a
-sentence you met it in, with the span blanked out. Its similar expressions are
-the wrong answers, which is what makes から against ので a real question.*
-
-Last, and keyed on the つつじ id so ちゃう and てしまう are one item. This shares
-whatever schedule vocabulary gets — `user_lexeme_state` already has the columns
-and no quiz — because two schedulers over one reader would drift apart.
-
-### Details
-
-1. **Import Tsutsuji** the way JMdict is imported: `data:tsutsuji` fetches,
-   `db:tsutsuji` imports, the source in the gitignored `data/`, an attribution
-   notice like `EdrdgNotice`. ShareAlike applies to anything derived from it and
-   distributed — the reviewed glosses included.
-
-   Its only published download is a Google Drive link, which is a weaker
-   footing than JMdict's. The fetch must therefore **fail loudly and
-   specifically**: a Drive link that has rotted returns an HTML page, not a
-   zip, and a script that shrugs at that would leave the reader with a grammar
-   feature that silently finds nothing. Check the shape of what arrives, and
-   record the version in the import so a changed file is visible. If the link
-   does rot, the fallback is to commit the 1.2 MB of data — CC BY-SA permits it
-   with attribution — rather than to make the reader hunt for it.
-2. ~~**Match one sentence**~~ — **built**. `src/lib/grammar/match.ts` takes a
-   sentence's tokens and an inventory and returns the spans, longest first and
-   never overlapping; `inventory.ts` holds the shapes and resolves つつじ's
-   connection classes. Pure, and the inventory is an argument, so the tests run
-   on a hand-cut corner of つつじ rather than needing the gitignored `data/`.
-   No table and no background pass: spans are derived on demand, the way the
-   reader derives everything else. Not yet re-scored against the labels — that
-   needs step 1, and the lemma the matcher still ignores is why ていく and
-   てくる both match てき.
-3. **Identify on ask**: one structured call for the sentence, through
-   `priority.ts` as interactive work, before the answer streams.
-4. **Cards in the Q&A panel**, each with its span in the sentence and a Chinese
-   name and gloss. Adding writes the entry and the occurrence; a point already
-   in the library offers its example sentence instead.
-5. **Grammar in the Dictionary**, listed apart from vocabulary the way confirmed
-   names are, each point with the sentences you added and its
-   意味的等価クラス peers alongside.
-6. **Review last**, keyed on L2, sharing whatever schedule vocabulary gets — one
-   quiz, two kinds of item, rather than two schedulers.
-
-**Decided, and not to be relitigated while building:**
-
-- **A card is offered at difficulty A2 and above, and never for a lone
-  particle.** ～ている, ～てしまう, ～ことができる, ～ざるをえない qualify; a bare
-  に or が never does, however many meanings つつじ gives it. That is 1.4 cards
-  per sentence rather than 2.1, and 83 of the 211 A1 accepts in the measurement
-  were に alone. The floor is a constant, not a setting: a slider is worth
-  adding when there is evidence it needs tuning, and the vocabulary one earned
-  its place by being wrong at its default first.
-- **這不是這個句型 dismisses the row and stores nothing.** Open the sentence
-  again and it is offered again. Remembering a rejection would be the first
-  judgement Q&A ever kept, and the rule that Q&A stores nothing is worth more
-  than saving a tap on a re-read. Revisit only if the same wrong card is
-  actually met twice.
-- **The glosses are reviewed before they are shown**, by Claude in full with the
-  uncertain ones flagged, and spot-checked by the reader. They are what makes a
-  card judgeable; a wrong one costs a wrong entry in the library.
-
-**Open, not measured:**
-
-- **Whether a card can be added from a wrong sentence.** The span is what is
-  stored; a user who adds ～ては from 嫌な感じ**では** stores a bad example, and
-  nothing yet notices.
-- **What "identify" costs on a phone over the LAN**, where Q&A already feels
-  slow.
-
-The labels live in `data/grammar-labels.json` — 200 spans, each with its
-sentence, character offsets, the candidates it was offered and the label. Not
-committed, because the sentences are copyrighted book text, the same reason
-EPUB fixtures are built rather than checked in. Offsets are into the sentence
-text rather than token indices, so re-tokenizing cannot move them; that has
-already happened twice mid-measurement.
-
-`design/grammar-cards.mock.html` is the card design these numbers are for, hand
-written rather than exported from the design canvas, and worth deleting once
-the panel exists.
+- **A card added from a wrong span** stores a bad example, and nothing notices.
+- **What identification costs on a phone over the LAN**, where Q&A already
+  feels slow.
+- **Grammar is online-only**, like Q&A: a downloaded chapter has no model and
+  its panel shows no bubble.
 
 ## Deferred
 

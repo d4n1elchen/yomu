@@ -62,12 +62,21 @@ cp .env.example .env.local   # then fill in YOMU_OLLAMA_URL
 npm run db:migrate
 npm run data:jmdict          # downloads JMdict, ~118 MB
 npm run db:jmdict            # imports it and links existing words
+npm run data:tsutsuji        # downloads つつじ, the grammar inventory, 1.2 MB
+npm run db:tsutsuji          # imports it
+npm run db:grammar-gloss     # Chinese names for the points (needs the model)
 npm run dev
 ```
 
-The two JMdict steps are separate from the rest because the data is gitignored
-and regenerable. Skip them and the reader still works, but it hides the
-difficulty slider rather than marking every word as hard.
+The dictionary steps are separate from the rest because the data is gitignored
+and regenerable. Skip the JMdict pair and the reader still works, but it hides
+the difficulty slider rather than marking every word as hard. Skip the つつじ
+steps and the Q&A panel offers no grammar.
+
+つつじ (日本語機能表現辞書, © 松吉俊・佐藤理史) is CC BY-SA 4.0, and is published
+only as a Google Drive link. If `data:tsutsuji` reports an HTML page instead of
+a ZIP, the link has moved: find the new one on the TEU language media lab's page
+and update `scripts/fetch-tsutsuji.ts`.
 
 `.env.local` **must be UTF-8.** Next parses env files as UTF-8, and a UTF-16 one
 — which is what PowerShell's `>` and `Set-Content` write by default — is ignored
@@ -162,6 +171,10 @@ reach it on `localhost`, and it works.
 | `npm run data:jmdict` | download JMdict into `data/` |
 | `npm run db:jmdict` | import it and re-link every word |
 | `npm run db:translate` | drain the gloss queue on demand |
+| `npm run data:tsutsuji` | download つつじ into `data/` |
+| `npm run db:tsutsuji` | import it, keeping reviewed glosses |
+| `npm run db:grammar-gloss` | write Chinese for points that lack it |
+| `npm run db:grammar-eval` | score grammar against the local labels |
 | `npm run deploy` / `update` | see above |
 
 ## Layout

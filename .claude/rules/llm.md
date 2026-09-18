@@ -42,3 +42,11 @@ a failed one: it must never be treated as an unreachable host.
 **Store nothing.** Q&A is a lookup, not a record — it streams and is discarded
 when the panel closes. Durable learning belongs in the Dictionary as entries and
 occurrences, not as saved prose.
+
+**Grammar identification selects, never names** (`src/lib/grammar/identify.ts`).
+It runs when the Q&A card opens, as interactive work through `priority.ts`, and
+sends one request per sentence with every matched span in it — measured, that is
+what lifts recall from 79% to 91%, because a span is judged beside its
+neighbours. The model sees each span's candidates by their reviewed Chinese
+gloss, never つつじ's own labels: shown 過去-完了-タ類 for ～てしまう, it rejected
+obvious uses. Any id it returns that was not offered for that span is dropped.

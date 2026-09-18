@@ -45,16 +45,20 @@ designing any of them. The dictionary tables are built; `dict_form` exists so
 that matching a lexeme is an indexed query rather than a pass over the 118 MB
 source file, which an article import must not need on disk.
 
-**Grammar is the exception: measured, not built.** An earlier design had
-entries created during Q&A with the model judging novelty, which does not work
-— vocabulary dedups on a natural key the analyzer derives mechanically, while a
-model inventing names produces near-duplicates. The key is now chosen: the L2
-id of the 「つつじ」 functional-expression dictionary, matched over one
-sentence's tokens when you ask about it, with the model choosing among the
-matches and never naming, and nothing stored until you add a card. The
-schema comment still describes the question as open; `docs/PLAN.md` ("Grammar —
-measured, not built") has the measurements and the direction. Read it before
-designing any grammar table.
+**Grammar is keyed on つつじ's L2 id**, matched over one sentence's tokens
+when you ask about it, with the model choosing among the matches and never
+naming, and nothing stored until you add a card. `docs/PLAN.md` ("Grammar —
+built") has the design and the measurements.
+
+- **Never give `user_grammar_state` or `grammar_occurrence` a foreign key to
+  `grammar_point`.** `db:tsutsuji` rebuilds that table, and a cascade would
+  empty the reader's 文法庫 on every re-import. The id is a natural key and
+  rejoins afterwards; a test holds this.
+- **A kept point's id must come from the inventory.** `keepGrammarPoint`
+  refuses anything else, which is what stops a model-named entry getting in.
+- **Reviewed glosses live in `src/lib/grammar/reviewed-glosses.json`**, applied
+  last by the import. Correct a gloss there, not in the database, or the next
+  import undoes it.
 
 # Naming
 
