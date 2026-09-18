@@ -13,9 +13,24 @@ export interface PromptSentence {
   tokens: PromptToken[];
 }
 
+/** A grammar point the card identified in the target, as the reader saw it. */
+export interface PromptGrammar {
+  /** The matched text in the sentence: ために, or a fragment like てい. */
+  surface: string;
+  /** Traditional Chinese name, e.g. ～ために（為了…）. */
+  name: string;
+  gloss: string;
+}
+
 export interface PromptInput {
   /** The sentence the reader double-tapped: the one being asked about. */
   target: PromptSentence;
+  /**
+   * What the grammar card found, so an answer explains the same points under
+   * the same names instead of re-deriving them -- a card saying 為了… beside an
+   * answer saying 因為… is two teachers disagreeing. Empty or absent: no block.
+   */
+  grammar?: PromptGrammar[];
   /** The sentences either side, as plain text. Null at a chapter's edge. */
   previous: string | null;
   next: string | null;
@@ -82,6 +97,11 @@ export function buildMessages(input: PromptInput): LlmMessage[] {
     `【目標句】（學生問的是這一句）\n${input.target.text}`,
     input.next !== null ? `【後一句】（僅供脈絡）\n${input.next}` : null,
     `【目標句】的詞法分析結果（讀音為準，請勿更動）：\n${table(input.target.tokens)}`,
+    input.grammar && input.grammar.length > 0
+      ? `【目標句】中已辨識的句型（學生在卡片上看到的就是這些名稱；說明文法時沿用同樣的名稱與意義，若你確定某項辨識有誤，請直接指出）：\n${input.grammar
+          .map((point) => `- 「${point.surface}」：${point.name}——${point.gloss}`)
+          .join('\n')}`
+      : null,
     `關於【目標句】的問題：${first!.content}`,
   ];
 

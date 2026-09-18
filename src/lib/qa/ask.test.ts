@@ -8,8 +8,8 @@ const dir = mkdtempSync(path.join(tmpdir(), 'yomu-ask-'));
 process.env.YOMU_DB_PATH = path.join(dir, 'test.db');
 
 const { db, sqlite } = await import('../../db/client.ts');
-const { sections, sentences } = await import('../../db/schema.ts');
-const { loadAskContext } = await import('./ask.ts');
+const { grammarPoints, sections, sentences } = await import('../../db/schema.ts');
+const { loadAskContext, resolveAskGrammar } = await import('./ask.ts');
 const { ingestWork } = await import('../import/ingest.ts');
 const { migrate } = await import('drizzle-orm/better-sqlite3/migrator');
 const { asc, eq } = await import('drizzle-orm');
@@ -73,4 +73,33 @@ test('a neighbour never crosses into another chapter', () => {
 
 test('an unknown sentence is refused', () => {
   assert.throws(() => loadAskContext('missing'), /Sentence not found/);
+});
+
+test("the card's grammar reaches the prompt in the inventory's words, not the client's", () => {
+  db.insert(grammarPoints)
+    .values([
+      {
+        id: '0620',
+        base: 'ている',
+        difficulty: 'A2',
+        meaningClass: 'x',
+        meaningName: 'x',
+        nameZh: '～ている（持續）',
+        glossZh: '表示動作或狀態持續中。',
+      },
+      // Not yet glossed: there is nothing reviewed to tell the model.
+      { id: '0999', base: 'た', difficulty: 'A2', meaningClass: 'y', meaningName: 'y' },
+    ])
+    .run();
+
+  const lines = resolveAskGrammar('雨が降っていた。', [
+    { pointId: '0620', surface: 'てい' },
+    { pointId: '0620', surface: 'てい' },
+    { pointId: '0999', surface: 'た' },
+    { pointId: 'yomu:made-up', surface: 'て' },
+    { pointId: '0620', surface: '見ている' },
+  ]);
+  assert.deepEqual(lines, [
+    { surface: 'てい', name: '～ている（持續）', gloss: '表示動作或狀態持續中。' },
+  ]);
 });

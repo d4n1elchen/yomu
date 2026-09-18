@@ -1,4 +1,4 @@
-import { askAboutSentence } from '../../../lib/qa/ask.ts';
+import { askAboutSentence, type AskGrammarRef } from '../../../lib/qa/ask.ts';
 import type { LlmMessage } from '../../../lib/llm/index.ts';
 
 export const runtime = 'nodejs';
@@ -7,6 +7,25 @@ export const dynamic = 'force-dynamic';
 interface AskBody {
   sentenceId?: unknown;
   turns?: unknown;
+  grammar?: unknown;
+}
+
+/**
+ * The points the card showed. Malformed items are skipped rather than failing
+ * the question: the grammar block is a help to the answer, not a precondition.
+ * The ids are checked against the inventory later, in `resolveAskGrammar`.
+ */
+function parseGrammar(raw: unknown): AskGrammarRef[] {
+  if (!Array.isArray(raw)) return [];
+  const refs: AskGrammarRef[] = [];
+  for (const item of raw.slice(0, 20)) {
+    if (typeof item !== 'object' || item === null) continue;
+    const { pointId, surface } = item as Record<string, unknown>;
+    if (typeof pointId !== 'string' || typeof surface !== 'string') continue;
+    if (!pointId || !surface) continue;
+    refs.push({ pointId, surface });
+  }
+  return refs;
 }
 
 /**
@@ -68,6 +87,7 @@ export async function POST(request: Request) {
         for await (const chunk of askAboutSentence({
           sentenceId,
           turns,
+          grammar: parseGrammar(body.grammar),
           signal: request.signal,
         })) {
           controller.enqueue(encoder.encode(chunk));

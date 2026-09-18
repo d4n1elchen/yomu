@@ -119,3 +119,16 @@ test('the sentences are sent once, not once per turn', () => {
 test('refuses to build a prompt with no question', () => {
   assert.throws(() => build({ turns: [] }), /question is required/);
 });
+
+test("names the card's grammar so the answer uses the same points", () => {
+  const user = build({
+    grammar: [{ surface: 'てい', name: '～ている（持續）', gloss: '表示動作或狀態持續中。' }],
+  })[1]!.content;
+  assert.match(user, /已辨識的句型/);
+  assert.match(user, /「てい」：～ている（持續）——表示動作或狀態持續中。/);
+});
+
+test('says nothing about grammar when the card found none', () => {
+  assert.equal(build({ grammar: [] })[1]!.content.includes('已辨識的句型'), false);
+  assert.equal(build()[1]!.content.includes('已辨識的句型'), false);
+});

@@ -877,7 +877,7 @@ a Google Drive link, and a rotted one answers 200 with an HTML page, so the
 fetch opens what arrives as a ZIP and refuses anything else by name. If the
 link does rot, commit the 1.2 MB instead — CC BY-SA permits it with
 attribution — rather than send a reader hunting. The import is a full rebuild;
-reviewed glosses and `yomu:` supplements survive it.
+reviewed glosses survive it, and a `yomu:` supplement would have to as well.
 
 **Nothing in the library has a foreign key to `grammar_point`.** The import
 rebuilds that table, and a cascade would empty your 文法庫 on every re-import.
@@ -939,16 +939,26 @@ offers, capping recall at 83%, and of the points it may offer it finds 111 of
 119 — 93%. The evaluation asks the whole sentence, as the card does; scoring
 one span at a time measured a request the app never makes and read 74%.
 
-Identification takes about 8.5 s for a sentence and starts when the card opens,
-so it runs while the greeting is read. About 1.4 cards per sentence; one in
-six offers nothing.
+Identification takes about 8.5 s for a sentence and starts when the card opens.
+About 1.4 cards per sentence; one in six offers nothing.
 
 ### Decided while building
 
-- **The cards are a bubble, not a pinned strip** — the panel is a 76vh sheet on
-  a phone — with a ↑ 文法 N chip in the chips row to scroll back once the
-  conversation has started. The chip is built but **not yet seen working in a
-  browser**: the pane stopped drawing before it could be checked.
+- **The cards are a bubble, not a pinned strip** — the panel is a sheet of at
+  most 84vh on a phone — with a ↑ 文法 N chip in the chips row that jumps back
+  to the top once the conversation has started. Seen working.
+- **The grammar is the first message, and the conversation waits for it.** The
+  greeting, the chips and the input appear only once identification has
+  answered (or failed). A question sent earlier would queue behind it on the
+  one model anyway — Ollama serves one request at a time — so waiting costs the
+  reader nothing that sending early would have saved.
+- **Q&A is told what the cards show.** The client sends the shown points' ids
+  and surfaces, minus any dismissed; the server fills in the reviewed name and
+  gloss from the inventory, so a request cannot put words in the prompt. The
+  model is told to keep those names and meanings, and to say so when it is sure
+  one is wrong. The first answer tried disagreed with a card: ～ようにする glossed
+  as 經過考慮後做出的決定, where ようにしてある is "set up so that". That is a
+  gloss to review, and the answer saying so is the prompt working.
 - **Cards start at A2 and never cover a lone particle**, judged on the chosen
   meaning. A constant, not a setting, until there is evidence it needs tuning.
 - **這不是這個句型 dismisses the row and stores nothing.** The only write Q&A
@@ -977,8 +987,6 @@ six offers nothing.
   reading with G1 rather than guessed from probing.
 - **Lemmas in matching.** ていく and てくる both match てき; the model settles
   it, but the lemma would settle it for free.
-- **Handing the points to the explaining prompt**, so the prose covers what the
-  cards offer. Identification runs first, so it can.
 - **Vocabulary review.** The scheduler is ready for it; the question is not.
 
 ### Open

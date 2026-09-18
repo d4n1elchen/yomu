@@ -41,6 +41,16 @@ export function AskDialog({
   const cardRef = useCardAnchor<HTMLDivElement>(target.rect);
   // Starts with the card, not with the first question: see `useSentenceGrammar`.
   const grammar = useSentenceGrammar(target.sentenceId);
+  // 這不是這個句型 dismisses a row for as long as the card is open. It stores
+  // nothing: remembering a rejection would be the first judgement Q&A ever
+  // kept, and the rule that it keeps nothing is worth more than a re-read's tap.
+  // Held here rather than in the bubble so a question leaves it out too.
+  const [dismissed, setDismissed] = useState<ReadonlySet<string>>(new Set());
+  const analysing = grammar.status === 'loading';
+  const shownPoints =
+    grammar.status === 'ready'
+      ? grammar.reply.points.filter((point) => !dismissed.has(point.pointId))
+      : [];
 
   useEffect(() => () => abort.current?.abort(), []);
 
@@ -52,17 +62,19 @@ export function AskDialog({
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  // Keep the newest bubble in view as the answer grows.
+  // Keep the newest bubble in view as the answer grows. Not when the grammar
+  // arrives: it is the first message, and scrolling to the greeting under it
+  // would push the top of a long list out of sight.
   useEffect(() => {
     const thread = threadRef.current;
     if (thread) thread.scrollTop = thread.scrollHeight;
-  }, [turns, streaming, grammar.status]);
+  }, [turns, streaming]);
 
   const pending = streaming !== null;
 
   async function send(text: string) {
     const question = text.trim();
-    if (!question || pending) return;
+    if (!question || pending || analysing) return;
 
     const next: LlmMessage[] = [...turns, { role: 'user', content: question }];
     setTurns(next);
@@ -78,7 +90,12 @@ export function AskDialog({
       const response = await fetch('/api/ask', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ sentenceId: target.sentenceId, turns: next }),
+        // Ids and surfaces only; the server fills in the names and glosses.
+        body: JSON.stringify({
+          sentenceId: target.sentenceId,
+          turns: next,
+          grammar: shownPoints.map(({ pointId, surface }) => ({ pointId, surface })),
+        }),
         signal: controller.signal,
       });
 
@@ -111,8 +128,7 @@ export function AskDialog({
   const chips = CHIPS.filter((chip) => !asked.has(chip));
   // Only once there is something above to scroll back to: before the first
   // question the bubble is still in view.
-  const backToGrammar =
-    grammar.status === 'ready' && grammar.reply.points.length > 0 && turns.length > 0;
+  const backToGrammar = shownPoints.length > 0 && turns.length > 0;
 
   return (
     <div
@@ -133,19 +149,24 @@ export function AskDialog({
       </div>
 
       <div className="ask-thread" ref={threadRef}>
-        <p className="bubble assistant">
-          想知道這一句的什麼呢？可以直接問，或從下面選一個。
-        </p>
         {/*
-          Arrives on its own, a few seconds after the card opens, and sits above
-          whatever is asked afterwards -- it is about the sentence rather than
-          about any question.
+          The grammar comes first and the conversation waits for it. A question
+          sent mid-analysis queues behind it on the one model anyway, and an
+          answer that starts after it can be told which points the card shows,
+          so the two explain the same grammar under the same names.
         */}
         <GrammarBubble
           state={grammar}
           sentence={target.text}
           sentenceId={target.sentenceId}
+          dismissed={dismissed}
+          onDismiss={(pointId) => setDismissed((all) => new Set(all).add(pointId))}
         />
+        {!analysing ? (
+          <p className="bubble assistant">
+            想知道這一句的什麼呢？可以直接問，或從下面選一個。
+          </p>
+        ) : null}
         {/*
           The answer is rendered as Markdown, the question is not: the model was
           asked for 條列式 and emits bullets and bold, while the reader typed
@@ -177,25 +198,23 @@ export function AskDialog({
 
       {error ? <p className="error">{error}</p> : null}
 
-      {(chips.length > 0 || backToGrammar) && !pending ? (
+      {(chips.length > 0 || backToGrammar) && !pending && !analysing ? (
         <div className="ask-chips">
           {/*
             The bubble scrolls away once the conversation starts, and adding a
             point is exactly what you want after a few follow-ups. This brings
             it back rather than pinning it: the panel is too short on a phone to
-            spend a strip on every sentence.
+            spend a strip on every sentence. The grammar is the first message,
+            so back to it is the top of the thread -- a jump, not a smooth
+            scroll, which a background tab never animates.
           */}
           {backToGrammar ? (
             <button
               type="button"
               className="back-to-grammar"
-              onClick={() =>
-                document
-                  .getElementById('grammar-bubble')
-                  ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-              }
+              onClick={() => threadRef.current?.scrollTo({ top: 0 })}
             >
-              ↑ 文法 <b>{grammar.status === 'ready' ? grammar.reply.points.length : 0}</b>
+              ↑ 文法 <b>{shownPoints.length}</b>
             </button>
           ) : null}
           {chips.map((chip) => (
@@ -217,10 +236,15 @@ export function AskDialog({
           type="text"
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          placeholder="輸入問題…"
+          placeholder={analysing ? '正在找句型，請稍候…' : '輸入問題…'}
           aria-label="輸入問題"
+          disabled={analysing}
         />
-        <button type="submit" disabled={pending || !draft.trim()} aria-label="送出">
+        <button
+          type="submit"
+          disabled={pending || analysing || !draft.trim()}
+          aria-label="送出"
+        >
           →
         </button>
       </form>

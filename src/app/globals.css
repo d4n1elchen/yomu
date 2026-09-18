@@ -1234,7 +1234,10 @@ rt {
   z-index: 40;
   display: flex;
   flex-direction: column;
-  max-height: 76vh;
+  /* A floor as well as a cap: the grammar list and a first answer both fit
+     without the sheet growing under the reader's thumb as they arrive. */
+  min-height: 55vh;
+  max-height: 84vh;
   border-top: 1px solid var(--border);
   border-radius: 12px 12px 0 0;
   background: var(--surface);
@@ -1250,8 +1253,13 @@ rt {
     bottom: auto;
     width: 30rem;
     /* Never taller than the room the card was placed in, and never so short
-       it stops being a conversation. `--card-room` is measured on open. */
-    max-height: min(26rem, max(14rem, var(--card-room, 26rem)));
+       it stops being a conversation. `--card-room` is measured on open.
+       A height, not a cap: placed above its sentence, a card positioned
+       against its opening height would grow down over that sentence as the
+       grammar and answers arrived. */
+    min-height: 0;
+    height: min(34rem, max(16rem, var(--card-room, 34rem)));
+    max-height: none;
     border: 1px solid var(--border);
     border-radius: 10px;
     box-shadow: 0 12px 38px rgba(34, 32, 28, 0.18);
@@ -1410,6 +1418,12 @@ rt {
   border-radius: 999px;
   padding: 0.45rem 0.8rem;
   font-size: 0.875rem;
+}
+
+/* Waiting on the grammar, not broken: dimmed, with the placeholder saying so. */
+.ask-composer input:disabled {
+  opacity: 0.6;
+  cursor: progress;
 }
 
 .ask-composer button {

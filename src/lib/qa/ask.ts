@@ -3,14 +3,50 @@ import { db } from '../../db/client.ts';
 import { lexemes, sentences, tokens } from '../../db/schema.ts';
 import { beginInteractive } from '../analysis/priority.ts';
 import { getLlmProvider, type LlmMessage } from '../llm/index.ts';
-import { buildMessages, type PromptInput } from './prompt.ts';
+import { loadGrammar } from '../grammar/load.ts';
+import { buildMessages, type PromptGrammar, type PromptInput } from './prompt.ts';
+
+/** A point the grammar card showed, as the client names it. */
+export interface AskGrammarRef {
+  pointId: string;
+  surface: string;
+}
 
 export interface AskInput {
   /** The sentence being asked about. */
   sentenceId: string;
   /** The conversation so far, oldest first, ending with the new question. */
   turns: LlmMessage[];
+  /** What the grammar card identified, minus anything the reader dismissed. */
+  grammar?: AskGrammarRef[];
   signal?: AbortSignal;
+}
+
+/**
+ * Turns the card's points into prompt lines, trusting none of it.
+ *
+ * The client sends ids and surfaces, never names or glosses: the text the model
+ * reads comes from the inventory, so a request cannot put words in the
+ * teacher's mouth. An id the inventory lacks, a point with no reviewed Chinese
+ * yet, or a surface that is not in the sentence is dropped -- the same contract
+ * as `parseIdentification`.
+ */
+export function resolveAskGrammar(
+  sentence: string,
+  refs: AskGrammarRef[],
+): PromptGrammar[] {
+  if (refs.length === 0) return [];
+  const library = loadGrammar();
+  const seen = new Set<string>();
+  const lines: PromptGrammar[] = [];
+  for (const ref of refs) {
+    if (seen.has(ref.pointId) || !sentence.includes(ref.surface)) continue;
+    const point = library.point(ref.pointId);
+    if (!point?.nameZh || !point.glossZh) continue;
+    seen.add(ref.pointId);
+    lines.push({ surface: ref.surface, name: point.nameZh, gloss: point.glossZh });
+  }
+  return lines;
 }
 
 /**
@@ -84,9 +120,8 @@ export function loadAskContext(
  *
  * Q&A is deliberately ephemeral: it is a lookup you read and move on from, not
  * a record. Storing it would accumulate prose nobody re-reads, snapshotted from
- * whichever model happened to answer that day. Durable learning is meant to
- * live in the Dictionary as entries and occurrences -- see the note at the
- * bottom of `src/db/schema.ts` about how grammar might eventually get there.
+ * whichever model happened to answer that day. Durable learning lives in the
+ * Dictionary as entries and occurrences, and a grammar card is how Q&A adds one.
  *
  * The sentences either side travel with it. A sentence explained without the
  * one before it loses its omitted subject and what its これ points at.
@@ -94,8 +129,10 @@ export function loadAskContext(
 export async function* askAboutSentence(
   input: AskInput,
 ): AsyncIterable<string> {
+  const context = loadAskContext(input.sentenceId);
   const messages = buildMessages({
-    ...loadAskContext(input.sentenceId),
+    ...context,
+    grammar: resolveAskGrammar(context.target.text, input.grammar ?? []),
     turns: input.turns,
   });
 

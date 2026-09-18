@@ -93,19 +93,20 @@ export function GrammarBubble({
   state,
   sentence,
   sentenceId,
+  dismissed,
+  onDismiss,
 }: {
   state: State;
   sentence: string;
   sentenceId: string;
+  /** Held by the dialog, which leaves these out of what a question sends. */
+  dismissed: ReadonlySet<string>;
+  onDismiss: (pointId: string) => void;
 }) {
   const [open, setOpen] = useState<string | null>(null);
   // Local overrides on top of what the server said: an add or a removal shows
   // at once, the way marking a 生詞 does, rather than after a round trip.
   const [overrides, setOverrides] = useState<Record<string, Partial<GrammarCard>>>({});
-  // 這不是這個句型 dismisses a row for as long as the card is open. It stores
-  // nothing: remembering a rejection would be the first judgement Q&A ever
-  // kept, and the rule that it keeps nothing is worth more than a re-read's tap.
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
   if (state.status === 'loading') {
@@ -177,8 +178,7 @@ export function GrammarBubble({
   };
 
   return (
-    // The id is what the chips row's ↑ 文法 chip scrolls back to.
-    <div className="bubble assistant grammar-bubble" id="grammar-bubble">
+    <div className="bubble assistant grammar-bubble">
       {points.length > 0 ? (
         <>
           <p className="grammar-lead">這一句有 {points.length} 個句型：</p>
@@ -276,7 +276,7 @@ export function GrammarBubble({
                             type="button"
                             className="grammar-secondary"
                             onClick={() => {
-                              setDismissed((all) => new Set(all).add(point.pointId));
+                              onDismiss(point.pointId);
                               setOpen(null);
                             }}
                           >
