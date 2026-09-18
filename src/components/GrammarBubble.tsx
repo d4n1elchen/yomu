@@ -112,7 +112,7 @@ export function GrammarBubble({
   if (state.status === 'loading') {
     return (
       <p className="bubble assistant grammar-bubble">
-        <span className="thinking">正在找這一句的句型…</span>
+        <span className="thinking">正在分析這一句的句型…</span>
       </p>
     );
   }
@@ -291,7 +291,11 @@ export function GrammarBubble({
             })}
           </ul>
         </>
-      ) : null}
+      ) : (
+        // Said rather than left blank: an empty space above 其他句型 reads as
+        // a list that failed to load.
+        <p className="grammar-quiet">這一句沒有可收錄的句型。</p>
+      )}
 
       {error ? <p className="grammar-error">{error}</p> : null}
 
@@ -301,15 +305,29 @@ export function GrammarBubble({
         is the design that produced near-duplicates and was removed.
       */}
       {others.length > 0 ? (
-        <p className="grammar-others">
-          <span>另外說明了</span>
-          {others.map((other) => (
-            <span key={`${other.form}-${other.name}`} lang="ja">
-              {other.name}
-            </span>
-          ))}
-          <span>（未收錄）</span>
-        </p>
+        <div className="grammar-others">
+          <p className="grammar-lead">其他句型</p>
+          {/*
+            Laid out like the rows above so they read as the same kind of
+            thing, but with nothing to open and nothing to press: 未收錄 sits
+            where ＋ 加入 would be.
+          */}
+          <ul className="grammar-list">
+            {others.map((other) => (
+              <li key={`${other.form}-${other.name}`}>
+                <div className="grammar-line">
+                  <span className="grammar-row static">
+                    <span className="grammar-form" lang="ja">
+                      {other.form}
+                    </span>
+                    <span className="grammar-name">{other.name}</span>
+                  </span>
+                  <span className="grammar-add on">未收錄</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : null}
     </div>
   );

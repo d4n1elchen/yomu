@@ -236,7 +236,7 @@ export function AskDialog({
           type="text"
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          placeholder={analysing ? '正在找句型，請稍候…' : '輸入問題…'}
+          placeholder={analysing ? '正在分析句型，請稍候…' : '輸入問題…'}
           aria-label="輸入問題"
           disabled={analysing}
         />

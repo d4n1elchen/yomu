@@ -1606,19 +1606,18 @@ rt {
 }
 
 .grammar-others {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-  align-items: baseline;
-  margin: 0.15rem 0 0;
-  padding-top: 0.35rem;
+  margin: 0.35rem 0 0;
+  padding-top: 0.4rem;
   border-top: 1px solid rgb(34 32 28 / 0.07);
-  font-size: 0.72rem;
-  color: var(--faint);
 }
 
-.grammar-others span[lang='ja'] {
-  font-family: var(--serif);
+/* A row with nothing behind it: no hover, no pointer. */
+.grammar-row.static {
+  cursor: default;
+}
+
+.grammar-row.static:hover {
+  background: none;
 }
 
 /* --- dictionary entry: meanings and provenance --- */
