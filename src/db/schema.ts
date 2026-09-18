@@ -485,6 +485,73 @@ export const grammarConnections = sqliteTable('grammar_connection', {
 });
 
 /**
+ * The grammar points you have kept -- the grammar half of the 生詞 list.
+ *
+ * Presence is the state, as for `user_lexeme_state`: a row means the point is
+ * in your 文法庫, and removing it deletes the row.
+ *
+ * **No foreign key to `grammar_point`, on purpose.** Re-importing つつじ
+ * rebuilds that table, and a cascade from it would empty your library every
+ * time. The id is a natural key -- つつじ's L2 id, stable by construction -- so
+ * the row survives a rebuild and rejoins its point afterwards. If a future
+ * つつじ ever dropped a point, the row would outlive it, which is the same
+ * choice made for orphaned lexemes: something you chose to learn is not
+ * silently unlearned by a data change.
+ *
+ * The SRS columns are null until there is a quiz, and mirror the vocabulary
+ * table's so one scheduler can serve both.
+ */
+export const userGrammarState = sqliteTable('user_grammar_state', {
+  pointId: text('point_id').primaryKey(),
+  addedAt: integer('added_at')
+    .notNull()
+    .default(sql`(unixepoch())`),
+  /** 0 until a quiz grades it. Reserved for SRS. */
+  familiarity: integer('familiarity').notNull().default(0),
+  lastReviewedAt: integer('last_reviewed_at'),
+  srsDue: integer('srs_due'),
+});
+
+/**
+ * A sentence you kept as an example of a point -- where you met it.
+ *
+ * Grammar needs this table where vocabulary does not. A word's occurrences are
+ * its `token` rows, derived mechanically at import; a grammar point is only
+ * found when you ask about a sentence, and only kept when you say so, so the
+ * record of where it was met has to be written down when that happens.
+ *
+ * Anchored the way every Q&A anchor is: the sentence, the revision it was found
+ * against, and character offsets into its text. An edited sentence bumps its
+ * revision, which makes this detectably stale rather than silently marking the
+ * wrong characters. Deleting the article deletes these with it -- the sentence
+ * is gone -- but not the point in `user_grammar_state`, exactly as deleting an
+ * article leaves a 生詞 on the list.
+ */
+export const grammarOccurrences = sqliteTable(
+  'grammar_occurrence',
+  {
+    pointId: text('point_id').notNull(),
+    sentenceId: text('sentence_id')
+      .notNull()
+      .references(() => sentences.id, { onDelete: 'cascade' }),
+    sentenceRevision: integer('sentence_revision').notNull(),
+    charStart: integer('char_start').notNull(),
+    charEnd: integer('char_end').notNull(),
+    /** The span as written when it was kept -- てい of ～ていた. */
+    surface: text('surface').notNull(),
+    addedAt: integer('added_at')
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (t) => [
+    // One example per point per sentence: adding the same one twice is not an
+    // error, and not a second example.
+    primaryKey({ columns: [t.pointId, t.sentenceId] }),
+    index('grammar_occurrence_sentence_idx').on(t.sentenceId),
+  ],
+);
+
+/**
  * Names you confirmed while reading a work -- 人名 -- which the analyzer then
  * treats as one word throughout that work.
  *

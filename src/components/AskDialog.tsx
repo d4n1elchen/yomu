@@ -137,7 +137,11 @@ export function AskDialog({
           whatever is asked afterwards -- it is about the sentence rather than
           about any question.
         */}
-        <GrammarBubble state={grammar} sentence={target.text} />
+        <GrammarBubble
+          state={grammar}
+          sentence={target.text}
+          sentenceId={target.sentenceId}
+        />
         {/*
           The answer is rendered as Markdown, the question is not: the model was
           asked for 條列式 and emits bullets and bold, while the reader typed
@@ -198,7 +202,12 @@ export function AskDialog({
         </button>
       </form>
 
-      <p className="ask-note">不會儲存 — 關閉後即消失</p>
+      {/*
+        No longer "nothing is stored": a grammar card can be added. The
+        conversation itself still goes when the card closes, and the note says
+        which is which rather than letting the old promise quietly lapse.
+      */}
+      <p className="ask-note">問答不會儲存；加入的句型會留在文法庫</p>
     </div>
   );
 }

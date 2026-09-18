@@ -1,3 +1,4 @@
+import { keptStates } from '../../../lib/grammar/library.ts';
 import { loadGrammar } from '../../../lib/grammar/load.ts';
 import { grammarInSentence } from '../../../lib/grammar/sentence.ts';
 
@@ -43,11 +44,19 @@ export async function POST(request: Request) {
 
   try {
     const grammar = await grammarInSentence(sentenceId, request.signal);
+    // Whether each point is already in the 文法庫, and whether this sentence is
+    // already one of its examples -- what decides between ＋加入文法庫,
+    // ＋加入這個例句 and nothing to add at all.
+    const states = keptStates(
+      grammar.points.map((point) => point.pointId),
+      sentenceId,
+    );
     return Response.json(
       {
         revision: grammar.revision,
         points: grammar.points.map((point) => ({
           pointId: point.pointId,
+          ...states.get(point.pointId)!,
           name: point.point.nameZh,
           gloss: point.point.glossZh,
           base: point.point.base,

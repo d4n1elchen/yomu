@@ -1465,18 +1465,81 @@ rt {
   border-top: 1px solid rgb(34 32 28 / 0.07);
 }
 
+/* The row and its one action sit side by side: a button cannot hold a button. */
+.grammar-line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
 /* The whole row opens the detail: a tap target the width of the bubble rather
    than a caret a thumb has to find. */
 .grammar-row {
   display: flex;
+  flex: 1;
+  min-width: 0;
   align-items: baseline;
   gap: 0.5rem;
-  width: 100%;
   padding: 0.35rem 0.15rem;
   border: 0;
   background: none;
+  color: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+/* Set as text, like 標為生詞 on the word card: the tick already carries the
+   state, and a filled pill beside every row would outweigh the grammar. */
+.grammar-add {
+  flex: 0 0 auto;
+  padding: 0.35rem 0.15rem;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.grammar-add.on {
+  color: var(--muted);
+  cursor: default;
+}
+
+.grammar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 1rem;
+  margin-top: 0.5rem;
+}
+
+.grammar-primary,
+.grammar-secondary {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.grammar-primary {
+  color: var(--accent);
+}
+
+.grammar-secondary {
+  color: var(--faint);
+}
+
+.grammar-done {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.grammar-error {
+  margin: 0.3rem 0 0;
+  font-size: 0.75rem;
+  color: #b3261e;
 }
 
 .grammar-row:hover {
@@ -1497,12 +1560,6 @@ rt {
   color: var(--muted);
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.grammar-caret {
-  margin-left: auto;
-  font-size: 0.7rem;
-  color: var(--faint);
 }
 
 .grammar-open {

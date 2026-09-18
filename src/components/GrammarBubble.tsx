@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { keepGrammar, releaseGrammar } from '../app/read/actions.ts';
 
 /** One point the sentence contains, as the card shows it. */
 export interface GrammarCard {
@@ -17,9 +18,17 @@ export interface GrammarCard {
   surface: string;
   /** Similar expressions -- から beside ので. Related, never the same card. */
   peers: string[];
+  /** Already in the 文法庫. */
+  kept: boolean;
+  /** How many sentences are kept for it, this one included. */
+  examples: number;
+  /** This sentence is already one of them. */
+  thisSentence: boolean;
 }
 
 export interface GrammarReply {
+  /** The sentence revision the spans were found against -- the anchor. */
+  revision: number;
   points: GrammarCard[];
   others: { form: string; name: string }[];
 }
@@ -79,18 +88,25 @@ export function useSentenceGrammar(sentenceId: string): State {
  * would spend that height on every sentence, including the one in six that has
  * no point to offer. A bubble costs height only when it has something to say,
  * and reads as what it is: the panel saying what it found in this sentence.
- *
- * Nothing here can be added yet. That is the next phase; until then this is an
- * explanation, and the panel still stores nothing at all.
  */
 export function GrammarBubble({
   state,
   sentence,
+  sentenceId,
 }: {
   state: State;
   sentence: string;
+  sentenceId: string;
 }) {
   const [open, setOpen] = useState<string | null>(null);
+  // Local overrides on top of what the server said: an add or a removal shows
+  // at once, the way marking a 生詞 does, rather than after a round trip.
+  const [overrides, setOverrides] = useState<Record<string, Partial<GrammarCard>>>({});
+  // 這不是這個句型 dismisses a row for as long as the card is open. It stores
+  // nothing: remembering a rejection would be the first judgement Q&A ever
+  // kept, and the rule that it keeps nothing is worth more than a re-read's tap.
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [error, setError] = useState<string | null>(null);
 
   if (state.status === 'loading') {
     return (
@@ -111,7 +127,11 @@ export function GrammarBubble({
     );
   }
 
-  const { points, others } = state.reply;
+  const { others, revision } = state.reply;
+  const points = state.reply.points
+    .filter((point) => !dismissed.has(point.pointId))
+    .map((point) => ({ ...point, ...overrides[point.pointId] }));
+
   if (points.length === 0 && others.length === 0) {
     return (
       <p className="bubble assistant grammar-bubble">
@@ -119,6 +139,42 @@ export function GrammarBubble({
       </p>
     );
   }
+
+  const keep = async (point: GrammarCard) => {
+    setError(null);
+    const before = overrides[point.pointId];
+    setOverrides((all) => ({
+      ...all,
+      [point.pointId]: {
+        kept: true,
+        thisSentence: true,
+        examples: point.thisSentence ? point.examples : point.examples + 1,
+      },
+    }));
+    const { error: problem } = await keepGrammar({
+      pointId: point.pointId,
+      sentenceId,
+      sentenceRevision: revision,
+      charStart: point.charStart,
+      charEnd: point.charEnd,
+      surface: point.surface,
+    }).catch(() => ({ error: '連不上伺服器，無法加入文法庫。' }));
+    if (problem) {
+      setOverrides((all) => ({ ...all, [point.pointId]: before ?? {} }));
+      setError(problem);
+    }
+  };
+
+  const release = async (point: GrammarCard) => {
+    setError(null);
+    setOverrides((all) => ({
+      ...all,
+      [point.pointId]: { kept: false, thisSentence: false, examples: 0 },
+    }));
+    await releaseGrammar(point.pointId).catch(() =>
+      setError('連不上伺服器，無法移出文法庫。'),
+    );
+  };
 
   return (
     <div className="bubble assistant grammar-bubble">
@@ -130,20 +186,38 @@ export function GrammarBubble({
               const expanded = open === point.pointId;
               return (
                 <li key={point.pointId}>
-                  <button
-                    type="button"
-                    className="grammar-row"
-                    aria-expanded={expanded}
-                    onClick={() => setOpen(expanded ? null : point.pointId)}
-                  >
-                    <span className="grammar-form" lang="ja">
-                      ～{point.base}
-                    </span>
-                    <span className="grammar-name">{point.gloss ?? point.name}</span>
-                    <span className="grammar-caret" aria-hidden="true">
-                      {expanded ? '▴' : '▾'}
-                    </span>
-                  </button>
+                  <div className="grammar-line">
+                    <button
+                      type="button"
+                      className="grammar-row"
+                      aria-expanded={expanded}
+                      onClick={() => setOpen(expanded ? null : point.pointId)}
+                    >
+                      <span className="grammar-form" lang="ja">
+                        ～{point.base}
+                      </span>
+                      <span className="grammar-name">{point.gloss ?? point.name}</span>
+                    </button>
+                    {/*
+                      The one action the row offers without opening it. What it
+                      does depends on the library: a point not yet kept is
+                      added; a kept one shows so, and opening the row is where
+                      its example is added.
+                    */}
+                    {point.kept ? (
+                      <span className="grammar-add on" aria-label="已在文法庫">
+                        ✓ 已在
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="grammar-add"
+                        onClick={() => void keep(point)}
+                      >
+                        ＋ 加入
+                      </button>
+                    )}
+                  </div>
 
                   {expanded ? (
                     <div className="grammar-open">
@@ -166,7 +240,49 @@ export function GrammarBubble({
                             <span lang="ja">{point.peers.join('・')}</span>
                           </span>
                         ) : null}
+                        {point.kept ? <span>文法庫裡有 {point.examples} 個例句</span> : null}
                       </p>
+                      <div className="grammar-actions">
+                        {!point.kept ? (
+                          <button
+                            type="button"
+                            className="grammar-primary"
+                            onClick={() => void keep(point)}
+                          >
+                            ＋ 加入文法庫
+                          </button>
+                        ) : point.thisSentence ? (
+                          <span className="grammar-done">✓ 這個例句已加入</span>
+                        ) : (
+                          <button
+                            type="button"
+                            className="grammar-primary"
+                            onClick={() => void keep(point)}
+                          >
+                            ＋ 加入這個例句
+                          </button>
+                        )}
+                        {point.kept ? (
+                          <button
+                            type="button"
+                            className="grammar-secondary"
+                            onClick={() => void release(point)}
+                          >
+                            移出文法庫
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="grammar-secondary"
+                            onClick={() => {
+                              setDismissed((all) => new Set(all).add(point.pointId));
+                              setOpen(null);
+                            }}
+                          >
+                            這不是這個句型
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ) : null}
                 </li>
@@ -175,6 +291,8 @@ export function GrammarBubble({
           </ul>
         </>
       ) : null}
+
+      {error ? <p className="grammar-error">{error}</p> : null}
 
       {/*
         Grammar the model saw that the inventory has no point for. Explained,

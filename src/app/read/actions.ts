@@ -1,7 +1,37 @@
 'use server';
 
+import {
+  keepGrammarPoint,
+  releaseGrammarPoint,
+  type GrammarExample,
+} from '../../lib/grammar/library.ts';
 import { addName } from '../../lib/names.ts';
 import { setLearning } from '../../lib/vocab.ts';
+
+/**
+ * Keeps a grammar point from a card, with the sentence it was found in as an
+ * example -- or, for a point already kept, adds just the example. One call for
+ * both, because they are the same tap.
+ *
+ * Returns an error to show rather than throwing, like `confirmName`: the card
+ * stays open, and a refusal is something to say on it.
+ */
+export async function keepGrammar(
+  example: GrammarExample,
+): Promise<{ error: string | null }> {
+  try {
+    keepGrammarPoint(example);
+    return { error: null };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : '無法加入文法庫。' };
+  }
+}
+
+/** Takes a point out of the 文法庫, and its example sentences with it. */
+export async function releaseGrammar(pointId: string): Promise<void> {
+  if (!pointId) return;
+  releaseGrammarPoint(pointId);
+}
 
 /**
  * Adds or removes a word from the 生詞 list.
