@@ -1012,7 +1012,11 @@ EPUB — see above — and for nothing else.
 
 ## Open questions
 
-- Which Ollama model beyond `qwen3.8:27b`.
+- **Which model.** Decided in conversation: `glm-5.3-flash:cloud` first, falling
+  back to `qwen3.8:27b` (`YOMU_LLM_MODELS`, `src/lib/llm/fallback.ts`). glm needs
+  `think: 'low'` — at `false` it writes its reasoning into the answer, at its
+  default it reasons 15–54 s before the first word — and its structured replies
+  are trimmed to their leading JSON. Grammar accuracy on glm: EVAL_PENDING.
 - Whether the reader must work when the model host is unreachable. **Half
   answered:** translation says no — an article reads fine with English glosses
   and fills in later. Resolution says yes, and gates reading, so a **new** article

@@ -26,6 +26,11 @@ export interface LlmProvider {
   /** Recorded on every answer, so a stored explanation is attributable. */
   readonly id: string;
   readonly model: string;
+  /**
+   * Every model this provider may answer with, in the order it tries them.
+   * Absent for a single model. `model` is the one that answered last.
+   */
+  readonly models?: readonly string[];
   stream(request: LlmRequest): AsyncIterable<string>;
 }
 

@@ -49,9 +49,11 @@ request at a time.
 
 - **Node 22 or newer.** TypeScript runs in strip-only mode, with no build step
   for scripts.
-- **[Ollama](https://ollama.com)** reachable over HTTP, with `qwen3.8:27b`
-  pulled. Smaller models are not viable: a 9B mangled 座る into "座っ (zutta)"
-  and missed the sentence's main grammar point entirely.
+- **[Ollama](https://ollama.com)** reachable over HTTP. The default model list
+  is `glm-5.3-flash:cloud` (needs `ollama signin` on that host), falling back
+  to `qwen3.8:27b`, which must be pulled. Set `YOMU_LLM_MODELS` to change the
+  list. Smaller local models are not viable: a 9B mangled 座る into "座っ
+  (zutta)" and missed the sentence's main grammar point entirely.
 - Nothing else. SQLite is bundled, and there is no separate database server.
 
 ## Setup

@@ -66,11 +66,16 @@ export async function grammarInSentence(
   if (grammar.size === 0) return empty;
 
   const provider = getLlmProvider();
-  const version = analysisVersion(provider.model, grammar);
+  // Any model on the list will do for a cached answer, best first: an answer
+  // the fallback gave while the cloud was down is still this sentence's answer,
+  // and the cards stay put. 重新分析 asks the first model again.
   if (!fresh) {
-    const hit = readAnalysis(sentenceId, sentence.revision, version, grammar);
-    if (hit) {
-      return { ...hit, sentence: sentence.text, revision: sentence.revision, cached: true };
+    for (const model of provider.models ?? [provider.model]) {
+      const version = analysisVersion(model, grammar);
+      const hit = readAnalysis(sentenceId, sentence.revision, version, grammar);
+      if (hit) {
+        return { ...hit, sentence: sentence.text, revision: sentence.revision, cached: true };
+      }
     }
   }
 
@@ -110,7 +115,10 @@ export async function grammarInSentence(
   });
   // Only a readable answer is remembered. An unreadable one looks like "no
   // grammar here", and caching it would keep saying so after the model recovers.
+  // Filed under the model that actually answered, which after a fallback is
+  // not the first one on the list.
   if (identified.answered) {
+    const version = analysisVersion(provider.model, grammar);
     writeAnalysis(sentenceId, sentence.revision, version, identified);
   }
 

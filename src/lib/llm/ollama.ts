@@ -1,3 +1,4 @@
+import { leadingJson } from './json.ts';
 import type { LlmProvider, LlmRequest } from './types.ts';
 
 const DEFAULT_URL = 'http://127.0.0.1:11434';
@@ -35,6 +36,21 @@ export function describeCause(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/**
+ * How much private reasoning to ask a model for -- which the reader never sees
+ * but still waits for.
+ *
+ * qwen3.8 reasons at length by default and honours `think: false`.
+ * glm-5.3-flash:cloud does not: told `false`, it writes the reasoning into the
+ * answer itself, English prose where the JSON should be. Left at its default it
+ * reasons first, 15 s before the first word of a Q&A answer (54 s once, through
+ * the app). `'low'` is what it does well with, measured on the same question:
+ * first word at 0.9 s, done in 3.9 s, no reasoning in the text.
+ */
+export function thinkSetting(model: string): false | 'low' {
+  return model.endsWith(':cloud') ? 'low' : false;
+}
+
 export function createOllamaProvider(options: {
   baseUrl?: string;
   model: string;
@@ -56,9 +72,7 @@ export function createOllamaProvider(options: {
           body: JSON.stringify({
             model: options.model,
             stream: true,
-            // These models emit a long private reasoning block by default, which
-            // the reader never sees but still waits for.
-            think: false,
+            think: thinkSetting(options.model),
             // A JSON schema when the caller wants structured output;
             // JSON.stringify drops the key when it is undefined, so prose
             // requests are unaffected.
@@ -87,6 +101,12 @@ export function createOllamaProvider(options: {
         );
       }
 
+      // A structured reply is held back and trimmed to its JSON: see
+      // `leadingJson`. Its callers collect the whole reply anyway.
+      const structured = request.format !== undefined;
+      let held = '';
+      let finished = false;
+
       // Ollama streams newline-delimited JSON, and a chunk can split a line.
       const decoder = new TextDecoder();
       let buffer = '';
@@ -109,10 +129,19 @@ export function createOllamaProvider(options: {
 
           if (parsed.error) throw new Error(`Ollama: ${parsed.error}`);
           const text = parsed.message?.content;
-          if (text) yield text;
-          if (parsed.done) return;
+          if (text) {
+            if (structured) held += text;
+            else yield text;
+          }
+          if (parsed.done) {
+            finished = true;
+            break;
+          }
         }
+        if (finished) break;
       }
+
+      if (structured && held) yield leadingJson(held) ?? held;
     },
   };
 }

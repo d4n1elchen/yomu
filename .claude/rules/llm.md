@@ -9,14 +9,29 @@ paths:
 
 All access goes through `src/lib/llm/` — an `LlmProvider` interface plus
 `getLlmProvider()`, configured by `YOMU_LLM_PROVIDER`, `YOMU_OLLAMA_URL`,
-`YOMU_LLM_MODEL`. Server code only; no host or key may reach the client.
+`YOMU_LLM_MODELS`. Server code only; no host or key may reach the client.
+
+**Models are a fallback list** (`src/lib/llm/fallback.ts`), default
+`glm-5.3-flash:cloud,qwen3.8:27b`. The next model is tried only when one fails
+**before its first chunk** — never mid-answer, never on an abort. A failed model
+is skipped for a minute. A structured request (`format` set) also falls back
+when the reply is not JSON, without a cooldown. `provider.model` names the model
+that answered the latest request, which is what attribution columns record.
+The old `YOMU_LLM_MODEL` is ignored with a warning: every `.env.local` copied
+from the example pinned it to qwen.
+
+**Thinking is set per model** (`thinkSetting` in `ollama.ts`). qwen gets
+`think: false`. A `:cloud` model gets `'low'`: told `false`, glm writes its
+reasoning into the answer as English prose; left at its default it reasons for
+15–54 s before the first word. glm also appends prose after a valid JSON
+object, so a structured reply is trimmed to its leading JSON (`json.ts`).
 
 **Never ask the model for a reading.** Every model tested invents them —
 qwen3.8 rendered 窓の外 as まどのはら. `src/lib/qa/prompt.ts` hands it the
 analyzer's segmentation and readings as fact and instructs it not to produce its
 own. Keep that division intact when changing prompts.
 
-**`qwen3.8:27b` is the tested model.** Smaller ones are not viable: a 9B mangled
+**`qwen3.8:27b` is the measured local model.** Smaller local ones are not viable: a 9B mangled
 座る into "座っ (zutta)", called ～ながら a て-form variant, and missed ～ていた
 entirely — the sentence's main grammar point.
 
@@ -30,7 +45,8 @@ answer on every chunk. Anything that consumes the stream has to tolerate
 syntax that is not closed yet — an unterminated `**` stays literal rather than
 turning the rest of the answer bold until its partner arrives.
 
-**Interactive work wins.** Ollama serves one request at a time for `qwen3.8:27b`
+**Interactive work wins.** This matters when qwen answers — the fallback, or a
+list without the cloud model. Ollama serves one request at a time for `qwen3.8:27b`
 (family `qwen35`, pinned to `numParallel = 1` whatever `OLLAMA_NUM_PARALLEL`
 says) and queues FIFO, so background analysis competing for the host adds its
 whole in-flight request to a reader's wait — measured at 9.0s. Anything that
