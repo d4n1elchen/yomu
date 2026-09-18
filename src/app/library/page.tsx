@@ -68,8 +68,12 @@ export default function LibraryPage() {
                         hides the header, so the number carries its own. */}
                     <span className="unit"> 詞</span>
                   </span>
-                  {/* Grammar reads zero until grammar has a natural key. */}
-                  <span className="num zero">0</span>
+                  {/* Points kept from this work, not points it contains: grammar
+                      is only found when asked for, so that is what is known. */}
+                  <span className={article.grammarCount === 0 ? 'num zero' : 'num'}>
+                    {article.grammarCount}
+                    <span className="unit"> 句型</span>
+                  </span>
                 </>
               );
 
@@ -152,7 +156,7 @@ export default function LibraryPage() {
           </ul>
 
           <p className="note">
-            文法一律顯示 0 — 在找到自然鍵之前暫緩實作。
+            文法是從這本書收進文法庫的句型數。在句子上雙擊，就能看到句中的句型並加入。
           </p>
           <OfflineShelfLink />
         </div>

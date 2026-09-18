@@ -111,12 +111,35 @@ async function main(): Promise<void> {
 
     if (matcherOnly) continue;
 
-    const picked = await identifyGrammar({
-      sentence: label.sentence,
-      matches: [here],
-      grammar,
-    });
-    const choice = picked.points[0]?.pointId ?? null;
+    // A run is 200 requests, and the model host sits behind a LAN name that has
+    // failed to resolve mid-run more than once. One failed request must not
+    // throw away the other 199, so each gets a few attempts.
+    let picked: Awaited<ReturnType<typeof identifyGrammar>> | null = null;
+    for (let attempt = 0; attempt < 4 && picked === null; attempt++) {
+      try {
+        // The whole sentence, as the card asks it -- not the one span. Judging
+        // a span beside its neighbours is what lifted recall from 79% to 91% in
+        // the measurement, so scoring one span at a time measures a request the
+        // app never makes, and under-reports it.
+        picked = await identifyGrammar({
+          sentence: label.sentence,
+          matches,
+          grammar,
+        });
+      } catch (cause) {
+        if (attempt === 3) throw cause;
+        await new Promise((resolve) => setTimeout(resolve, 5000 * (attempt + 1)));
+      }
+    }
+    if (!picked) continue;
+    // The card for this span, if one was offered. A point the card files once
+    // per sentence may have been kept at an earlier span of the same point, so
+    // a same-point card elsewhere in the sentence counts as this one.
+    const card =
+      picked.points.find(
+        (p) => p.charStart === label.charStart && p.charEnd === label.charEnd,
+      ) ?? picked.points.find((p) => here.entryIds.includes(p.pointId));
+    const choice = card?.pointId ?? null;
 
     if (choice === null) {
       stats.rejected++;

@@ -13,8 +13,10 @@ import { db } from '../../db/client.ts';
 import {
   grammarOccurrences,
   grammarPoints,
+  sections,
   sentences,
   userGrammarState,
+  works,
 } from '../../db/schema.ts';
 
 /** One place a point was met, as the card recorded it. */
@@ -164,6 +166,9 @@ export function keptPoints(): KeptPoint[] {
 export interface ExampleSentence {
   sentenceId: string;
   sectionId: string;
+  /** Where it was met, so the list says which book each sentence is from. */
+  workTitle: string;
+  sectionTitle: string | null;
   text: string;
   charStart: number;
   charEnd: number;
@@ -181,6 +186,8 @@ export function examplesOf(pointId: string): ExampleSentence[] {
     .select({
       sentenceId: grammarOccurrences.sentenceId,
       sectionId: sentences.sectionId,
+      workTitle: works.title,
+      sectionTitle: sections.title,
       text: sentences.text,
       charStart: grammarOccurrences.charStart,
       charEnd: grammarOccurrences.charEnd,
@@ -188,6 +195,8 @@ export function examplesOf(pointId: string): ExampleSentence[] {
     })
     .from(grammarOccurrences)
     .innerJoin(sentences, eq(sentences.id, grammarOccurrences.sentenceId))
+    .innerJoin(sections, eq(sections.id, sentences.sectionId))
+    .innerJoin(works, eq(works.id, sections.workId))
     .where(eq(grammarOccurrences.pointId, pointId))
     .orderBy(asc(grammarOccurrences.addedAt))
     .all()

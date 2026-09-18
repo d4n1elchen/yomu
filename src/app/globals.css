@@ -2193,3 +2193,50 @@ button.link.danger {
 .names li form {
   flex: none;
 }
+
+/* --- a grammar point's page --- */
+
+/* つつじ's own class name, e.g. 進行-継続-テクル類: provenance, not a heading. */
+.grammar-class {
+  color: var(--faint);
+}
+
+/* Similar points: から beside ので. Laid out like the runners-up on a word's
+   page, which is the same idea -- the neighbours a reader must tell apart. */
+.grammar-peers {
+  list-style: none;
+  margin: 0 0 1.5rem;
+  padding: 0;
+}
+
+.grammar-peers a {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.35rem 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.grammar-peers a:hover .grammar-peer-gloss {
+  color: var(--ink);
+}
+
+.grammar-peers span[lang='ja'] {
+  font-family: var(--serif);
+}
+
+.grammar-peer-gloss {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.grammar-peer-kept {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: var(--accent);
+}
+
+.grammar-release {
+  margin: 1.5rem 0 0;
+}

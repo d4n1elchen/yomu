@@ -1,6 +1,8 @@
 import { after } from 'next/server';
 import { AnalysisPoller } from '../../components/AnalysisPoller.tsx';
 import { EdrdgNotice } from '../../components/EdrdgNotice.tsx';
+import { TsutsujiNotice } from '../../components/TsutsujiNotice.tsx';
+import { keptPoints } from '../../lib/grammar/library.ts';
 import { ensureDraining } from '../../lib/analysis/drain.ts';
 import { listDictionary } from '../../lib/dictionary.ts';
 import { listNames } from '../../lib/names.ts';
@@ -15,14 +17,31 @@ export const dynamic = 'force-dynamic';
 export default async function DictionaryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ pos?: string; q?: string; learning?: string; names?: string }>;
+  searchParams: Promise<{
+    pos?: string;
+    q?: string;
+    learning?: string;
+    names?: string;
+    grammar?: string;
+  }>;
 }) {
-  const { pos, q, learning: learningParam, names: namesParam } = await searchParams;
+  const {
+    pos,
+    q,
+    learning: learningParam,
+    names: namesParam,
+    grammar: grammarParam,
+  } = await searchParams;
   const learning = learningParam === '1';
   // Names are few and never mixed with vocabulary, so the list is all of them
   // rather than another filter over the word query.
   const names = listNames();
   const showNames = namesParam === '1' && names.length > 0;
+  // Grammar is listed apart from vocabulary, the way names are: the points you
+  // kept, not a filter over words. Shown even when empty if asked for, so the
+  // facet's link never lands on the word list instead.
+  const grammar = keptPoints();
+  const showGrammar = grammarParam === '1';
   const { entries, total, facets } = listDictionary({ pos, q, learning });
   const learningTotal = learningCount();
 
@@ -49,8 +68,14 @@ export default async function DictionaryPage({
     <main>
       <h1>辭典</h1>
       <p className="subtitle">
-        共 {total} 個詞
-        {entries.length < total ? `，顯示前 ${entries.length} 個` : ''}
+        {showGrammar ? (
+          `文法庫共 ${grammar.length} 個句型`
+        ) : (
+          <>
+            共 {total} 個詞
+            {entries.length < total ? `，顯示前 ${entries.length} 個` : ''}
+          </>
+        )}
       </p>
 
       {translating ? (
@@ -96,7 +121,10 @@ export default async function DictionaryPage({
       </form>
 
       <nav className="facets">
-        <a className={pos || learning || showNames ? '' : 'active'} href={href({ q })}>
+        <a
+          className={pos || learning || showNames || showGrammar ? '' : 'active'}
+          href={href({ q })}
+        >
           實詞
         </a>
         {learningTotal > 0 ? (
@@ -105,6 +133,11 @@ export default async function DictionaryPage({
             href={href({ q, learning: true })}
           >
             生詞 <span className="count">{learningTotal}</span>
+          </a>
+        ) : null}
+        {grammar.length > 0 ? (
+          <a className={showGrammar ? 'active' : ''} href="/dictionary?grammar=1">
+            文法 <span className="count">{grammar.length}</span>
           </a>
         ) : null}
         {names.length > 0 ? (
@@ -123,7 +156,34 @@ export default async function DictionaryPage({
         ))}
       </nav>
 
-      {showNames ? (
+      {showGrammar ? (
+        grammar.length === 0 ? (
+          <p className="empty">
+            還沒有加入任何句型。閱讀時在句子上雙擊，卡片上會列出句中的句型，可以從那裡加入。
+          </p>
+        ) : (
+          <ul className="entries grammar-entries">
+            {grammar.map((point) => (
+              <li key={point.pointId}>
+                <a href={`/dictionary/grammar/${point.pointId}`}>
+                  <span className="lemma" lang="ja">
+                    ～{point.base}
+                  </span>
+                  {/* Level first: the gloss is a sentence and ends in 。, so
+                      anything after it reads as a second sentence. */}
+                  <span className="entry-meta">
+                    {point.difficulty ? `${point.difficulty} · ` : ''}
+                    {point.glossZh ?? point.nameZh ?? ''}
+                  </span>
+                  {/* Examples, where a word's row counts occurrences: grammar
+                      is only recorded where you kept it. */}
+                  <span className="tally">{point.examples}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        )
+      ) : showNames ? (
         <ul className="entries names">
           {names.map((name) => (
             <li key={name.lexemeId}>
@@ -189,7 +249,7 @@ export default async function DictionaryPage({
         </ul>
       )}
 
-      <EdrdgNotice />
+      {showGrammar ? <TsutsujiNotice /> : <EdrdgNotice />}
     </main>
   );
 }

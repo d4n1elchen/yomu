@@ -4,10 +4,12 @@ import { db } from '../db/client.ts';
 import {
   dictEntries,
   dictSenses,
+  grammarOccurrences,
   lexemes,
   sections,
   sentences,
   tokens,
+  userGrammarState,
   works,
 } from '../db/schema.ts';
 import type { RubySpan } from './text/ruby.ts';
@@ -382,6 +384,15 @@ export interface ArticleSummary {
   progress: number | null;
   /** Distinct content words, counted the way the Dictionary counts them. */
   vocabCount: number;
+  /**
+   * Distinct grammar points you kept from this work -- not points it contains.
+   *
+   * Grammar is only found when you ask about a sentence, never by analysing a
+   * work, so what the work contains is not known and is not guessed at. What
+   * is known is which points you took from it, which is also the figure that
+   * means something to a reader: how much of the 文法庫 came from this book.
+   */
+  grammarCount: number;
   /** Chapters. One for a pasted article, which is why the Library only prints it above one. */
   sectionCount: number;
   /**
@@ -448,6 +459,22 @@ export function listArticles(): ArticleSummary[] {
     .all();
 
   const vocabByWork = new Map(vocabRows.map((r) => [r.workId, r.count]));
+
+  // Kept points only, through their examples: a point removed from the 文法庫
+  // takes its examples with it, so it stops counting here too.
+  const grammarRows = db
+    .select({
+      workId: sections.workId,
+      count: sql<number>`count(distinct ${grammarOccurrences.pointId})`,
+    })
+    .from(grammarOccurrences)
+    .innerJoin(userGrammarState, eq(userGrammarState.pointId, grammarOccurrences.pointId))
+    .innerJoin(sentences, eq(sentences.id, grammarOccurrences.sentenceId))
+    .innerJoin(sections, eq(sections.id, sentences.sectionId))
+    .groupBy(sections.workId)
+    .all();
+
+  const grammarByWork = new Map(grammarRows.map((r) => [r.workId, r.count]));
 
   // Each section's length, and how many of its sentences come at or before the
   // saved one. The position is joined by id and compared by order, so a
@@ -522,6 +549,7 @@ export function listArticles(): ArticleSummary[] {
       lastReadAt: lastRead,
       progress,
       vocabCount: vocabByWork.get(work.workId) ?? 0,
+      grammarCount: grammarByWork.get(work.workId) ?? 0,
       // Chapters, not parts: the row says 共 16 章 for the book's sixteen,
       // however many numbered sections they split into.
       sectionCount: new Set(owned.map((s) => s.parentId ?? s.id)).size,
