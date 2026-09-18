@@ -10,6 +10,8 @@ export const dynamic = 'force-dynamic';
 
 interface GrammarBody {
   sentenceId?: unknown;
+  /** 重新分析: skip the cached analysis and ask the model again. */
+  fresh?: unknown;
 }
 
 /**
@@ -17,9 +19,9 @@ interface GrammarBody {
  *
  * Unlike an answer, there is nothing to watch arrive: the reply is a short list
  * and the card has nothing to show until all of it is there. It takes about
- * 8.5s, which is why the reader asks for it when the card opens rather than
- * when a question is sent -- by the time the greeting has been read, the cards
- * are usually there.
+ * 8.5s the first time a sentence is opened and nothing after that: the answer
+ * is cached per sentence (`src/lib/grammar/cache.ts`), which matters because
+ * the card waits for it before taking a question.
  *
  * A failure here is empty-handed, not fatal: the reader still has the
  * conversation, and grammar is the part that quietly did not arrive. The status
@@ -43,7 +45,10 @@ export async function POST(request: Request) {
   }
 
   try {
-    const grammar = await grammarInSentence(sentenceId, request.signal);
+    const grammar = await grammarInSentence(sentenceId, {
+      signal: request.signal,
+      fresh: body.fresh === true,
+    });
     // Whether each point is already in the 文法庫, and whether this sentence is
     // already one of its examples -- what decides between ＋加入文法庫,
     // ＋加入這個例句 and nothing to add at all.
@@ -72,6 +77,7 @@ export async function POST(request: Request) {
             .map((peer) => peer.base),
         })),
         others: grammar.others,
+        cached: grammar.cached,
       },
       { headers: { 'cache-control': 'no-store' } },
     );

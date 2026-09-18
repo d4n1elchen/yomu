@@ -14,6 +14,7 @@
  * imported.
  */
 
+import { createHash } from 'node:crypto';
 import { db } from '../../db/client.ts';
 import {
   grammarConnections,
@@ -44,6 +45,13 @@ export interface GrammarLibrary {
   /** Other points that paraphrase this one -- から against ので. Never merged. */
   peers(id: string): GrammarPoint[];
   size: number;
+  /**
+   * A fingerprint of everything a sentence's analysis depends on here: the
+   * points with their Chinese (which is what the model chooses by), the forms
+   * and the connection rules. A re-import or a corrected gloss changes it, and
+   * with it every cached analysis stops being used.
+   */
+  stamp: string;
 }
 
 let cached: GrammarLibrary | null = null;
@@ -98,6 +106,22 @@ export function loadGrammar(): GrammarLibrary {
     connections[row.code] = row.rows.split(';').filter(Boolean);
   }
 
+  const hash = createHash('sha256');
+  for (const point of [...points.values()].sort((a, b) => a.id.localeCompare(b.id))) {
+    hash.update(
+      [point.id, point.difficulty, point.meaningClass, point.nameZh, point.glossZh].join('\t') +
+        '\n',
+    );
+  }
+  for (const form of patterns
+    .map((p) => [p.entryId, p.units.join('.'), p.left, p.right].join('\t'))
+    .sort()) {
+    hash.update(form + '\n');
+  }
+  for (const code of Object.keys(connections).sort()) {
+    hash.update(code + '\t' + connections[code]!.join(';') + '\n');
+  }
+
   cached = {
     inventory: compileInventory({
       entries: [...points.values()],
@@ -111,6 +135,7 @@ export function loadGrammar(): GrammarLibrary {
       return (byClass.get(point.meaningClass) ?? []).filter((p) => p.id !== id);
     },
     size: points.size,
+    stamp: hash.digest('hex').slice(0, 16),
   };
   return cached;
 }

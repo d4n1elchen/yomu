@@ -27,6 +27,8 @@ export interface GrammarCard {
 }
 
 export interface GrammarReply {
+  /** Served from the per-sentence cache rather than asked just now. */
+  cached: boolean;
   /** The sentence revision the spans were found against -- the anchor. */
   revision: number;
   points: GrammarCard[];
@@ -38,6 +40,9 @@ type State =
   | { status: 'ready'; reply: GrammarReply }
   | { status: 'failed' };
 
+/** The state, and 重新分析: ask the model again past the cache. */
+export type SentenceGrammar = State & { reanalyse: () => void };
+
 /**
  * Asks what grammar is in a sentence, as soon as the card opens.
  *
@@ -47,8 +52,11 @@ type State =
  * Waiting for the question would put the whole delay in front of an answer
  * that has its own.
  */
-export function useSentenceGrammar(sentenceId: string): State {
+export function useSentenceGrammar(sentenceId: string): SentenceGrammar {
   const [state, setState] = useState<State>({ status: 'loading' });
+  // Counts 重新分析 presses. Zero is an ordinary open, which the server may
+  // answer from its cache; anything after that asks the model again.
+  const [fresh, setFresh] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -59,7 +67,7 @@ export function useSentenceGrammar(sentenceId: string): State {
         const response = await fetch('/api/grammar', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ sentenceId }),
+          body: JSON.stringify({ sentenceId, fresh: fresh > 0 }),
           signal: controller.signal,
         });
         if (!response.ok) {
@@ -75,9 +83,9 @@ export function useSentenceGrammar(sentenceId: string): State {
     })();
 
     return () => controller.abort();
-  }, [sentenceId]);
+  }, [sentenceId, fresh]);
 
-  return state;
+  return { ...state, reanalyse: () => setFresh((n) => n + 1) };
 }
 
 /**
@@ -96,7 +104,7 @@ export function GrammarBubble({
   dismissed,
   onDismiss,
 }: {
-  state: State;
+  state: SentenceGrammar;
   sentence: string;
   sentenceId: string;
   /** Held by the dialog, which leaves these out of what a question sends. */
@@ -120,10 +128,19 @@ export function GrammarBubble({
   // A failure says so rather than showing an empty list: "no grammar here" and
   // "the model did not answer" are different facts, and only one of them is
   // about the sentence.
+  // Once cached, a wrong answer would stay wrong: this is the way past it. Set
+  // as faint text, like the dismiss link -- it is rarely wanted.
+  const redo = (label: string) => (
+    <button type="button" className="grammar-redo" onClick={state.reanalyse}>
+      {label}
+    </button>
+  );
+
   if (state.status === 'failed') {
     return (
       <p className="bubble assistant grammar-bubble">
         <span className="grammar-quiet">暫時找不到句型（模型沒有回應）。</span>
+        {redo('重試')}
       </p>
     );
   }
@@ -137,6 +154,7 @@ export function GrammarBubble({
     return (
       <p className="bubble assistant grammar-bubble">
         <span className="grammar-quiet">這一句沒有可收錄的句型。</span>
+        {redo('重新分析')}
       </p>
     );
   }
@@ -329,6 +347,8 @@ export function GrammarBubble({
           </ul>
         </div>
       ) : null}
+
+      <div className="grammar-foot">{redo('重新分析')}</div>
     </div>
   );
 }

@@ -162,7 +162,8 @@ export function AskDialog({
           dismissed={dismissed}
           onDismiss={(pointId) => setDismissed((all) => new Set(all).add(pointId))}
         />
-        {!analysing ? (
+        {/* Still there during a 重新分析 once the conversation has started. */}
+        {!analysing || turns.length > 0 ? (
           <p className="bubble assistant">
             想知道這一句的什麼呢？可以直接問，或從下面選一個。
           </p>

@@ -56,6 +56,10 @@ built") has the design and the measurements.
   rejoins afterwards; a test holds this.
 - **A kept point's id must come from the inventory.** `keepGrammarPoint`
   refuses anything else, which is what stops a model-named entry getting in.
+- **`grammar_analysis` is a cache, never a record.** It holds what the card
+  last found in a sentence so reopening is instant; deleting every row loses
+  nothing. Keep names and glosses out of it (they are joined in when read), and
+  never let it feed `user_grammar_state` or `grammar_occurrence`.
 - **Reviewed glosses live in `src/lib/grammar/reviewed-glosses.json`**, applied
   last by the import. Correct a gloss there, not in the database, or the next
   import undoes it.

@@ -553,6 +553,37 @@ export const grammarOccurrences = sqliteTable(
 );
 
 /**
+ * What the grammar card last found in a sentence -- a cache, not a record.
+ *
+ * Identification costs about 8.5 s of the one model, and the card waits for it
+ * before taking a question, so reopening a sentence should not pay it again. It
+ * also keeps the cards from changing between two opens of the same sentence.
+ *
+ * Only ids and spans are stored. Names and glosses are joined in when read, so
+ * a corrected gloss shows at once; whether a point is kept is read from the
+ * library each time; a dismissal is still never remembered. A row is used only
+ * while both `sentenceRevision` and `version` still match -- `version`
+ * fingerprints the model, the prompt, the matcher and the imported inventory
+ * (`src/lib/grammar/cache.ts`), so changing any of them re-analyses on the next
+ * open rather than serving an answer to a different question. Nothing here is
+ * ever filed: adding a card writes `grammar_occurrence`, as before.
+ */
+export const grammarAnalyses = sqliteTable('grammar_analysis', {
+  sentenceId: text('sentence_id')
+    .primaryKey()
+    .references(() => sentences.id, { onDelete: 'cascade' }),
+  sentenceRevision: integer('sentence_revision').notNull(),
+  version: text('version').notNull(),
+  /** JSON: `{ pointId, charStart, charEnd, surface }[]`, in sentence order. */
+  points: text('points').notNull(),
+  /** JSON: `{ form, name }[]` -- the 其他句型 the model named. */
+  others: text('others').notNull(),
+  analysedAt: integer('analysed_at')
+    .notNull()
+    .default(sql`(unixepoch())`),
+});
+
+/**
  * Names you confirmed while reading a work -- 人名 -- which the analyzer then
  * treats as one word throughout that work.
  *

@@ -939,7 +939,8 @@ offers, capping recall at 83%, and of the points it may offer it finds 111 of
 119 — 93%. The evaluation asks the whole sentence, as the card does; scoring
 one span at a time measured a request the app never makes and read 74%.
 
-Identification takes about 8.5 s for a sentence and starts when the card opens.
+Identification takes about 8.5 s for a sentence and starts when the card opens;
+reopening a sentence reads the cached answer in about 10 ms.
 About 1.4 cards per sentence; one in six offers nothing.
 
 ### Decided while building
@@ -959,6 +960,13 @@ About 1.4 cards per sentence; one in six offers nothing.
   one is wrong. The first answer tried disagreed with a card: ～ようにする glossed
   as 經過考慮後做出的決定, where ようにしてある is "set up so that". That is a
   gloss to review, and the answer saying so is the prompt working.
+- **Each sentence's analysis is cached** in `grammar_analysis` — ids and spans
+  only, keyed on the sentence revision and a version that fingerprints the
+  model, the prompt text, the inventory with its glosses, and `ANALYSIS_LOGIC`
+  in `src/lib/grammar/cache.ts` (bump it when the matcher or the card rules
+  change). Only a readable answer is stored; a failure is retried next open.
+  重新分析 on the bubble asks again past it. Nothing is analysed ahead of
+  reading: the cache fills with the sentences actually opened.
 - **Cards start at A2 and never cover a lone particle**, judged on the chosen
   meaning. A constant, not a setting, until there is evidence it needs tuning.
 - **這不是這個句型 dismisses the row and stores nothing.** The only write Q&A

@@ -44,9 +44,16 @@ export interface Identified {
    * model-named entry. They are the worklist for the hand-written supplement.
    */
   others: { form: string; name: string }[];
+  /**
+   * The model was asked and gave a readable reply -- the only result worth
+   * caching. False when there was nothing to ask, which is cheap to redo, and
+   * when the reply was unreadable, which must be retried rather than
+   * remembered as "no grammar here".
+   */
+  answered: boolean;
 }
 
-const NOTHING: Identified = { points: [], others: [] };
+const NOTHING: Identified = { points: [], others: [], answered: false };
 
 export interface IdentifyOptions {
   sentence: string;
@@ -160,5 +167,5 @@ export async function identifyGrammar(options: IdentifyOptions): Promise<Identif
   }
   points.sort((a, b) => a.charStart - b.charStart);
 
-  return { points, others: identification.others };
+  return { points, others: identification.others, answered: true };
 }

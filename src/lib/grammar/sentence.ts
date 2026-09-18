@@ -14,6 +14,8 @@
 import { asc, eq } from 'drizzle-orm';
 import { db } from '../../db/client.ts';
 import { lexemes, sentences, tokens } from '../../db/schema.ts';
+import { getLlmProvider } from '../llm/index.ts';
+import { analysisVersion, readAnalysis, writeAnalysis } from './cache.ts';
 import { identifyGrammar, type Identified } from './identify.ts';
 import { loadGrammar } from './load.ts';
 import { matchSentence, type MatchToken } from './match.ts';
@@ -27,14 +29,23 @@ export interface SentenceGrammar extends Identified {
    * silently pointing at the wrong characters -- the same anchor Q&A uses.
    */
   revision: number;
+  /** Served from `grammar_analysis` rather than asked of the model just now. */
+  cached: boolean;
 }
 
-const NONE = { points: [], others: [] };
+const NONE = { points: [], others: [], answered: false, cached: false };
+
+export interface GrammarInSentenceOptions {
+  signal?: AbortSignal;
+  /** Ask the model again even when a cached analysis is still valid: 重新分析. */
+  fresh?: boolean;
+}
 
 export async function grammarInSentence(
   sentenceId: string,
-  signal?: AbortSignal,
+  options: GrammarInSentenceOptions = {},
 ): Promise<SentenceGrammar> {
+  const { signal, fresh = false } = options;
   const sentence = db
     .select({ text: sentences.text, revision: sentences.revision })
     .from(sentences)
@@ -53,6 +64,15 @@ export async function grammarInSentence(
   // has not been run. The panel shows no grammar, the same way the reader hides
   // its difficulty slider when JMdict is missing rather than marking every word.
   if (grammar.size === 0) return empty;
+
+  const provider = getLlmProvider();
+  const version = analysisVersion(provider.model, grammar);
+  if (!fresh) {
+    const hit = readAnalysis(sentenceId, sentence.revision, version, grammar);
+    if (hit) {
+      return { ...hit, sentence: sentence.text, revision: sentence.revision, cached: true };
+    }
+  }
 
   const rows = db
     .select({
@@ -85,8 +105,19 @@ export async function grammarInSentence(
     sentence: sentence.text,
     matches,
     grammar,
+    provider,
     signal,
   });
+  // Only a readable answer is remembered. An unreadable one looks like "no
+  // grammar here", and caching it would keep saying so after the model recovers.
+  if (identified.answered) {
+    writeAnalysis(sentenceId, sentence.revision, version, identified);
+  }
 
-  return { ...identified, sentence: sentence.text, revision: sentence.revision };
+  return {
+    ...identified,
+    sentence: sentence.text,
+    revision: sentence.revision,
+    cached: false,
+  };
 }

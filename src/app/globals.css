@@ -1611,6 +1611,25 @@ rt {
   border-top: 1px solid rgb(34 32 28 / 0.07);
 }
 
+.grammar-foot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.grammar-redo {
+  margin-left: 0.5rem;
+  padding: 0.2rem 0 0;
+  border: 0;
+  background: none;
+  font-size: 0.7rem;
+  color: var(--faint);
+  cursor: pointer;
+}
+
+.grammar-redo:hover {
+  color: var(--muted);
+}
+
 /* A row with nothing behind it: no hover, no pointer. */
 .grammar-row.static {
   cursor: default;

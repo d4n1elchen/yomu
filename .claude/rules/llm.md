@@ -51,6 +51,10 @@ neighbours. The model sees each span's candidates by their reviewed Chinese
 gloss, never つつじ's own labels: shown 過去-完了-タ類 for ～てしまう, it rejected
 obvious uses. Any id it returns that was not offered for that span is dropped.
 
+**An identification is cached per sentence** (`src/lib/grammar/cache.ts`).
+Changing the prompt, the model or the inventory invalidates it by itself; a
+change to the matcher or the card rules does not, so bump `ANALYSIS_LOGIC`.
+
 **Q&A explains the points the cards show.** The card waits for identification
 before it accepts a question, and `/api/ask` takes the shown points as ids and
 surfaces only; `resolveAskGrammar` looks up the names and glosses itself. Never

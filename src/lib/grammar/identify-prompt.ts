@@ -82,6 +82,13 @@ export const IDENTIFY_FORMAT = {
   required: ['spans', 'others'],
 } as const;
 
+/**
+ * Changes whenever the question put to the model does: the rules, or the shape
+ * of the reply. Part of the cache version, so editing the prompt re-analyses
+ * rather than serving answers to the old one.
+ */
+export const IDENTIFY_PROMPT_TEXT = `${SYSTEM}\n${JSON.stringify(IDENTIFY_FORMAT)}`;
+
 export function buildIdentifyMessages(input: IdentifyInput): LlmMessage[] {
   if (input.spans.length === 0) {
     throw new Error('At least one span is required to identify.');
