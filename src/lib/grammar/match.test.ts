@@ -21,6 +21,7 @@ const INVENTORY: GrammarInventory = {
     { id: '0732', base: 'ために', difficulty: 'A2', meaningClass: 'N1' },
     { id: '1871', base: 'ようにする', difficulty: 'A2', meaningClass: 'G2' },
     { id: '0251', base: 'にして', difficulty: 'F', meaningClass: 'd1' },
+    { id: '0011', base: 'にとって', difficulty: 'A2', meaningClass: 'a21' },
   ],
   patterns: [
     // ～ている, the ～てい a following た leaves behind, and both again voiced
@@ -39,7 +40,11 @@ const INVENTORY: GrammarInventory = {
     { entryId: '0731', units: ['ため', 'に'], left: 'b690', right: '6P90' },
     { entryId: '0732', units: ['ため', 'に'], left: 'b690', right: '6P90' },
     { entryId: '1871', units: ['よう', 'に', 'し'], left: 'd190', right: '2g90' },
+    { entryId: '1871', units: ['よう', 'に', 'する'], left: 'd190', right: '2A90' },
     { entryId: '0251', units: ['に', 'し', 'て'], left: '1090', right: '6H90' },
+    // Written in ChaSen-sized units, as つつじ has it; IPADIC keeps にとって
+    // whole, which is the case this fixture exists to cover.
+    { entryId: '0011', units: ['に', 'とっ', 'て'], left: '1090', right: '6H90' },
   ],
   connections: {
     // Verb stems a て-form attaches to, and the ordinary-noun class.
@@ -56,7 +61,9 @@ const INVENTORY: GrammarInventory = {
     b1: ['動詞,*,*,*,*,基本形,*', '名詞,*,*,*,*,*,*'],
     b3: ['動詞,*,*,*,*,基本形,*'],
     b6: ['動詞,*,*,*,*,基本形,*', '名詞,*,*,*,*,*,*', '助動詞,*,*,*,*,体言接続,*'],
-    d1: ['動詞,*,*,*,*,基本形,*', '助動詞,*,*,*,*,基本形,*'],
+    // As つつじ writes it: verbs only. The negative ない that kuromoji tags
+    // 助動詞 is admitted by the matcher's relaxation, not by this row.
+    d1: ['動詞,*,*,*,*,基本形,*'],
   },
 };
 
@@ -155,4 +162,24 @@ test('sharing a joint is not licence to overlap further', async () => {
     hits.map((h) => h.ids.join()),
     ['1751'],
   );
+});
+
+test('a form matches even where the analyzer keeps it whole', async () => {
+  // つつじ writes に.とっ.て; IPADIC has にとって as one 連語 token. Comparing
+  // unit against token missed every compound the analyzer lexicalizes, which
+  // is most of the common ones -- it found nothing at all in
+  // 家で孤独だった私にとって…, a sentence whose point is exactly this.
+  const hits = await match('私にとって大切な人だ。');
+  assert.deepEqual(
+    hits.map((h) => ({ ids: h.ids.join(), text: h.text })),
+    [{ ids: '0011', text: 'にとって' }],
+  );
+});
+
+test('a form attaching to a verb also attaches after the negative ない', async () => {
+  // つつじ's class for what precedes ～ようにする admits 動詞 in 基本形, but
+  // kuromoji tags the negative ない 助動詞. Without the relaxation, every
+  // ～ないようにする in the language was invisible.
+  const hits = await match('目立たないようにする。');
+  assert.equal(hits[0]?.ids.join(), '1871');
 });

@@ -77,10 +77,16 @@ function classOf(code: string): string {
 export interface CompiledInventory {
   entry(id: string): GrammarEntry | undefined;
   /**
-   * Every form beginning with this surface. Matching walks the token stream and
-   * asks this once per token, rather than scanning 16,801 forms.
+   * Every form whose text begins with this character. Matching walks the token
+   * stream and asks this once per token, rather than scanning 16,801 forms.
+   *
+   * Keyed on the first **character**, not the first unit, because the two
+   * dictionaries disagree about where words end. つつじ writes に.とっ.て in
+   * ChaSen-sized units; IPADIC has にとって as one token, and matching unit
+   * against token missed every compound the analyzer happens to lexicalize --
+   * which is most of the commonest ones.
    */
-  startingWith(surface: string): readonly GrammarPattern[];
+  startingWith(character: string): readonly GrammarPattern[];
   /** Whether a token satisfies a connection code. */
   accepts(code: string | null, token: FeatureToken): boolean;
 }
@@ -109,6 +115,30 @@ function fieldsOf(token: FeatureToken): string[] {
     token.features.conjugatedForm,
     token.lemma,
   ];
+}
+
+/**
+ * A verb row also admits an auxiliary or adjective in the same form.
+ *
+ * つつじ's connection classes were written against a different build of the
+ * IPADIC tagset, and the two disagree about one thing that matters constantly:
+ * the negative ない. kuromoji tags it 助動詞; the class that says what may come
+ * before ～ようにする (`d1`) admits only 動詞 in 基本形. So every
+ * ～ないようにする was rejected -- 悪目立ちしないようにしている offered no
+ * ～ようにする at all -- and so was everything else after a negative.
+ *
+ * Only rows that constrain nothing but "a verb, in this form" are relaxed. A row
+ * naming a conjugation type (一段, 五段・サ行) is about the verb's own shape and
+ * keeps its meaning. The model still judges what comes out; this only lets the
+ * right candidate reach it.
+ */
+function predicateMatch(row: string[], fields: string[]): boolean {
+  const [pos, d1, d2, d3, type, form, base] = row;
+  if (pos !== '動詞' || form === undefined || form === '*') return false;
+  if ([d1, d2, d3, type, base].some((field) => field !== undefined && field !== '*')) {
+    return false;
+  }
+  return (fields[0] === '助動詞' || fields[0] === '形容詞') && fields[5] === form;
 }
 
 /**
@@ -141,7 +171,7 @@ export function compileInventory(inventory: GrammarInventory): CompiledInventory
 
   const byFirst = new Map<string, GrammarPattern[]>();
   for (const pattern of inventory.patterns) {
-    const first = pattern.units[0];
+    const first = pattern.units[0]?.[0];
     if (first === undefined) continue;
     const list = byFirst.get(first);
     if (list) list.push(pattern);
@@ -167,8 +197,10 @@ export function compileInventory(inventory: GrammarInventory): CompiledInventory
       if (rows === undefined || rows.length === 0) return true;
 
       const fields = fieldsOf(token);
-      return rows.some((row) =>
-        row.every((want, i) => want === '*' || want === fields[i]),
+      return rows.some(
+        (row) =>
+          row.every((want, i) => want === '*' || want === fields[i]) ||
+          predicateMatch(row, fields),
       );
     },
   };

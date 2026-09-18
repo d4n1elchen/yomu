@@ -62,14 +62,15 @@ export interface IdentifyOptions {
  * Measured: with lone A1 particles in, a sentence offers 2.1 cards and 83 of
  * the 211 A1 accepts were に by itself; without them, 1.4 cards that are worth
  * reading. ている is two morphemes and stays, whatever its grade.
+ *
+ * The test is on the meaning the model **chose**, not on what was offered.
+ * Judging by the candidates let every lone に through, because one of its eight
+ * meanings (並立-対比) is graded A2 -- so the card said ～に（在…處）, an A1
+ * meaning nobody needs a card for, on the strength of a meaning it had just
+ * been rejected for.
  */
-function worthACard(match: GrammarMatch, grammar: GrammarLibrary): boolean {
-  const points = match.entryIds
-    .map((id) => grammar.point(id))
-    .filter((point): point is GrammarPoint => point !== undefined);
-  if (points.length === 0) return false;
-  if (match.end - match.start > 1) return true;
-  return points.some((point) => point.difficulty !== 'A1');
+function worthACard(match: GrammarMatch, point: GrammarPoint): boolean {
+  return match.end - match.start > 1 || point.difficulty !== 'A1';
 }
 
 /**
@@ -93,7 +94,6 @@ export async function identifyGrammar(options: IdentifyOptions): Promise<Identif
   const spans: PromptSpan[] = [];
   const offered: GrammarMatch[] = [];
   for (const match of matches) {
-    if (!worthACard(match, grammar)) continue;
     const candidates = match.entryIds
       .map((id) => grammar.point(id))
       .filter((point): point is GrammarPoint => point !== undefined)
@@ -139,10 +139,17 @@ export async function identifyGrammar(options: IdentifyOptions): Promise<Identif
   if (!identification) return NOTHING;
 
   const points: IdentifiedPoint[] = [];
+  const seen = new Set<string>();
   for (const [n, pointId] of identification.picks) {
     const match = offered[n - 1];
     const point = grammar.point(pointId);
     if (!match || !point) continue;
+    if (!worthACard(match, point)) continue;
+    // One point, one card, however often the sentence uses it: 通っている…
+    // 送迎されている is two spans of ～ている and one thing to learn. The first
+    // span is kept, because that is where the reader met it.
+    if (seen.has(pointId)) continue;
+    seen.add(pointId);
     points.push({
       pointId,
       point,

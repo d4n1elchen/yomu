@@ -84,18 +84,22 @@ export function matchSentence(
   const found = new Map<string, GrammarMatch>();
 
   for (let i = 0; i < tokens.length; i++) {
-    for (const pattern of inventory.startingWith(tokens[i]!.surface)) {
-      const end = i + pattern.units.length;
-      if (end > tokens.length) continue;
+    for (const pattern of inventory.startingWith(tokens[i]!.surface[0]!)) {
+      const written = pattern.units.join('');
 
-      let same = true;
-      for (let k = 1; k < pattern.units.length; k++) {
-        if (tokens[i + k]!.surface !== pattern.units[k]) {
-          same = false;
-          break;
-        }
+      // The two dictionaries cut words in different places -- つつじ writes
+      // に.とっ.て, IPADIC has にとって whole -- so the form is compared against
+      // the run of surfaces rather than unit against token. The run must come
+      // out exactly: a form may cover several tokens or sit inside one, but it
+      // may never end halfway through a token, because the span has to be
+      // something the reader can be shown.
+      let end = i;
+      let run = '';
+      while (end < tokens.length && run.length < written.length) {
+        run += tokens[end]!.surface;
+        end += 1;
       }
-      if (!same) continue;
+      if (run !== written) continue;
 
       // `left` describes the token before the form. At the start of a sentence
       // there is none, and only a form that constrains nothing may match there:
@@ -104,7 +108,14 @@ export function matchSentence(
       if (before ? !inventory.accepts(pattern.left, before) : !inventory.accepts(pattern.left, START)) {
         continue;
       }
-      if (!inventory.accepts(pattern.right, tokens[end - 1]!)) continue;
+      // `right` constrains the form's last unit, which only exists as a token
+      // when the analyzer cut the form the same way つつじ does. Where it
+      // merged them -- にとって as one 連語 -- there is nothing to test, and
+      // testing the merged token instead would reject the form for not being
+      // its own last morpheme.
+      const last = tokens[end - 1]!;
+      const cut = last.surface === pattern.units.at(-1);
+      if (cut && !inventory.accepts(pattern.right, last)) continue;
 
       const key = `${i}-${end}`;
       const match = found.get(key);
