@@ -2240,3 +2240,120 @@ button.link.danger {
 .grammar-release {
   margin: 1.5rem 0 0;
 }
+
+/* --- review --- */
+
+.review-card {
+  margin: 1rem 0 2rem;
+  padding: 1.25rem 1.25rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+/* The sentence is the question's ground, set as the reader sets text. */
+.review-sentence {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1.15rem;
+  line-height: 2;
+}
+
+.review-sentence mark {
+  padding: 0 0.05em;
+  background: linear-gradient(transparent 62%, var(--accent-soft) 62%);
+  color: inherit;
+}
+
+.review-source {
+  margin: 0.3rem 0 1rem;
+  font-size: 0.75rem;
+}
+
+.review-source a {
+  color: var(--faint);
+  text-decoration: none;
+}
+
+.review-prompt {
+  margin: 0 0 0.6rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.review-prompt span[lang='ja'] {
+  font-family: var(--serif);
+  color: var(--ink);
+}
+
+.review-choices {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Whole-width targets: this is answered with a thumb as often as a mouse. */
+.review-choice {
+  width: 100%;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.review-choice:hover:not(:disabled) {
+  border-color: var(--accent);
+  opacity: 1;
+}
+
+/* Disabled once answered, but still legible: the answers are the lesson. */
+.review-choice:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.review-choice.right {
+  border-color: #3d7a4a;
+  background: #eef5ef;
+}
+
+.review-choice.wrong {
+  border-color: #b3261e;
+  background: #fbeeed;
+}
+
+.review-choice.dim {
+  color: var(--faint);
+}
+
+.review-after {
+  margin-top: 1rem;
+}
+
+.review-verdict {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+}
+
+.review-verdict.right {
+  color: #3d7a4a;
+}
+
+.review-verdict.wrong {
+  color: #b3261e;
+}
+
+.review-next {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.85rem;
+}
